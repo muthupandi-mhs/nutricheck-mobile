@@ -372,3 +372,55 @@ export class OfflineError extends Error {
     this.name = 'OfflineError';
   }
 }
+
+// ── insights ─────────────────────────────────────────────────────────────────
+
+/**
+ * One nutrient of a meal, measured against the day's target.
+ *
+ * `amount` is null when NOTHING in the meal measured it — distinct from a
+ * measured zero, which is a real reading. Eggs genuinely contain no fibre; a
+ * curated dish may simply never have been measured for it, and saying "0 g"
+ * about the second is a claim nobody made.
+ */
+export type MacroShare = {
+  amount: number | null;
+  target: number | null;
+  percentOfTarget: number | null;
+  /** Items in this meal with no measurement for this nutrient. */
+  unmeasuredItems: number;
+};
+
+export type MealFacts = {
+  meal: MealSlot;
+  date: string;
+  entryCount: number;
+  kcal: MacroShare;
+  proteinG: MacroShare;
+  carbsG: MacroShare;
+  fatG: MacroShare;
+  fiberG: MacroShare;
+  /** Left for the whole day, not this meal. Negative when the target is passed. */
+  remaining: {
+    kcal: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatG: number | null;
+    fiberG: number | null;
+  };
+};
+
+/**
+ * The note under a meal card.
+ *
+ * `text` is EMPTY whenever the model was unavailable, refused, or the meal is
+ * empty — never an error. `facts` is always complete, so the card renders the
+ * numbers and simply says less. Treat the empty string as "no note", not as a
+ * failure to retry.
+ */
+export type MealInsight = {
+  facts: MealFacts;
+  text: string;
+  cached: boolean;
+  model: string | null;
+};

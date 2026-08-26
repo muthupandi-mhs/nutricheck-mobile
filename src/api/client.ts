@@ -9,6 +9,7 @@ import type {
   Goal,
   LoginRequest,
   LogEntry,
+  MealInsight,
   MealSlot,
   RegisterRequest,
   ResolveDraft,
@@ -70,6 +71,16 @@ export interface NutriCheckApi {
   getGoal(): Promise<Goal>;
   /** POST /v1/me/goals — a user override. Append-only; effectiveFrom decides history. */
   setGoal(patch: SetGoal): Promise<Goal>;
+
+  // insights ────────────────────────────────────────────────────────────────
+  /**
+   * GET /v1/insights/meal?date=&meal=&tz=
+   *
+   * A sentence or two about one logged meal. Never throws for a missing note:
+   * an unreachable model returns empty `text` with the facts intact, because a
+   * missing sentence must not look like a failed log.
+   */
+  getMealInsight(date: string, meal: MealSlot): Promise<MealInsight>;
 
   // the day ─────────────────────────────────────────────────────────────────
   /**

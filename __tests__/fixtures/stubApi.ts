@@ -294,6 +294,30 @@ export function createStubApi(): NutriCheckApi {
         quantitySource: 'food_portion',
       },
     ],
+    /**
+     * A note with plausible numbers and no prose.
+     *
+     * Empty `text` is the shape a real server returns whenever the model is
+     * unavailable, so this is the honest default for a render fixture — and it
+     * exercises the branch where the card shows facts and stays quiet.
+     */
+    getMealInsight: async (date, meal) => ({
+      facts: {
+        meal,
+        date,
+        entryCount: 1,
+        kcal: { amount: 236, target: 1700, percentOfTarget: 14, unmeasuredItems: 0 },
+        proteinG: { amount: 37.5, target: 145, percentOfTarget: 26, unmeasuredItems: 0 },
+        carbsG: { amount: 18, target: 145, percentOfTarget: 12, unmeasuredItems: 0 },
+        fatG: { amount: 9, target: 60, percentOfTarget: 15, unmeasuredItems: 0 },
+        fiberG: { amount: null, target: 35, percentOfTarget: null, unmeasuredItems: 1 },
+        remaining: { kcal: 1464, proteinG: 107.5, carbsG: 127, fatG: 51, fiberG: 35 },
+      },
+      text: '',
+      cached: false,
+      model: null,
+    }),
+
     getPhrases: async (): Promise<RecentPhrase[]> => [
       {
         id: 'phrase-1',

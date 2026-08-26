@@ -31,7 +31,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
  */
 export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
   const { c, space } = useTheme();
-  const { day, goal, loading, recents, pending, toast, refresh, logTile, undoToast, dismissToast, retryPending } =
+  const { day, date, goal, loading, recents, pending, toast, refresh, logTile, undoToast, dismissToast, retryPending } =
     useAppState();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -222,6 +222,7 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
                     key={meal}
                     meal={meal}
                     entries={(day?.entries ?? []).filter(e => e.meal === meal)}
+                    date={date}
                     onOpenEntry={entry => navigation.navigate('EntryDetail', { entryId: entry.id })}
                   />
                 ))}

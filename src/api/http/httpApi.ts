@@ -14,6 +14,9 @@ import {
   type LoginRequest,
   type LogEntry,
   type QuantityType,
+  type MealFacts,
+  type MealInsight,
+  type MealSlot,
   type RegisterRequest,
   type ResolveDraft,
   type ResolveSource,
@@ -188,6 +191,25 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
     /** `POST /v1/me/goals` — append-only, never a PUT. */
     setGoal(patch: SetGoal) {
       return transport.request<Goal>('/v1/me/goals', { method: 'POST', body: patch });
+    },
+
+    /**
+     * `GET /v1/insights/meal?date=&meal=&tz=`.
+     *
+     * Never rejects for a missing note. The server already degrades to empty
+     * `text` with complete `facts` when the model is unavailable; this catches
+     * the remaining case — the request itself failing — and returns the same
+     * shape, because a meal card must not show an error for a sentence that is
+     * decoration over numbers the card already has.
+     */
+    async getMealInsight(date: string, meal: MealSlot): Promise<MealInsight> {
+      try {
+        return await transport.request<MealInsight>('/v1/insights/meal', {
+          query: { date, meal, tz },
+        });
+      } catch {
+        return { facts: emptyFacts(date, meal), text: '', cached: false, model: null };
+      }
     },
 
     // ── the day ──────────────────────────────────────────────────────────────
@@ -564,4 +586,26 @@ function localDate(timeZone: string): string {
   } catch {
     return new Date().toISOString().slice(0, 10);
   }
+}
+
+/**
+ * A note-shaped nothing, for when the request itself failed.
+ *
+ * Every share is null rather than zero: the card must render "—" and not a
+ * confident zero it has no basis for. This is the one place in the client that
+ * fabricates a MealFacts, and it fabricates only absences.
+ */
+function emptyFacts(date: string, meal: MealSlot): MealFacts {
+  const none = { amount: null, target: null, percentOfTarget: null, unmeasuredItems: 0 };
+  return {
+    meal,
+    date,
+    entryCount: 0,
+    kcal: none,
+    proteinG: none,
+    carbsG: none,
+    fatG: none,
+    fiberG: none,
+    remaining: { kcal: null, proteinG: null, carbsG: null, fatG: null, fiberG: null },
+  };
 }

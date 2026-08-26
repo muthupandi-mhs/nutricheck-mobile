@@ -5,6 +5,7 @@ import { Card } from '../../components/Card';
 import { FoodGlyph } from '../../components/FoodGlyph';
 import { Icon } from '../../components/Icon';
 import { Divider, Row, Split, Stack } from '../../components/Layout';
+import { MealInsight } from './MealInsight';
 import { Press } from '../../components/Press';
 import { Txt } from '../../components/Text';
 import { grams, kcal } from '../../lib/format';
@@ -26,10 +27,12 @@ const TITLES: Record<MealSlot, string> = {
 export function MealCard({
   meal,
   entries,
+  date,
   onOpenEntry,
 }: {
   meal: MealSlot;
   entries: LogEntry[];
+  date: string;
   onOpenEntry: (entry: LogEntry) => void;
 }) {
   const { c, space } = useTheme();
@@ -90,6 +93,9 @@ export function MealCard({
           </Press>
         </View>
       ))}
+
+      <Divider />
+      <MealInsight meal={meal} date={date} kcalOfMeal={total} />
 
       <View style={{ height: space.sm }} />
     </Card>
