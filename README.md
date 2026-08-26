@@ -1,97 +1,119 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# NutriCheck — mobile
 
-# Getting Started
+React Native client for the tracker. Every screen in the M1/M2 inventory of
+[../docs/USER-FLOWS.md](../docs/USER-FLOWS.md), built against the design system in
+[../design/](../design/) and a mock backend that behaves like the real one.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Run it
 
-## Step 1: Start Metro
-
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
-
-To start the Metro dev server, run the following command from the root of your React Native project:
-
-```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+```bash
+npm install
+npm start            # Metro
+npm run android      # or: npm run ios
 ```
 
-## Step 2: Build and run your app
+`react-native-screens` and `react-native-svg` are native modules, so the first run
+after pulling these changes needs a rebuild, not just a Metro restart. On iOS,
+`cd ios && pod install` first.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+```bash
+npm run check        # typecheck + lint + tests
 ```
 
-### iOS
+## The backend seam
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+Screens talk to one interface — `NutriCheckApi` in
+[src/api/client.ts](src/api/client.ts) — and to nothing else. No screen calls
+`fetch`, and no screen imports a fixture.
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+Swapping in the real service is one line in [src/App.tsx](src/App.tsx):
 
-```sh
-bundle install
+```ts
+const api = useMemo(() => createHttpApi(BASE_URL, getToken), []);
 ```
 
-Then, and every time you update your native dependencies, run:
+Every shape crossing that boundary is already the wire shape from
+[../nutricheck-api/packages/contracts/](../nutricheck-api/packages/contracts/). They
+are mirrored by hand in [src/api/types.ts](src/api/types.ts) only because this
+project still has its own git repo — once the two share a workspace, that file is
+deleted and replaced by a re-export.
 
-```sh
-bundle exec pod install
+### The mock is not a stub
+
+[src/api/mock/](src/api/mock/) holds real state. A commit lands, undo removes it,
+a portion correction trains `user_portions` and the *next* parse of the same word
+gets it right. That is deliberate: a fixture that returns the same canned day
+forever cannot tell you whether the interaction design survives a session.
+
+`src/api/mock/resolver.ts` stands in for `POST /v1/resolve`. It is not a model,
+but it produces the same distribution of shapes — exact masses, counts, standard
+measures, learned and unlearned personal units, ambiguous head nouns, and words
+that match nothing — so every branch of the confirm sheet is reachable from
+something you can type.
+
+### Auth
+
+Email and password only, following
+[`contracts/src/auth.ts`](../nutricheck-api/packages/contracts/src/auth.ts). Apple
+and Google are in the `auth_provider` enum but not in this build, so the sign-in
+screen does not offer buttons the backend cannot honour. Password rules are
+length-only, per NIST SP 800-63B — a composition rule measurably reduces entropy
+by pushing everyone to `Password1!`.
+
+The mock ships one account: `demo@nutricheck.app` / `correcthorse`. Registering
+anything else drops you into onboarding, which is the flow worth exercising.
+
+### Seeing the failure paths
+
+Settings → **Developer — mock backend** switches the scenarios in
+[src/api/mock/scenarios.ts](src/api/mock/scenarios.ts) at runtime: offline,
+resolver timeout, unparseable phrase, quota exhausted, empty search, first run.
+
+Every row of USER-FLOWS §8 is a screen somebody has to review. If the only way to
+see the offline state is to turn off wi-fi at the right moment, it does not get
+reviewed.
+
+## Layout
+
+```
+src/
+  theme/        tokens transcribed from design/*.dc.html; light and dark
+  lib/          nutrient arithmetic, formatting, target derivation
+  api/          the NutriCheckApi seam, wire types, and the mock behind it
+  components/   the design system — type roles, rules, chips, ring, sheet
+  navigation/   one stack, no tab bar
+  state/        the day store: commits, undo, and the offline queue
+  screens/      onboarding · home · search · composer · confirm · entry ·
+                insights · settings
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## Three things that are not style choices
 
-```sh
-# Using npm
-npm run ios
+**The ring counts down.** "853 kcal left" answers the question someone opened the
+app with. "1,247 of 2,100" makes them do the subtraction, four times a day. Its
+stroke has butt caps, not round ones — a round cap overhangs the arc by half the
+stroke width and reads as several per cent more progress than there is.
 
-# OR using Yarn
-yarn ios
-```
+**Unknown fiber is not zero.** A food whose source carries no fiber figure is
+excluded from the numerator and counted separately, so the ring can honestly say
+"12 of 28 g, 2 items unmeasured". Coercing it to 0 g under-reports every day it
+appears in, invisibly. `Nutrients.fiberG` is null exactly when `fiberState` is
+`'unknown'`, and `format.gramsOrDash` renders an em dash for it.
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+**Nothing invents an amount.** "Some nuts" specifies nothing, so the sheet shows
+an empty, focused portion chip and waits. An unlearned personal unit — "a bowl" —
+gets a range rather than a number, because a range there is honesty and a silent
+210 g is where a wrong week starts. Both are enforced by the contract's
+invariants and covered in `__tests__/resolver.test.ts`.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Fonts
 
-## Step 3: Modify your app
+The design calls for Archivo, IBM Plex Mono and Source Serif 4. The `.ttf` files
+are not committed; until they are, each role falls back to the nearest platform
+face and the hierarchy still reads. To bundle them:
 
-Now that you have successfully run the app, let's make changes!
+1. drop the files into `src/assets/fonts/`
+2. `npx react-native-asset`
+3. set `BUNDLED = true` at the top of [src/theme/typography.ts](src/theme/typography.ts)
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+Nothing else changes.

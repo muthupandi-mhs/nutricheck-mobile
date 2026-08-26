@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import type { FoodDetail, FoodSummary, Nutrients, Quantity } from '../../api/types';
-import { PressableRow, TextAction } from '../../components/Button';
-import { Chip } from '../../components/Chip';
+import { TextButton } from '../../components/Button';
+import { Badge, Chip } from '../../components/Chip';
+import { FoodGlyph } from '../../components/FoodGlyph';
 import { Icon } from '../../components/Icon';
-import { Row, SplitRow } from '../../components/Layout';
-import { Body, Mono, Num, Title } from '../../components/Type';
+import { Row, Split, Stack } from '../../components/Layout';
+import { Press } from '../../components/Press';
+import { Txt } from '../../components/Text';
 import { DASH, grams, kcal } from '../../lib/format';
 import { useTheme } from '../../theme/ThemeProvider';
 
@@ -25,55 +27,63 @@ export type Line = {
 };
 
 /**
- * The provenance line under a portion.
- *
- * This is the sheet doing its actual job. The same "210 g" means four different
- * things depending on how it got there, and the user's willingness to accept it
- * without checking depends entirely on which one it is:
- *
- *   stated       they said it — show it plainly, no range, no hedging
- *   food_portion the food table said it — a standard measure, quietly sourced
- *   user_portion they taught us, once — "your usual", and it stays right
- *   unknown      nobody said — ask, and never fill it in on their behalf
- *
- * Showing uncertainty on a number the user supplied is noise. Hiding it on one
- * we guessed is how a wrong week starts.
+ * The food's leading word, not the phrase's last one: "grilled chicken thigh"
+ * ends in "thigh", and "Which thigh?" is not the question anybody is asking.
  */
-function Provenance({ q, grams: g }: { q: Quantity; grams: number | null }) {
+function ambiguousNoun(line: Line): string {
+  const fromFood = line.food?.name.split(/[,\s]/)[0];
+  const fromPhrase = line.matchedText.replace(/[^a-z ]/gi, '').trim().split(' ').pop();
+  return (fromFood || fromPhrase || 'this').toLowerCase();
+}
+
+/**
+ * How we came by this number. The same "210 g" means four different things:
+ *
+ *   stated        they said it — plainly, no range, no hedging
+ *   food_portion  the food table said it — a standard measure, quietly sourced
+ *   user_portion  they taught us once — "your usual"
+ *   unknown       nobody said — ask, never fill it in on their behalf
+ *
+ * Doubt about a number the user supplied is noise; hiding doubt about one we
+ * guessed is how a wrong week starts.
+ */
+function Provenance({ line }: { line: Line }) {
   const { c } = useTheme();
+  const { quantity: q, grams: g } = line;
 
   if (q.source === 'stated') {
     return (
       <Row gap={4}>
-        <Icon name="check" size={11} color={c.det} weight={3} />
-        <Mono size={10} tone="det">
+        <Icon name="check" size={12} color={c.primary} weight={2.8} />
+        <Txt role="caption" tone="primary">
           {q.type === 'count' ? 'you counted it' : 'you said it'}
-        </Mono>
+        </Txt>
       </Row>
     );
   }
   if (q.source === 'user_portion') {
     return (
       <Row gap={6}>
-        <Mono size={11} tone="ink3">
+        <Txt role="caption" tone="tertiary">
           {g !== null ? `${grams(g)} g` : DASH}
-        </Mono>
-        <Chip label="your usual" variant="est" size={10} style={{ paddingVertical: 3, paddingHorizontal: 6 }} />
+        </Txt>
+        <Badge label="your usual" tone="success" />
       </Row>
     );
   }
   if (q.source === 'food_portion') {
     return (
-      <Mono size={11} tone="ink3">
+      <Txt role="caption" tone="tertiary">
         {g !== null ? `${grams(g)} g` : DASH}
-      </Mono>
+      </Txt>
     );
   }
-  // unknown — either nothing was said, or a vessel we have not learned.
   return (
-    <Mono size={10} tone="est">
-      {q.range ? `usually ${Math.round(q.range[0])}–${Math.round(q.range[1])} g — pick one` : "you didn't say"}
-    </Mono>
+    <Txt role="caption" tone="attention">
+      {q.range
+        ? `usually ${Math.round(q.range[0])}–${Math.round(q.range[1])} g`
+        : 'you did not say how much'}
+    </Txt>
   );
 }
 
@@ -88,82 +98,81 @@ export function ConfirmRow({
   onPickCandidate: (food: FoodSummary) => void;
   onSearchInstead: () => void;
 }) {
-  const { c, space, rule } = useTheme();
+  const { c, radius, space } = useTheme();
   const [expanded, setExpanded] = useState(line.confidence === 'low');
 
   const needsPortion = line.grams === null;
   const flagged = line.confidence === 'low';
-  const fiberUnknown = line.detail?.nutrients.fiberState === 'unknown';
+  const unsure = flagged || needsPortion;
+  const fibreUnknown = line.detail?.nutrients.fiberState === 'unknown';
 
-  const portions = line.detail?.portions ?? [];
-  const quickPortions = portions.slice(0, 3);
+  const portions = (line.detail?.portions ?? []).slice(0, 3);
 
   /** The vessel word from the phrase, if there was one — "a bowl" → "bowl". */
-  const vessel = line.quantity.type === 'personal_unit' ? line.quantity.raw.replace(/^(a|an|\d+)\s+/, '').replace(/s$/, '') : null;
+  const vessel =
+    line.quantity.type === 'personal_unit'
+      ? line.quantity.raw.replace(/^(a|an|\d+)\s+/, '').replace(/s$/, '')
+      : null;
 
   return (
     <View
-      style={
-        flagged || needsPortion
-          ? {
-              backgroundColor: c.estBg,
-              borderLeftWidth: rule.edge,
-              borderLeftColor: c.est,
-              borderBottomWidth: 1,
-              borderBottomColor: c.rule,
-              marginHorizontal: -space.gutter,
-              paddingHorizontal: space.gutter,
-              paddingTop: 15,
-              paddingBottom: 14,
-            }
-          : { borderBottomWidth: 1, borderBottomColor: c.rule, paddingTop: 15, paddingBottom: 14 }
-      }>
+      style={{
+        backgroundColor: unsure ? c.attentionSoft : c.surface,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: unsure ? 'transparent' : c.border,
+        padding: space.lg,
+        gap: space.md,
+      }}>
       {flagged && (
-        <Row gap={6} style={{ paddingBottom: 9 }}>
-          <Icon name="alert" size={12} color={c.est} weight={2.3} />
-          <Mono size={10} tone="est" style={{ letterSpacing: 0.9 }}>
-            {`WHICH ${line.matchedText.replace(/[^a-z ]/gi, '').trim().split(' ').pop()?.toUpperCase()}? — PICK ONE`}
-          </Mono>
+        <Row gap={6}>
+          <Icon name="alert" size={14} color={c.attention} weight={2.1} />
+          {/* One interpolated string, not three children: a split Text node is
+              announced as three separate fragments by a screen reader. */}
+          <Txt role="labelSm" tone="attention">{`Which ${ambiguousNoun(line)}?`}</Txt>
         </Row>
       )}
 
       <Row gap={space.md} align="flex-start">
-        <View style={{ flexGrow: 1, flexShrink: 1, gap: 7 }}>
-          <Title size={16} weight="700">
-            {line.food?.name ?? line.matchedText}
-          </Title>
+        <FoodGlyph
+          name={line.food?.name ?? line.matchedText}
+          seed={line.food?.id ?? line.itemId}
+          size={44}
+        />
 
-          <Row gap={7} wrap>
+        <Stack gap={7} style={{ flexGrow: 1, flexShrink: 1 }}>
+          <Txt role="h3" numberOfLines={2}>
+            {line.food?.name ?? line.matchedText}
+          </Txt>
+
+          <Row gap={space.sm} wrap>
             {needsPortion ? (
-              <Chip label="How much?" variant="empty" onPress={() => setExpanded(true)} accessibilityLabel="Set a portion" />
+              <Chip label="How much?" variant="ask" onPress={() => setExpanded(true)} accessibilityLabel="Set a portion" />
             ) : (
               <Chip
                 label={line.quantity.raw}
-                variant={line.quantity.source === 'user_portion' ? 'est' : 'plain'}
+                variant={line.quantity.source === 'user_portion' ? 'attention' : 'default'}
                 onPress={() => setExpanded(e => !e)}
                 accessibilityLabel={`Portion: ${line.quantity.raw}. Tap to change.`}
               />
             )}
-            <Provenance q={line.quantity} grams={line.grams} />
+            <Provenance line={line} />
           </Row>
 
-          {/* Portion options: household units first, grams behind them. */}
           {(needsPortion || expanded) && portions.length > 0 && (
-            <Row gap={6} wrap style={{ paddingTop: 1 }}>
-              {quickPortions.map(p => (
+            <Row gap={space.sm} wrap>
+              {portions.map(p => (
                 <Chip
                   key={p.label}
                   label={p.label}
-                  size={11}
-                  variant={line.grams === p.grams ? 'selected' : 'plain'}
+                  variant={line.grams === p.grams ? 'selected' : 'default'}
                   onPress={() => onPickPortion(p.grams, p.label, Boolean(vessel))}
                   accessibilityLabel={`${p.label}, ${grams(p.grams)} grams`}
                 />
               ))}
               {vessel && line.quantity.range && (
                 <Chip
-                  label={`a ${vessel} ≈ ${Math.round((line.quantity.range[0] + line.quantity.range[1]) / 2)} g`}
-                  size={11}
+                  label={`my ${vessel} ≈ ${Math.round((line.quantity.range[0] + line.quantity.range[1]) / 2)} g`}
                   onPress={() =>
                     onPickPortion(
                       Math.round((line.quantity.range![0] + line.quantity.range![1]) / 2),
@@ -178,76 +187,83 @@ export function ConfirmRow({
           )}
 
           {vessel && line.quantity.source === 'unknown' && (
-            <Mono size={10} tone="ink3">
+            <Txt role="caption" tone="secondary">
               Set it once and we will remember what your {vessel} holds.
-            </Mono>
+            </Txt>
           )}
 
           {line.nutrients && (
-            <Mono size={10.5} tone="ink3">
-              P {grams(line.nutrients.proteinG)} g ·{' '}
-              {fiberUnknown ? (
-                <>
-                  Fiber <Mono size={10.5} tone="est">{DASH}</Mono> not in the source data
-                </>
+            <Row gap={space.sm} wrap>
+              <Txt role="caption" tone="tertiary">
+                P {grams(line.nutrients.proteinG)} g
+              </Txt>
+              {fibreUnknown ? (
+                <Txt role="caption" tone="attention">
+                  Fibre {DASH} not in the source data
+                </Txt>
               ) : (
-                `F ${grams(line.nutrients.fiberG ?? 0)} g`
+                <Txt role="caption" tone="tertiary">
+                  F {grams(line.nutrients.fiberG ?? 0)} g
+                </Txt>
               )}
-            </Mono>
+            </Row>
           )}
-        </View>
+        </Stack>
 
-        <View style={{ alignItems: 'flex-end' }}>
-          <Num size={17} weight="600" tone={line.nutrients ? 'ink' : 'ink3'}>
+        <Stack gap={0} align="flex-end">
+          <Txt role="h2" numeric tone={line.nutrients ? 'ink' : 'tertiary'}>
             {line.nutrients ? kcal(line.nutrients.kcal) : DASH}
-          </Num>
-          <Mono size={9.5} tone="ink3">
+          </Txt>
+          <Txt role="caption" tone="tertiary">
             kcal
-          </Mono>
-        </View>
+          </Txt>
+        </Stack>
       </Row>
 
       {/* Runner-up candidates. Shipped with the draft, so this is instant. */}
       {flagged && expanded && line.candidates.length > 1 && (
-        <Row gap={7} style={{ paddingTop: 11 }} align="stretch">
+        <Row gap={space.sm} align="stretch">
           {line.candidates.slice(0, 3).map(cand => {
             const active = cand.id === line.food?.id;
             return (
-              <PressableRow
+              <Press
                 key={cand.id}
                 onPress={() => onPickCandidate(cand)}
+                haptic="select"
                 accessibilityLabel={`${cand.name}, ${Math.round(cand.kcalPer100g)} calories per 100 grams`}
                 style={{
                   flexGrow: 1,
                   flexBasis: 0,
-                  backgroundColor: c.surface,
-                  borderWidth: active ? 2 : 1,
-                  borderColor: active ? c.heavy : c.rule,
-                  paddingVertical: 8,
-                  paddingHorizontal: 9,
+                  backgroundColor: active ? c.ink : c.surface,
+                  borderRadius: radius.md,
+                  borderWidth: 1,
+                  borderColor: active ? c.ink : c.border,
+                  paddingVertical: space.md,
+                  paddingHorizontal: space.md,
                 }}>
-                <Title size={12} weight="600" numberOfLines={2}>
+                <Txt role="labelSm" numberOfLines={2} color={active ? c.canvas : c.ink}>
                   {cand.name.split(',').slice(-1)[0].trim()}
-                </Title>
-                <Mono size={9.5} tone="ink3" style={{ paddingTop: 2 }}>
-                  {kcal(cand.kcalPer100g)} /100 g
-                </Mono>
-              </PressableRow>
+                </Txt>
+                <Txt role="caption" color={active ? c.inkTertiary : c.inkTertiary} numeric>
+                  {kcal(cand.kcalPer100g)}/100 g
+                </Txt>
+              </Press>
             );
           })}
-          <PressableRow
+          <Press
             onPress={onSearchInstead}
             accessibilityLabel="Search for a different food"
             style={{
-              width: 40,
+              width: 46,
               backgroundColor: c.surface,
+              borderRadius: radius.md,
               borderWidth: 1,
-              borderColor: c.rule,
+              borderColor: c.border,
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-            <Icon name="search" size={15} color={c.ink2} weight={2} />
-          </PressableRow>
+            <Icon name="search" size={17} color={c.inkSecondary} />
+          </Press>
         </Row>
       )}
     </View>
@@ -255,36 +271,29 @@ export function ConfirmRow({
 }
 
 /**
- * A word from the phrase that matched nothing.
- *
- * It is not dropped and no row is invented for it — either would be a silent
- * lie about what was logged. It becomes a scoped search instead, which is both
- * the honest answer and the fastest way to a correct one.
+ * A word from the phrase that matched nothing. Neither dropped nor invented —
+ * either would be a silent lie about what was logged. It becomes a scoped search.
  */
 export function UnresolvedRow({ text, onSearch }: { text: string; onSearch: () => void }) {
-  const { c, space, rule } = useTheme();
+  const { c, radius, space } = useTheme();
   return (
     <View
       style={{
-        borderBottomWidth: 1,
-        borderBottomColor: c.rule,
-        borderLeftWidth: rule.edge,
-        borderLeftColor: c.ink3,
-        marginHorizontal: -space.gutter,
-        paddingHorizontal: space.gutter,
-        paddingVertical: 14,
+        backgroundColor: c.sunken,
+        borderRadius: radius.lg,
+        padding: space.lg,
       }}>
-      <SplitRow align="center">
-        <View style={{ flexShrink: 1, gap: 4, paddingRight: space.md }}>
-          <Mono size={10} tone="ink3" style={{ letterSpacing: 0.9 }}>
-            NO MATCH FOR
-          </Mono>
-          <Body size={15.5} style={{ fontStyle: 'italic' }}>
+      <Split gap={space.md}>
+        <Stack gap={3} style={{ flexShrink: 1 }}>
+          <Txt role="caption" tone="tertiary">
+            No match for
+          </Txt>
+          <Txt role="h3" style={{ fontStyle: 'italic' }}>
             “{text}”
-          </Body>
-        </View>
-        <TextAction label="Search" onPress={onSearch} />
-      </SplitRow>
+          </Txt>
+        </Stack>
+        <TextButton label="Search" onPress={onSearch} role="labelSm" />
+      </Split>
     </View>
   );
 }

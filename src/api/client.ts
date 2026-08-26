@@ -1,50 +1,86 @@
 import React, { createContext, useContext } from 'react';
 import type {
+  AudioMimeType,
+  AuthResponse,
   CreateCustomFood,
   DaySummary,
   FoodDetail,
   FoodSearchResult,
   Goal,
+  LoginRequest,
   LogEntry,
   MealSlot,
+  RegisterRequest,
   ResolveDraft,
   ResolveSource,
+  SessionUser,
   SetGoal,
+  TranscribeLocale,
+  TranscribeResult,
   UserProfile,
   WeekSummary,
 } from './types';
 
 /**
- * The seam between the UI and the backend.
+ * The seam between the UI and the backend. Every screen talks to this and
+ * nothing else.
  *
- * Every screen talks to this interface and nothing else — no fetch calls, no
- * fixture imports, no knowledge of where a number came from. `mockApi`
- * implements it today; `httpApi` implements it against `apps/api` when the
- * endpoints land. Swapping them is one line in `App.tsx`, and no screen
- * changes, because the shapes are already the wire shapes.
- *
- * Methods map one-to-one onto the routes in docs/BACKEND.md.
+ * The route on each method is the one the API actually serves — see
+ * docs/BACKEND.md §5.3. Eleven of these comments were once wrong in ways that
+ * would only surface as a 404 at runtime, so treat them as load-bearing: change
+ * one only alongside the route it names.
  */
 export interface NutriCheckApi {
-  // profile & goals ─────────────────────────────────────────────────────────
-  /** GET /v1/me — null before onboarding completes. */
-  getProfile(): Promise<UserProfile | null>;
-  /** PATCH /v1/me */
-  saveProfile(profile: UserProfile): Promise<UserProfile>;
+  // auth ────────────────────────────────────────────────────────────────────
+  /** POST /v1/auth/register */
+  register(input: RegisterRequest): Promise<AuthResponse>;
+  /** POST /v1/auth/login */
+  login(input: LoginRequest): Promise<AuthResponse>;
+  /** GET /v1/me — null when there is no valid session on this device. */
+  getSession(): Promise<SessionUser | null>;
+  /** POST /v1/auth/logout — revokes the refresh-token family. */
+  logout(): Promise<void>;
+
+  // dictation ───────────────────────────────────────────────────────────────
   /**
-   * POST /v1/goals/preview — derive targets without persisting them, so the
-   * targets screen can recompute live as the user edits the profile behind it.
+   * POST /v1/transcribe — the ONLY route that takes audio.
+   *
+   * Called only when on-device dictation cannot cope with the language being
+   * spoken. On-device stays the default because it is free, private and works
+   * with no network; this costs a round trip and is billed by audio duration.
+   *
+   * Returns text, never a draft. The user reads and edits it before anything
+   * reaches `/v1/resolve` — which still refuses audio with a 415.
    */
+  transcribe(input: {
+    /** Base64, no `data:` prefix. */
+    audio: string;
+    mimeType: AudioMimeType;
+    locale: TranscribeLocale;
+  }): Promise<TranscribeResult>;
+
+  // profile & goals ─────────────────────────────────────────────────────────
+  /** GET /v1/me/profile — null before onboarding completes. */
+  getProfile(): Promise<UserProfile | null>;
+  /** PUT /v1/me/profile — writes the profile and its first goal in one transaction. */
+  saveProfile(profile: UserProfile): Promise<UserProfile>;
+  /** POST /v1/me/goals/preview — derives targets without persisting, for live recompute. */
   previewGoal(profile: UserProfile): Promise<Goal>;
-  /** GET /v1/goals/current */
+  /** GET /v1/me/goals */
   getGoal(): Promise<Goal>;
-  /** PUT /v1/goals — a user override. Append-only; effectiveFrom decides history. */
+  /** POST /v1/me/goals — a user override. Append-only; effectiveFrom decides history. */
   setGoal(patch: SetGoal): Promise<Goal>;
 
   // the day ─────────────────────────────────────────────────────────────────
-  /** GET /v1/days/:date?tz= */
+  /**
+   * GET /v1/logs/day?date=&tz=
+   *
+   * No `tz` parameter here: the transport injects the device zone. The wire
+   * contract defaults it to UTC, so a caller that forgot would silently hand
+   * every user east of Greenwich someone else's day boundary.
+   */
   getDay(date: string): Promise<DaySummary>;
-  /** GET /v1/weeks/:date?tz= */
+  /** GET /v1/logs/week?date=&tz= — seven days ending on `endingOn`. */
   getWeek(endingOn: string): Promise<WeekSummary>;
 
   // search ──────────────────────────────────────────────────────────────────
@@ -52,17 +88,16 @@ export interface NutriCheckApi {
   searchFoods(q: string, signal?: AbortSignal): Promise<FoodSearchResult[]>;
   /** GET /v1/foods/:id — portions come from food_portions, user portions first. */
   getFood(id: string): Promise<FoodDetail>;
-  /** POST /v1/foods — the exit from "no database match". */
+  /** POST /v1/foods/custom — the exit from "no database match". */
   createFood(input: CreateCustomFood): Promise<FoodDetail>;
 
   // the AI route ────────────────────────────────────────────────────────────
   /**
-   * POST /v1/resolve. Returns a draft, never a log — "never auto-commit a
-   * parse" is a property of the API, not client discipline.
+   * POST /v1/resolve. Returns a draft, never a log — "never auto-commit a parse"
+   * is a property of the API, not client discipline.
    *
-   * `onParsed` fires with the items as soon as the parse lands, before the
-   * database match completes, so the sheet can fill its skeleton rows early.
-   * The real transport is SSE; the mock calls it on the same schedule.
+   * `onParsed` fires when the parse lands, before the database match completes,
+   * so the sheet can fill its skeletons early. Real transport is SSE.
    */
   resolve(
     phrase: string,
@@ -73,17 +108,33 @@ export interface NutriCheckApi {
   // committing ──────────────────────────────────────────────────────────────
   /** POST /v1/logs — idempotent on clientId, so a replayed queue is safe. */
   commit(entry: CommitDraft): Promise<LogEntry>;
+  /**
+   * POST /v1/logs/batch — drain a whole offline queue in one request.
+   *
+   * `httpApi` implements it; the optionality is for test doubles, which need
+   * only the surface a screen touches. Callers must fall back to a loop of
+   * `commit` when it is absent; both routes are idempotent on `clientId`, so
+   * the two paths differ only in round trips. Always resolves —
+   * failures are reported per element, never by throwing, so one bad entry
+   * cannot cost the user the other eleven.
+   */
+  commitBatch?(entries: CommitDraft[]): Promise<BatchCommitResult[]>;
   /** DELETE /v1/logs/:id — backs the undo toast. */
   deleteEntry(id: string): Promise<void>;
   /** PATCH /v1/logs/:id/items/:itemId — a portion edit also trains user_portions. */
   updateItemGrams(entryId: string, itemId: string, grams: number): Promise<LogEntry>;
 
   // repeat route ────────────────────────────────────────────────────────────
-  /** GET /v1/recents — foods and saved meals, blended by frequency and recency. */
+  /** GET /v1/suggestions/recents — foods and saved meals, by frequency and recency. */
   getRecents(): Promise<RecentTile[]>;
-  /** GET /v1/phrases — sentences that worked, for the composer's "say it again". */
+  /** GET /v1/suggestions/phrases — sentences that worked, for "say it again". */
   getPhrases(): Promise<RecentPhrase[]>;
 }
+
+/** One element of a drained queue. `failed` carries a problem, not an entry. */
+export type BatchCommitResult =
+  | { status: 'created' | 'duplicate'; clientId: string; entry: LogEntry }
+  | { status: 'failed'; clientId: string; problem: unknown };
 
 /** What the client hands `commit`. `clientId` is minted before the call. */
 export type CommitDraft = {
@@ -104,11 +155,7 @@ export type CommitDraft = {
   }>;
 };
 
-/**
- * One cell of the recents strip. A tile is either a single food at a remembered
- * portion or a saved meal that logs all of its items at once — both are one tap,
- * which is the whole point of the two-second route.
- */
+/** One cell of the recents strip: a food at a remembered portion, or a whole saved meal. */
 export type RecentTile =
   | {
       kind: 'food';

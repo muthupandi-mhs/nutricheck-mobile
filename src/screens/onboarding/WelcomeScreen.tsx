@@ -1,111 +1,105 @@
-import React from 'react';
-import { View } from 'react-native';
-import { PrimaryButton, TextAction } from '../../components/Button';
-import { Icon } from '../../components/Icon';
-import { Divider, Gap, Gutter, HeavyBar, Row, Spacer, SplitRow } from '../../components/Layout';
-import { Dock, Screen } from '../../components/Screen';
-import { Body, Display, Eyebrow, Mono, Num } from '../../components/Type';
+import React, { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from '../../components/Button';
+import { Gap, Gutter } from '../../components/Layout';
+import { Screen } from '../../components/Screen';
+import { Txt } from '../../components/Text';
 import { useTheme } from '../../theme/ThemeProvider';
+import { BrandField, useSheetStyle } from './BrandField';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
- * One screen, one sentence about what the app does. No carousel.
+ * Welcome. A full-bleed brand field that absorbs all spare height, and a sheet
+ * docked to the bottom edge carrying the copy and the one action.
  *
- * The demo block below the headline is the entire product argument made
- * literally: a sentence in, three numbers out. It is worth more than four
- * swipeable slides of benefit copy, and it costs the user nothing to skip.
+ * One button, and it leads to sign-in. This screen is only ever reached when
+ * there is no stored session, and sign-in is where both audiences resolve: a
+ * returning user signs in, a new one takes the "I need an account" link from
+ * there. Auth then decides the destination — onboarding if the account has no
+ * profile yet, the app itself if it has.
+ *
+ * Copy is written for a broad Indian audience, so it avoids product English:
+ * "tell", not "log" or "type" — it is the only common verb covering both the
+ * keyboard and the mic, and voice is the input nobody guesses is there.
+ *
+ * The screen never says "AI" on purpose. PLAN §2 puts the model on the words
+ * and a real food table on every number; leading with the model would sell the
+ * one part of the system the architecture refuses to stand behind.
  */
 export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
-  const { c, space } = useTheme();
+  const { space } = useTheme();
+  const insets = useSafeAreaInsets();
+  const sheet = useSheetStyle();
+
+  const enter = useRef(new Animated.Value(0)).current;
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then(v => alive && setReduced(v));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reduced) {
+      enter.setValue(1);
+      return;
+    }
+    // Starts after the field's own entrance so the copy arrives last.
+    const anim = Animated.timing(enter, {
+      toValue: 1,
+      duration: 460,
+      delay: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [enter, reduced]);
 
   return (
-    <Screen>
-      <Gutter>
-        <Eyebrow size={11} tone="ink3">
-          NUTRICHECK
-        </Eyebrow>
-        <Gap h={space.lg} />
-        <Display size={38}>Log a meal in a sentence.</Display>
-        <Gap h={space.md} />
-        <Body size={16} tone="ink2">
-          Type what you ate, the way you would say it. We work out the calories, protein and
-          fiber — and show our working.
-        </Body>
-      </Gutter>
+    // Insets are cancelled here and re-applied per zone — the field has to run
+    // under the status bar, which a screen-level top padding would prevent.
+    <Screen style={{ paddingTop: 0, paddingBottom: 0 }}>
+      <BrandField />
 
-      <Gap h={space.xl} />
-      <HeavyBar />
-
-      <Gutter style={{ paddingTop: space.xl }}>
-        <View
+      <View
+        style={[
+          sheet,
+          {
+            paddingTop: space.huge,
+            paddingBottom: Math.max(insets.bottom, space.lg) + space.lg,
+          },
+        ]}>
+        <Animated.View
           style={{
-            backgroundColor: c.surface,
-            borderWidth: 1,
-            borderColor: c.rule,
-            borderTopWidth: 3,
-            borderTopColor: c.est,
-            padding: space.lg,
+            opacity: enter,
+            transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
           }}>
-          <Eyebrow size={10} tone="ink3">
-            YOU TYPE
-          </Eyebrow>
-          <Gap h={space.sm} />
-          <Body size={18} tone="ink" style={{ fontStyle: 'italic' }}>
-            “two rotis, dal and a bowl of curd”
-          </Body>
-        </View>
+          <Gutter>
+            <Txt role="h1" style={{ fontSize: 34, lineHeight: 39 }}>
+              Tell us what you ate.
+            </Txt>
+            <Gap h={space.md} />
+            <Txt role="bodyLg" tone="secondary">
+              Say it or type it. We'll count the calories and protein for you.
+            </Txt>
+          </Gutter>
 
-        <Row gap={space.sm} style={{ paddingVertical: space.md, paddingLeft: 2 }}>
-          <Icon name="arrowRight" size={15} color={c.det} weight={2.2} />
-          <Mono size={10.5} tone="det">
-            ABOUT TWO SECONDS LATER
-          </Mono>
-        </Row>
+          <Gap h={space.xxxl} />
 
-        <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.rule, padding: space.lg }}>
-          <SplitRow>
-            {[
-              ['CALORIES', '482', ''],
-              ['PROTEIN', '21', 'g'],
-              ['FIBER', '12', 'g'],
-            ].map(([label, value, unit]) => (
-              <View key={label} style={{ gap: 3 }}>
-                <Eyebrow size={9.5} tone="ink2">
-                  {label}
-                </Eyebrow>
-                <Row gap={3} align="baseline">
-                  <Display size={26}>{value}</Display>
-                  {unit ? (
-                    <Mono size={13} tone="ink2">
-                      {unit}
-                    </Mono>
-                  ) : null}
-                </Row>
-              </View>
-            ))}
-          </SplitRow>
-        </View>
-      </Gutter>
-
-      <Spacer />
-      <Divider />
-
-      <Gutter style={{ paddingVertical: space.md }}>
-        <Row gap={space.sm}>
-          <Icon name="check" size={13} color={c.det} weight={2.8} />
-          <Num size={11.5} tone="ink2">
-            No camera, no microphone, no notifications required
-          </Num>
-        </Row>
-      </Gutter>
-
-      <Dock divided={false}>
-        <PrimaryButton label="Get started" onPress={() => navigation.navigate('SignIn')} />
-        <Gap h={space.md} />
-        <View style={{ alignItems: 'center' }}>
-          <TextAction label="I already have an account" onPress={() => navigation.navigate('SignIn')} />
-        </View>
-      </Dock>
+          <Gutter>
+            <Button
+              label="Get started"
+              onPress={() => navigation.navigate('SignIn')}
+              haptic="select"
+            />
+          </Gutter>
+        </Animated.View>
+      </View>
     </Screen>
   );
 }

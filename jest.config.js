@@ -8,6 +8,9 @@
 module.exports = {
   preset: '@react-native/jest-preset',
   setupFiles: ['<rootDir>/jest.setup.js'],
+  // Everything under `__tests__` is a suite by default, which makes the shared
+  // API stub in `fixtures/` fail as a test file containing no tests.
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/__tests__/fixtures/'],
   transformIgnorePatterns: [
     'node_modules/(?!(?:@react-native|react-native|@react-navigation|react-native-svg|react-native-screens|react-native-safe-area-context)/)',
   ],

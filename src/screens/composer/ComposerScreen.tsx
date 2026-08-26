@@ -1,17 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { PressableRow, IconButton } from '../../components/Button';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Button, IconButton, TextButton } from '../../components/Button';
+import { Card } from '../../components/Card';
+import { Notice } from '../../components/Feedback';
+import { Field } from '../../components/Field';
+import { FoodGlyph } from '../../components/FoodGlyph';
 import { Icon } from '../../components/Icon';
-import { Divider, Gap, Gutter, Hairline, HeavyBar, Row, SplitRow } from '../../components/Layout';
+import { Divider, Gap, Gutter, Row, Split, Stack } from '../../components/Layout';
+import { Press } from '../../components/Press';
 import { Screen } from '../../components/Screen';
-import { Body, Display, Eyebrow, Mono, Num, Title } from '../../components/Type';
+import { SectionLabel, Txt } from '../../components/Text';
+import { useApi } from '../../api/client';
 import { kcal } from '../../lib/format';
+import { hasMic, requestMic, SPEECH_LOCALES, useSpeech, type SpeechFailure } from '../../lib/speech';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAppState } from '../../state/AppState';
 import { MicPrimer, RecordingOverlay } from './DictationOverlay';
 import type { ScreenProps } from '../../navigation/types';
 
-/** A rough item count, purely to show the box is reading along. Not the parse. */
+/** A rough item count, purely so the box shows it is reading along. Not the parse. */
 const countItems = (s: string) =>
   s
     .toLowerCase()
@@ -19,244 +26,322 @@ const countItems = (s: string) =>
     .map(x => x.trim())
     .filter(Boolean).length;
 
-const DEMO_TRANSCRIPT = 'two rotis, dal and a bowl of curd';
+/**
+ * One entry per `SpeechFailure`. Keyed by the union rather than `string` so a
+ * new failure mode cannot be added without copy — an unlisted key reads as
+ * `undefined` here and takes the whole screen down on `.title`.
+ */
+const MIC_TROUBLE: Record<SpeechFailure, { title: string; detail: string }> = {
+  permission: {
+    title: 'The microphone is off',
+    detail: 'Turn it on for NutriCheck in your phone settings, or type what you ate instead.',
+  },
+  unavailable: {
+    title: 'Dictation is not available in this build',
+    detail: 'Typing works exactly the same — we read the sentence either way.',
+  },
+  'nothing-heard': {
+    title: 'We did not catch that',
+    detail: 'Try again a little closer to the phone, or type it.',
+  },
+  // Dictation needs the network now that the words are made on the server.
+  // Saying "try again" would be a promise this cannot keep on a plane.
+  offline: {
+    title: 'No connection',
+    detail: 'Dictation needs the network. Typing works offline, and anything you log will send itself later.',
+  },
+  failed: {
+    title: 'Dictation stopped',
+    detail: 'Your words so far are in the box. Carry on typing, or try the mic again.',
+  },
+};
 
 /**
- * The composer — one field, natural phrasing.
+ * The composer — one field, natural phrasing. No per-item rows, no quantity
+ * pickers: imposing structure on the sentence gives back the whole advantage.
  *
- * No per-item rows, no quantity pickers, no structure. The entire argument for
- * this route is that a plate with four things on it costs a sentence here and a
- * minute of tapping in search; imposing structure on the sentence gives that
- * back.
- *
- * Voice is not a separate flow. It is dictation into this same field, editable
- * before sending — which is why a garbled transcript is a typing fix rather
- * than a re-record.
+ * Voice is not a separate flow but dictation into this same field, editable
+ * before sending, so a garbled transcript is a typing fix, not a re-record.
  */
 export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
-  const { c, space, type } = useTheme();
+  const { c, space } = useTheme();
   const { phrases } = useAppState();
+  // Dictation is a server call now, so the hook needs the same seam every other
+  // screen talks through rather than reaching for a transport of its own.
+  const api = useApi();
 
-  const [text, setText] = useState(route.params?.prefill ?? '');
-  const [focused, setFocused] = useState(false);
+  const [phrase, setPhrase] = useState(route.params?.prefill ?? '');
   const [micState, setMicState] = useState<'idle' | 'priming' | 'recording'>('idle');
   const [micGranted, setMicGranted] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const input = useRef<React.ComponentRef<typeof TextInput>>(null);
-  const dictationTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [spoke, setSpoke] = useState(false);
+  /**
+   * Read inside the transcript callback, which fires from a native event and
+   * would otherwise close over whatever `phrase` was when recording began.
+   */
+  const phraseRef = useRef(phrase);
+  phraseRef.current = phrase;
 
-  useEffect(() => () => {
-    if (dictationTimer.current) clearInterval(dictationTimer.current);
-  }, []);
-
-  const startRecording = () => {
-    setMicState('recording');
-    setTranscript('');
-    // Stands in for on-device speech: words arrive incrementally, as they do
-    // from a real recogniser, so the UI is built against a streaming source.
-    let i = 0;
-    const words = DEMO_TRANSCRIPT.split(' ');
-    dictationTimer.current = setInterval(() => {
-      i += 1;
-      setTranscript(words.slice(0, i).join(' '));
-      if (i >= words.length && dictationTimer.current) clearInterval(dictationTimer.current);
-    }, 300);
-  };
-
-  const stopRecording = () => {
-    if (dictationTimer.current) clearInterval(dictationTimer.current);
+  /**
+   * The turn ends by itself, so the words arrive here rather than being awaited.
+   * Nothing in the UI asks the user to announce that they have stopped talking.
+   *
+   * Dictating goes straight on to the confirm sheet. Speaking a meal is one
+   * gesture and it should cost one screen — stopping in the composer to admire
+   * a transcript nobody asked to see made it two.
+   *
+   * This does NOT auto-commit anything (invariant #3). The confirm sheet is
+   * still the review, still shows each item against the words it came from, and
+   * still needs a deliberate tap to become a log. What it gives up is editing
+   * the sentence as text before the parse — coming back from Confirm lands here
+   * with the words intact, which is where that repair now happens.
+   */
+  const speech = useSpeech(api, heard => {
     setMicState('idle');
-    if (transcript) setText(t => (t ? `${t}, ${transcript}` : transcript));
-    setTranscript('');
+    if (!heard) return;
+    const next = phraseRef.current ? `${phraseRef.current}, ${heard}` : heard;
+    setSpoke(true);
+    setPhrase(next);
+    navigation.navigate('Confirm', { phrase: next, source: 'voice' });
+  });
+
+  // No auto-close effect any more, and no `began` guard to go with it.
+  //
+  // Both existed because the on-device recogniser ended the turn by itself at
+  // the first pause it believed, and the overlay had to follow it down. The
+  // recorder has no opinion about pauses: it runs until Done. The whole race
+  // that made the mic open and shut in one frame is gone with the recogniser
+  // that caused it.
+
+  const startRecording = async () => {
+    setMicState('recording');
+    if (!(await speech.start())) setMicState('idle');
   };
+
+  // Opened from the centre mic button: start listening without a second tap.
+  //
+  // Runs once, and only ever with permission already in hand — otherwise it
+  // shows the primer, so the OS dialog still follows an explanation rather than
+  // ambushing someone who tapped "log a meal". A `prefill` wins over this: words
+  // arrived from somewhere else and talking over them would lose them.
+  const autoStarted = useRef(false);
+
+  useEffect(() => {
+    // Wait for the stored language, or the first tap of every launch opens the
+    // English model regardless of what the user chose last time.
+    if (!route.params?.autoStart || !speech.localeReady || autoStarted.current) return;
+    autoStarted.current = true;
+    if (route.params?.prefill) return;
+
+    let alive = true;
+    void (async () => {
+      const granted = await hasMic();
+      if (!alive) return;
+      setMicGranted(granted);
+      if (granted) void startRecording();
+      else setMicState('priming');
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount, by design
+  }, [route.params?.autoStart, route.params?.prefill, speech.localeReady]);
 
   const cancelRecording = () => {
-    if (dictationTimer.current) clearInterval(dictationTimer.current);
     setMicState('idle');
-    setTranscript('');
-  };
-
-  const onMicPress = () => {
-    // Asked at the moment of use, never in a pre-flight block during onboarding.
-    if (!micGranted) setMicState('priming');
-    else startRecording();
+    speech.cancel();
   };
 
   const send = () => {
-    const phrase = text.trim();
-    if (!phrase) return;
-    navigation.navigate('Confirm', { phrase, source: micGranted && transcript ? 'voice' : 'text' });
+    const text = phrase.trim();
+    if (!text) return;
+    // `source` records how the words arrived, which the resolver logs and the
+    // eval set slices on. It has to survive the user editing the transcript.
+    navigation.navigate('Confirm', { phrase: text, source: spoke ? 'voice' : 'text' });
   };
 
-  const items = countItems(text);
+  const items = countItems(phrase);
+  const ready = phrase.trim().length > 0;
 
   return (
-    <Screen edges="top">
-      <Gutter style={{ paddingBottom: space.md }}>
-        <SplitRow>
-          <Display size={24}>What did you eat?</Display>
-          <IconButton name="close" size={20} onPress={() => navigation.goBack()} accessibilityLabel="Close" style={{ marginRight: -10 }} />
-        </SplitRow>
+    <Screen scrollable>
+      <Gutter>
+        <Split style={{ minHeight: 44 }}>
+          <Txt role="h1">What did you eat?</Txt>
+          <IconButton
+            name="close"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Close"
+            style={{ marginRight: -10 }}
+          />
+        </Split>
       </Gutter>
 
-      <HeavyBar />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={8}>
+        <Gutter style={{ paddingTop: space.lg }}>
+          <Field
+            value={phrase}
+            onChangeText={setPhrase}
+            placeholder="two rotis, dal and a bowl of curd"
+            multiline
+            minHeight={132}
+            // Arriving by mic, the keyboard would race the recording overlay up
+            // the screen and win. The field takes focus when dictation ends.
+            autoFocus={!route.params?.autoStart}
+            accessibilityHint="Write the whole meal in one sentence"
+          />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={8}>
-        <Gutter style={{ paddingTop: 18 }}>
-          <Pressable onPress={() => input.current?.focus()}>
-            <View
-              style={{
-                backgroundColor: c.surface,
-                borderWidth: 1,
-                borderColor: c.rule,
-                borderTopWidth: 3,
-                borderTopColor: focused ? c.est : c.rule,
-                paddingHorizontal: space.lg,
-                paddingTop: space.lg,
-                paddingBottom: 14,
-                minHeight: 132,
-                justifyContent: 'space-between',
-              }}>
-              <TextInput
-                ref={input}
-                value={text}
-                onChangeText={setText}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                multiline
-                autoFocus
-                placeholder="two rotis, dal and a bowl of curd"
-                placeholderTextColor={c.ink3}
-                selectionColor={c.est}
-                accessibilityLabel="What did you eat"
-                accessibilityHint="Write the whole meal in one sentence"
-                style={[type.body(19), { color: c.ink, padding: 0, minHeight: 70, textAlignVertical: 'top' }]}
+          {/* Voice failing must never block the sentence — the box keeps
+              whatever was heard and typing carries on from there. */}
+          {speech.failure && (
+            <>
+              <Gap h={space.md} />
+              <Notice
+                icon="alert"
+                title={MIC_TROUBLE[speech.failure].title}
+                detail={MIC_TROUBLE[speech.failure].detail}
               />
-              <SplitRow style={{ paddingTop: space.md }}>
-                <Mono size={10.5} tone="ink3">
-                  {items === 0 ? 'one sentence, however you would say it' : `${items} item${items === 1 ? '' : 's'} detected`}
-                </Mono>
-                <Mono size={10.5} tone="ink3">
-                  EN
-                </Mono>
-              </SplitRow>
-            </View>
-          </Pressable>
-        </Gutter>
+            </>
+          )}
 
-        <Gutter style={{ paddingTop: 14 }}>
-          <Row gap={10} align="stretch">
-            <Pressable
+          <Gap h={space.sm} />
+          <Split>
+            <Txt role="caption" tone="tertiary">
+              {items === 0 ? 'One sentence, however you would say it' : `${items} item${items === 1 ? '' : 's'} detected`}
+            </Txt>
+            {/* The language the mic listens in. A control, not a label — it was
+                a dead "EN" caption, which told a Tamil speaker the answer was
+                no. Tapping cycles; the choice persists. */}
+            <Press
+              onPress={() => {
+                const i = SPEECH_LOCALES.findIndex(l => l.id === speech.locale);
+                speech.setLocale(SPEECH_LOCALES[(i + 1) % SPEECH_LOCALES.length]!.id);
+              }}
               accessibilityRole="button"
-              accessibilityLabel="Hold to dictate"
+              accessibilityLabel={`Speech language: ${
+                SPEECH_LOCALES.find(l => l.id === speech.locale)?.label ?? 'English'
+              }`}
+              accessibilityHint="Changes the language the microphone listens for"
+              style={{ paddingHorizontal: space.sm, paddingVertical: 2, marginRight: -space.sm }}>
+              <Row gap={4} align="center">
+                <Icon name="mic" size={12} color={c.inkTertiary} weight={1.8} />
+                <Txt role="caption" tone="tertiary" caps={false}>
+                  {SPEECH_LOCALES.find(l => l.id === speech.locale)?.short ?? 'EN'}
+                </Txt>
+              </Row>
+            </Press>
+          </Split>
+
+          <Gap h={space.lg} />
+
+          <Row gap={space.md} align="stretch">
+            <Press
+              onPress={() => (micGranted ? startRecording() : setMicState('priming'))}
+              accessibilityLabel="Dictate"
               accessibilityHint="Speaks into the same box. You can edit before sending."
-              onPress={onMicPress}
               style={{
-                width: 60,
-                height: 60,
-                borderWidth: 1,
-                borderColor: c.rule,
-                backgroundColor: c.surface,
+                width: 56,
+                height: 56,
+                borderRadius: 999,
+                backgroundColor: c.sunken,
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 3,
               }}>
-              <Icon name="mic" size={20} color={c.ink} weight={1.7} />
-              <Mono size={7.5} tone="ink3" style={{ letterSpacing: 0.5 }}>
-                HOLD
-              </Mono>
-            </Pressable>
+              <Icon name="mic" size={22} color={c.ink} weight={1.9} />
+            </Press>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Log it"
-              accessibilityState={{ disabled: text.trim().length === 0 }}
-              onPress={send}
-              style={{
-                flexGrow: 1,
-                height: 60,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 9,
-                backgroundColor: text.trim() ? c.heavy : c.surface,
-                borderWidth: text.trim() ? 0 : 1,
-                borderColor: c.rule,
-              }}>
-              <Title size={16} weight="700" color={text.trim() ? c.onHeavy : c.ink3}>
-                Log it
-              </Title>
-              <Icon name="arrowRight" size={17} color={text.trim() ? c.onHeavy : c.ink3} weight={2.3} />
-            </Pressable>
+            <View style={{ flexGrow: 1 }}>
+              <Button
+                label="Log it"
+                iconRight="arrowRight"
+                onPress={send}
+                disabled={!ready}
+                haptic="select"
+                style={{ height: 56 }}
+              />
+            </View>
           </Row>
         </Gutter>
 
-        <Gap h={22} />
+        <Gap h={space.xxl} />
         <Divider />
 
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: space.xl }}>
-          <Gutter style={{ paddingTop: 14 }}>
-            <Eyebrow size={10.5} tone="ink2">
-              SAY IT AGAIN
-            </Eyebrow>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: space.xxxl }}>
+          <Gutter style={{ paddingTop: space.xl }}>
+            <SectionLabel>Say it again</SectionLabel>
+          </Gutter>
+          <Gap h={space.md} />
+
+          <Gutter>
+            {phrases.length > 0 ? (
+              <Card level="raised" padded={false}>
+                {phrases.map((p, i) => (
+                  <View key={p.id}>
+                    {i > 0 && <Divider inset={space.xl + 40 + space.md} />}
+                    <Press
+                      onPress={() => setPhrase(p.phrase)}
+                      feedback="none"
+                      accessibilityLabel={`Reuse: ${p.phrase}`}
+                      style={{ paddingHorizontal: space.xl, paddingVertical: space.md }}>
+                      <Row gap={space.md}>
+                        <FoodGlyph
+                          name={p.phrase}
+                          seed={p.id}
+                          size={40}
+                          icon={p.savedAs ? 'bookmark' : 'clock'}
+                        />
+                        <Stack gap={2} style={{ flexGrow: 1, flexShrink: 1 }}>
+                          <Txt role="h3" numberOfLines={1}>
+                            {p.savedAs ?? p.phrase}
+                          </Txt>
+                          {p.savedAs ? (
+                            <Txt role="caption" tone="tertiary" numberOfLines={1}>
+                              “{p.phrase}”
+                            </Txt>
+                          ) : null}
+                        </Stack>
+                        <Txt role="label" tone="secondary" numeric>
+                          {kcal(p.kcal)}
+                        </Txt>
+                      </Row>
+                    </Press>
+                  </View>
+                ))}
+              </Card>
+            ) : (
+              <Txt role="body" tone="secondary">
+                Sentences you have used before collect here. A phrase that works twice gets offered as a
+                saved meal — one tap from then on.
+              </Txt>
+            )}
           </Gutter>
 
-          <Gutter style={{ paddingTop: 10 }}>
-            {phrases.map(p => (
-              <View key={p.id}>
-                <Hairline />
-                <PressableRow
-                  onPress={() => setText(p.phrase)}
-                  accessibilityLabel={`Reuse: ${p.phrase}`}
-                  style={{ paddingVertical: 11 }}>
-                  <SplitRow>
-                    <Row gap={10} style={{ flexShrink: 1, paddingRight: space.md }}>
-                      <Icon
-                        name={p.savedAs ? 'layers' : 'clock'}
-                        size={14}
-                        color={p.savedAs ? c.det : c.ink3}
-                        weight={2}
-                      />
-                      <Body size={15} numberOfLines={1} style={{ flexShrink: 1 }}>
-                        {p.savedAs ?? p.phrase}
-                      </Body>
-                    </Row>
-                    <Num size={12} tone="ink3">
-                      {kcal(p.kcal)}
-                    </Num>
-                  </SplitRow>
-                </PressableRow>
-              </View>
-            ))}
-            {phrases.length === 0 && (
-              <Body size={14} tone="ink3">
-                Sentences you have used before will collect here. A phrase that worked twice gets
-                offered as a saved meal — one tap from then on.
-              </Body>
-            )}
+          <Gutter style={{ paddingTop: space.xl, alignItems: 'center' }}>
+            <TextButton
+              label="Search for a single food instead"
+              tone="secondary"
+              onPress={() => navigation.replace('Search')}
+            />
           </Gutter>
         </ScrollView>
       </KeyboardAvoidingView>
 
       {micState === 'priming' && (
         <MicPrimer
-          onAllow={() => {
-            // Where the real permission request goes. Granting is assumed here so
-            // the recording state stays reachable in development.
-            setMicGranted(true);
-            startRecording();
+          onAllow={async () => {
+            const granted = await requestMic();
+            setMicGranted(granted);
+            if (granted) startRecording();
+            else setMicState('idle');
           }}
-          onDecline={() => {
-            setMicState('idle');
-            input.current?.focus();
-          }}
+          onDecline={() => setMicState('idle')}
         />
       )}
       {micState === 'recording' && (
-        <RecordingOverlay transcript={transcript} onStop={stopRecording} onCancel={cancelRecording} />
+        <RecordingOverlay
+          transcribing={speech.state === 'transcribing'}
+          onCancel={cancelRecording}
+        />
       )}
     </Screen>
   );

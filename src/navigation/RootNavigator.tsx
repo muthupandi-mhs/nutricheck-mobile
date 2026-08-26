@@ -1,55 +1,69 @@
 import React from 'react';
-import { DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer, useNavigation, type Theme } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { TabBar } from '../components/TabBar';
 import { useTheme } from '../theme/ThemeProvider';
 import { ComposerScreen } from '../screens/composer/ComposerScreen';
 import { ConfirmSheetScreen } from '../screens/confirm/ConfirmSheetScreen';
 import { EntryDetailScreen } from '../screens/entry/EntryDetailScreen';
 import { HomeScreen } from '../screens/home/HomeScreen';
-import { WeekScreen } from '../screens/insights/WeekScreen';
+import { InsightsScreen } from '../screens/insights/InsightsScreen';
 import { ActivityScreen } from '../screens/onboarding/ActivityScreen';
 import { ObjectiveScreen } from '../screens/onboarding/ObjectiveScreen';
 import { ProfileScreen } from '../screens/onboarding/ProfileScreen';
 import { SignInScreen } from '../screens/onboarding/SignInScreen';
+import { SignUpScreen } from '../screens/onboarding/SignUpScreen';
 import { TargetsScreen } from '../screens/onboarding/TargetsScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { CreateFoodScreen } from '../screens/search/CreateFoodScreen';
 import { PortionScreen } from '../screens/search/PortionScreen';
 import { SearchScreen } from '../screens/search/SearchScreen';
 import { GoalEditorScreen } from '../screens/settings/GoalEditorScreen';
-import { SettingsScreen } from '../screens/settings/SettingsScreen';
-import type { RootStackParamList } from './types';
+import { YouScreen } from '../screens/settings/YouScreen';
+import type { RootStackParamList, TabParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 /**
- * One stack, no tab bar.
- *
- * A tab bar would cost 49pt of every screen to advertise three destinations,
- * two of which are visited weekly at most. The week view and settings are
- * reachable from the two icons in the masthead; the fold that a tab bar would
- * eat belongs to the recents strip, which is the whole speed argument.
- *
- * `initialRoute` is decided by the caller from whether a profile exists, so
- * this component stays free of loading states.
+ * Two tabs and a raised centre action. The centre button is not a tab — it
+ * pushes the composer onto the parent stack, so logging happens over whatever
+ * you were doing. A third tab would leave a half-written meal in the background.
  */
+function MainTabs() {
+  const navigation = useNavigation<import('@react-navigation/native-stack').NativeStackNavigationProp<RootStackParamList>>();
+
+  return (
+    <Tab.Navigator
+      screenOptions={{ headerShown: false }}
+      /* eslint-disable-next-line react/no-unstable-nested-components -- tabBar is
+         react-navigation's documented render prop, not a component definition. */
+      tabBar={props => (
+        <TabBar {...props} onLogPress={() => navigation.navigate('Composer', { autoStart: true })} />
+      )}>
+      <Tab.Screen name="Today" component={HomeScreen} />
+      <Tab.Screen name="Insights" component={InsightsScreen} />
+    </Tab.Navigator>
+  );
+}
+
 export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackParamList }) {
   const { c, scheme } = useTheme();
 
-  // Navigation's own theme only has to agree with ours on the two colours it
-  // paints itself: the card behind a transition, and the container background.
-  // Everything else is drawn by the screens.
+  // Navigation's theme only has to agree with ours on what it paints itself —
+  // the transition card and the container background.
   const navTheme: Theme = {
     ...DefaultTheme,
     dark: scheme === 'dark',
     colors: {
       ...DefaultTheme.colors,
-      background: c.ground,
-      card: c.ground,
+      background: c.canvas,
+      card: c.surface,
       text: c.ink,
-      border: c.rule,
-      primary: c.det,
-      notification: c.est,
+      border: c.border,
+      primary: c.primary,
+      notification: c.attention,
     },
   };
 
@@ -59,11 +73,12 @@ export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackP
         initialRouteName={initialRoute}
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: c.ground },
+          contentStyle: { backgroundColor: c.canvas },
           animation: 'slide_from_right',
         }}>
         {/* onboarding */}
         <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: 'fade' }} />
+        <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="OnboardProfile" component={ProfileScreen} />
         <Stack.Screen name="OnboardActivity" component={ActivityScreen} />
@@ -71,27 +86,23 @@ export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackP
         <Stack.Screen name="OnboardTargets" component={TargetsScreen} />
 
         {/* the app */}
-        <Stack.Screen name="Home" component={HomeScreen} options={{ animation: 'fade' }} />
-        <Stack.Screen name="Week" component={WeekScreen} />
+        <Stack.Screen name="Main" component={MainTabs} options={{ animation: 'fade' }} />
 
-        {/* logging — modal, because each of these is a task with an exit */}
+        {/* logging — each of these is a task with an explicit exit */}
         <Stack.Screen name="Composer" component={ComposerScreen} options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen
           name="Confirm"
           component={ConfirmSheetScreen}
-          options={{
-            // The sheet animates itself, over whatever is behind it.
-            presentation: 'transparentModal',
-            animation: 'none',
-          }}
+          // The sheet animates itself over whatever is behind it.
+          options={{ presentation: 'transparentModal', animation: 'none' }}
         />
         <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="Portion" component={PortionScreen} />
+        <Stack.Screen name="Portion" component={PortionScreen} options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="CreateFood" component={CreateFoodScreen} />
         <Stack.Screen name="EntryDetail" component={EntryDetailScreen} options={{ animation: 'slide_from_bottom' }} />
 
-        {/* settings */}
-        <Stack.Screen name="Settings" component={SettingsScreen} options={{ animation: 'slide_from_bottom' }} />
+        {/* settings — reached from Today's avatar, so it pushes like any task */}
+        <Stack.Screen name="You" component={YouScreen} />
         <Stack.Screen name="GoalEditor" component={GoalEditorScreen} />
       </Stack.Navigator>
     </NavigationContainer>

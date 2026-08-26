@@ -1,41 +1,36 @@
-import React, { useEffect, useRef } from 'react';
-import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import React, { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { clamp01 } from '../lib/format';
 import { useTheme } from '../theme/ThemeProvider';
-import { Display, Mono } from './Type';
+import { Row, Stack } from './Layout';
+import { Txt } from './Text';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 /**
  * The calorie ring.
  *
- * Two decisions worth stating, because both are load-bearing:
- *
- * 1. It counts *down*, not up. "853 kcal left" answers the question the user
- *    actually opened the app with; "1,247 of 2,100" makes them do the
- *    subtraction themselves, four times a day.
- *
- * 2. The stroke has butt caps, not round ones. A rounded cap overhangs the arc
- *    by half the stroke width, which reads as ~4% more progress than there is.
- *    On a number people are dieting against, that is not a rounding error.
- *
- * Overshoot past the target does not wrap around: the arc fills and the
- * remaining number goes amber and negative. A ring that resets to a thin sliver
- * at 2,101 kcal is the least honest possible way to show that.
+ * It counts *down* — "637 left" is the question people open the app with.
+ * Overshoot does not wrap: past the target the arc completes and the number
+ * flips to amber, since resetting to a thin sliver at 2,041 kcal would read as
+ * progress.
  */
 export function Ring({
   consumed,
   goal,
-  size = 128,
-  stroke = 11,
+  size = 208,
+  stroke = 16,
+  children,
 }: {
   consumed: number;
   goal: number;
   size?: number;
   stroke?: number;
+  /** Rendered under the big number — a delta, a subtitle. */
+  children?: React.ReactNode;
 }) {
-  const { c, type, tabular } = useTheme();
+  const { c, tabular } = useTheme();
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
 
@@ -44,32 +39,36 @@ export function Ring({
   const remaining = Math.round(goal - consumed);
 
   const anim = useRef(new Animated.Value(0)).current;
-  const reduceMotion = useRef(false);
+  const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(v => {
-      reduceMotion.current = v;
-    });
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then(v => alive && setReduced(v));
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
-    Animated.timing(anim, {
+    Animated.spring(anim, {
       toValue: clamp01(progress),
-      duration: reduceMotion.current ? 0 : 620,
-      easing: Easing.out(Easing.cubic),
-      // strokeDashoffset is not a transform, so this cannot run on the UI thread.
+      damping: 30,
+      stiffness: 90,
+      mass: 1,
+      // strokeDashoffset is an SVG attribute, not a transform, so this cannot run
+      // natively. One property on one element — acceptable.
       useNativeDriver: false,
     }).start();
   }, [anim, progress]);
 
   const dashOffset = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [circumference, 0],
+    outputRange: [circumference, 0.001],
   });
 
   return (
     <View
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={
@@ -77,48 +76,40 @@ export function Ring({
           ? `${Math.abs(remaining)} calories over your target of ${goal}`
           : `${remaining} calories left of ${goal}`
       }>
-      <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
-        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c.rule} strokeWidth={stroke} />
+      <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
+        <Defs>
+          <LinearGradient id="ringFill" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={over ? c.attention : c.ringFrom} />
+            <Stop offset="1" stopColor={over ? c.attention : c.ringTo} />
+          </LinearGradient>
+        </Defs>
+
+        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c.sunken} strokeWidth={stroke} />
+
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={over ? c.est : c.det}
+          stroke="url(#ringFill)"
           strokeWidth={stroke}
-          strokeLinecap="butt"
+          strokeLinecap="round"
           strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
+          strokeDashoffset={reduced ? circumference * (1 - clamp01(progress)) : dashOffset}
         />
       </Svg>
 
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <Display
-          size={size * 0.266}
-          style={tabular}
-          tone={over ? 'est' : 'ink'}
-          accessibilityElementsHidden
-          importantForAccessibility="no">
-          {Math.abs(remaining).toLocaleString('en-US')}
-        </Display>
-        <Mono
-          size={size * 0.074}
-          tone="ink2"
-          style={[type.eyebrow(size * 0.074), { marginTop: 1 }]}
-          accessibilityElementsHidden
-          importantForAccessibility="no">
-          {over ? 'KCAL OVER' : 'KCAL LEFT'}
-        </Mono>
-      </View>
+      <Stack gap={2} align="center" accessibilityElementsHidden importantForAccessibility="no">
+        <Row gap={4} align="flex-end">
+          <Txt role="display" numeric tone={over ? 'attention' : 'ink'} style={tabular}>
+            {Math.abs(remaining).toLocaleString('en-US')}
+          </Txt>
+        </Row>
+        <Txt role="caption" tone="secondary">
+          {over ? 'kcal over' : 'kcal left'}
+        </Txt>
+        {children}
+      </Stack>
     </View>
   );
 }

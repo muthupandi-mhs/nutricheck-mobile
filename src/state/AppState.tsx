@@ -6,13 +6,9 @@ import { localDate, mealSlotFor } from '../lib/format';
 import { uuid } from '../lib/id';
 
 /**
- * The day store.
- *
- * One rule governs everything here: **the user's input is never lost.** A
- * commit is applied to local state first and reconciled after; a commit that
- * fails on the network is queued rather than surfaced as an error the user has
- * to redo. A tracker that loses a log to a dead connection is a tracker people
- * delete, and no amount of visual polish above this layer compensates for it.
+ * The day store. One rule governs everything here: the user's input is never
+ * lost. Commits apply to local state first and reconcile after; a commit that
+ * fails on the network is queued, never surfaced as an error to redo.
  */
 
 export type PendingCommit = { draft: CommitDraft; queuedAt: string; reason: 'offline' | 'error' };
@@ -61,29 +57,46 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [pending, setPending] = useState<PendingCommit[]>([]);
   const [toast, setToast] = useState<Toast>(null);
 
+  /**
+   * Reload everything the app shows. **Never rejects.**
+   *
+   * A background read failing is ordinary here, not exceptional: this app is
+   * built to work offline, and the honest response to "the network went away"
+   * is to keep showing the last known day, not to throw. It used to rethrow,
+   * and every caller that forgot to catch — the focus effect, pull-to-refresh —
+   * turned a walk out of Wi-Fi into a red box over a working screen.
+   *
+   * Nothing is cleared on failure. Stale numbers with a visible sync notice
+   * beat an empty screen; wiping state would also lose the pending queue's
+   * context.
+   */
   const refresh = useCallback(async () => {
-    const [p, g, d, r, ph] = await Promise.all([
-      api.getProfile(),
-      api.getGoal(),
-      api.getDay(date),
-      api.getRecents(),
-      api.getPhrases(),
-    ]);
-    setProfile(p);
-    setGoal(g);
-    setDay(d);
-    setRecents(r);
-    setPhrases(ph);
-    setLoading(false);
+    try {
+      const [p, g, d, r, ph] = await Promise.all([
+        api.getProfile(),
+        api.getGoal(),
+        api.getDay(date),
+        api.getRecents(),
+        api.getPhrases(),
+      ]);
+      setProfile(p);
+      setGoal(g);
+      setDay(d);
+      setRecents(r);
+      setPhrases(ph);
+    } catch {
+      // Deliberately silent. The screen keeps what it had.
+    } finally {
+      // In `finally`, or a failed first load leaves the skeletons up forever.
+      setLoading(false);
+    }
   }, [api, date]);
 
   useEffect(() => {
-    let alive = true;
     setLoading(true);
-    refresh().catch(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
+    // `refresh` owns its own failure and clears `loading` in a finally, so
+    // there is nothing left here to catch.
+    void refresh();
   }, [refresh]);
 
   const reloadDay = useCallback(async () => {
@@ -98,8 +111,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         await Promise.all([reloadDay(), api.getRecents().then(setRecents), api.getPhrases().then(setPhrases)]);
         return { kcal, queued: false };
       } catch (e) {
-        // Offline, or a commit that failed on the way out. Either way the entry
-        // is kept locally and retried — there is nothing for the user to redo.
+        // Offline, or failed on the way out. Either way the entry is kept
+        // locally and retried.
         setPending(q => [...q, { draft, queuedAt: new Date().toISOString(), reason: e instanceof OfflineError ? 'offline' : 'error' }]);
         return { kcal, queued: true };
       }
@@ -210,17 +223,43 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [api, reloadDay]);
 
+  /**
+   * Drain the queue on the connection that has only just come back.
+   *
+   * One request when the transport offers the batch route, N when it does not.
+   * Both are idempotent on `clientId`, so a partial drain that gets retried
+   * cannot produce a second breakfast either way.
+   */
   const retryPending = useCallback(async () => {
     const queue = pending;
     if (queue.length === 0) return;
-    const survivors: PendingCommit[] = [];
-    for (const item of queue) {
+
+    let survivors: PendingCommit[] = [];
+
+    if (api.commitBatch) {
       try {
-        await api.commit(item.draft);
+        const results = await api.commitBatch(queue.map(p => p.draft));
+        // A batch always resolves; failure is per element. Keep only the
+        // entries the server could not take, and keep them queued rather than
+        // reporting an error the user would have to redo.
+        const failed = new Set(
+          results.filter(r => r.status === 'failed').map(r => r.clientId),
+        );
+        survivors = queue.filter(p => failed.has(p.draft.clientId));
       } catch {
-        survivors.push(item);
+        // The batch itself never made it out — still offline. Nothing is lost.
+        survivors = queue;
+      }
+    } else {
+      for (const item of queue) {
+        try {
+          await api.commit(item.draft);
+        } catch {
+          survivors.push(item);
+        }
       }
     }
+
     setPending(survivors);
     await reloadDay();
   }, [api, pending, reloadDay]);

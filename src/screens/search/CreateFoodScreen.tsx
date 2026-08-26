@@ -1,158 +1,204 @@
-import React, { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import React from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { useApi } from '../../api/client';
-import { Disclaimer } from '../../components/Banner';
-import { IconButton, PrimaryButton } from '../../components/Button';
+import type { CreateCustomFood } from '../../api/types';
+import { Button, IconButton } from '../../components/Button';
+import { Card } from '../../components/Card';
 import { Chip } from '../../components/Chip';
-import { TextField } from '../../components/Field';
-import { Divider, Gap, Gutter, HeavyBar, Row, SplitRow } from '../../components/Layout';
+import { Disclaimer } from '../../components/Feedback';
+import { Gap, Gutter, Row, Split, Stack } from '../../components/Layout';
 import { Dock, Screen } from '../../components/Screen';
-import { Body, Display, Eyebrow, Mono } from '../../components/Type';
+import { SectionLabel, Txt } from '../../components/Text';
+import { FormField, REVEAL_ON_SUBMIT } from '../../forms/fields';
+import {
+  customFoodSchema,
+  EMPTY_CUSTOM_FOOD,
+  FOOD_NAME_MAX,
+  type CustomFoodValues,
+} from '../../forms/schemas';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { ScreenProps } from '../../navigation/types';
 
+/** Grams a label is likely to be printed in, one tap away from the keypad. */
+const PORTION_SHORTCUTS = ['100', '150', '200', '250'];
+
 /**
- * Custom food creation — the exit from "no database match".
+ * Custom food creation — the exit from "no database match". Calories and
+ * protein are the whole of what is required; a label that prints more can say
+ * more, and one that does not is never made to guess.
  *
- * Two required fields, not twelve. The corpus behind this app tracks three
- * numbers; asking someone to transcribe a full nutrition label to log a
- * protein bar is asking for nine values that will never be read.
- *
- * Fiber is explicitly optional and defaults to *unknown*, not zero. A user who
- * leaves it blank has told us nothing, and recording that as 0 g would quietly
- * corrupt their fiber history in a way nobody would ever trace back to here.
+ * A blank nutrient is unknown, never zero — a blank field has told us nothing,
+ * and 0 g would quietly corrupt that nutrient's history. That rule is not
+ * applied here: `customFoodSchema` parses these text fields straight into the
+ * `CreateCustomFood` this screen posts, so there is no half-validated value in
+ * between for a screen to get wrong.
  */
 export function CreateFoodScreen({ navigation, route }: ScreenProps<'CreateFood'>) {
-  const { c, space } = useTheme();
+  const { space } = useTheme();
   const api = useApi();
 
-  const [name, setName] = useState(route.params?.name ?? '');
-  const [brand, setBrand] = useState('');
-  const [kcalText, setKcalText] = useState('');
-  const [proteinText, setProteinText] = useState('');
-  const [fiberText, setFiberText] = useState('');
-  const [portionText, setPortionText] = useState('');
-  const [saving, setSaving] = useState(false);
+  const { control, handleSubmit, formState, setValue, watch } = useForm<
+    CustomFoodValues,
+    unknown,
+    CreateCustomFood
+  >({
+    ...REVEAL_ON_SUBMIT,
+    resolver: zodResolver(customFoodSchema),
+    // The phrase that failed to match is the name, already typed.
+    defaultValues: { ...EMPTY_CUSTOM_FOOD, name: route.params?.name ?? '' },
+  });
 
-  const num = (s: string) => {
-    const n = parseFloat(s.replace(/[^0-9.]/g, ''));
-    return Number.isFinite(n) ? n : null;
-  };
+  const portion = watch('defaultPortionGrams');
 
-  const kcalValue = num(kcalText);
-  const proteinValue = num(proteinText);
-  const ready = name.trim().length > 0 && kcalValue !== null && proteinValue !== null;
-
-  const onSave = async () => {
-    if (!ready) return;
-    setSaving(true);
-    const fiberValue = num(fiberText);
-    const created = await api.createFood({
-      name: name.trim(),
-      brand: brand.trim() || null,
-      per100g: {
-        kcal: kcalValue,
-        proteinG: proteinValue,
-        fiberG: fiberValue,
-        // Left blank means we do not know, and the day view will say so.
-        fiberState: fiberValue === null ? 'unknown' : 'known',
-      },
-      defaultPortionGrams: num(portionText),
-    });
-    setSaving(false);
+  const onSave = handleSubmit(async food => {
+    const created = await api.createFood(food);
     navigation.replace('Portion', { foodId: created.id });
-  };
+  });
 
   return (
-    <Screen edges="top">
-      <Gutter style={{ paddingBottom: space.md }}>
-        <SplitRow align="flex-start">
-          <View style={{ flexShrink: 1, gap: 4 }}>
-            <Eyebrow size={10} tone="ink3">
-              NOT IN THE DATABASE
-            </Eyebrow>
-            <Display size={28}>Add it yourself</Display>
-          </View>
-          <IconButton name="close" size={20} onPress={() => navigation.goBack()} accessibilityLabel="Close" style={{ marginRight: -10 }} />
-        </SplitRow>
+    <Screen scrollable>
+      <Gutter>
+        <Split align="flex-start" style={{ minHeight: 44 }}>
+          <Stack gap={4} style={{ flexShrink: 1 }}>
+            <Txt role="caption" tone="tertiary">
+              Not in the database
+            </Txt>
+            <Txt role="h1">Add it yourself</Txt>
+          </Stack>
+          <IconButton
+            name="close"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Close"
+            style={{ marginRight: -10 }}
+          />
+        </Split>
       </Gutter>
 
-      <HeavyBar />
-
-      <ScrollView contentContainerStyle={{ paddingBottom: space.xl }} keyboardShouldPersistTaps="handled">
-        <Gutter style={{ paddingTop: space.lg, gap: space.lg }}>
-          <Body size={14.5} tone="ink2">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}
+          keyboardShouldPersistTaps="handled">
+          <Txt role="bodyLg" tone="secondary">
             Three numbers off the label, per 100 g. Once it is here it behaves like any other food —
             searchable, repeatable, and yours.
-          </Body>
+          </Txt>
 
-          <TextField label="NAME" value={name} onChangeText={setName} placeholder="e.g. Mum's rajma" autoFocus />
-          <TextField label="BRAND (OPTIONAL)" value={brand} onChangeText={setBrand} placeholder="Leave blank for a home dish" />
-        </Gutter>
+          <Gap h={space.xl} />
 
-        <Gap h={space.xl} />
-        <Divider />
+          <Stack gap={space.lg}>
+            <Card level="raised">
+              <Stack gap={space.lg}>
+                <FormField
+                  control={control}
+                  name="name"
+                  label="Name"
+                  placeholder="e.g. Mum's rajma"
+                  maxLength={FOOD_NAME_MAX}
+                  autoFocus
+                />
+                <FormField
+                  control={control}
+                  name="brand"
+                  label="Brand (optional)"
+                  placeholder="Leave blank for a home dish"
+                  maxLength={FOOD_NAME_MAX}
+                />
+              </Stack>
+            </Card>
 
-        <Gutter style={{ paddingTop: space.lg, gap: space.lg }}>
-          <Row gap={6} align="baseline">
-            <Eyebrow size={10} tone="ink2">
-              PER 100 G
-            </Eyebrow>
-            <Mono size={10} tone="ink3">
-              — as printed on the label
-            </Mono>
-          </Row>
+            <Card level="raised">
+              <Stack gap={space.lg}>
+                <Row gap={space.sm} align="baseline">
+                  <SectionLabel>Per 100 g</SectionLabel>
+                  <Txt role="caption" tone="tertiary">
+                    as printed on the label
+                  </Txt>
+                </Row>
 
-          <TextField label="CALORIES" value={kcalText} onChangeText={setKcalText} keyboardType="numeric" suffix="kcal" placeholder="0" />
-          <TextField label="PROTEIN" value={proteinText} onChangeText={setProteinText} keyboardType="numeric" suffix="g" placeholder="0" />
+                <FormField
+                  control={control}
+                  name="kcal"
+                  label="Calories"
+                  keyboardType="numeric"
+                  suffix="kcal"
+                  placeholder="0"
+                />
+                <FormField
+                  control={control}
+                  name="proteinG"
+                  label="Protein"
+                  keyboardType="numeric"
+                  suffix="g"
+                  placeholder="0"
+                />
+                <FormField
+                  control={control}
+                  name="carbsG"
+                  label="Carbs (optional)"
+                  keyboardType="numeric"
+                  suffix="g"
+                  placeholder="leave blank if not shown"
+                />
+                <FormField
+                  control={control}
+                  name="fatG"
+                  label="Fat (optional)"
+                  keyboardType="numeric"
+                  suffix="g"
+                  placeholder="leave blank if not shown"
+                />
+                <FormField
+                  control={control}
+                  name="fiberG"
+                  label="Fibre (optional)"
+                  keyboardType="numeric"
+                  suffix="g"
+                  placeholder="leave blank if not shown"
+                  hint="Blank means unknown, not zero. Unknown is left out of your fibre total; zero would be counted as a real zero and drag down every day it appears in."
+                />
+              </Stack>
+            </Card>
 
-          <View style={{ gap: 6 }}>
-            <TextField
-              label="FIBER (OPTIONAL)"
-              value={fiberText}
-              onChangeText={setFiberText}
-              keyboardType="numeric"
-              suffix="g"
-              placeholder="leave blank if not shown"
-            />
-            <Row gap={6}>
-              <View style={{ width: 3, alignSelf: 'stretch', backgroundColor: c.est }} />
-              <Mono size={10.5} tone="ink3" style={{ flexShrink: 1, lineHeight: 16 }}>
-                Blank means unknown, not zero. Unknown is left out of your fiber total; zero would be
-                counted as a real zero and drag every day it appears in.
-              </Mono>
-            </Row>
-          </View>
-        </Gutter>
-
-        <Gap h={space.xl} />
-        <Divider />
-
-        <Gutter style={{ paddingTop: space.lg, gap: space.md }}>
-          <TextField
-            label="YOUR USUAL PORTION (OPTIONAL)"
-            value={portionText}
-            onChangeText={setPortionText}
-            keyboardType="numeric"
-            suffix="g"
-            placeholder="e.g. 200"
-          />
-          <Row gap={6} wrap>
-            {['100', '150', '200', '250'].map(g => (
-              <Chip key={g} label={`${g} g`} variant={portionText === g ? 'selected' : 'plain'} onPress={() => setPortionText(g)} />
-            ))}
-          </Row>
-        </Gutter>
-      </ScrollView>
+            <Card level="raised">
+              <Stack gap={space.md}>
+                <FormField
+                  control={control}
+                  name="defaultPortionGrams"
+                  label="Your usual portion (optional)"
+                  keyboardType="numeric"
+                  suffix="g"
+                  placeholder="e.g. 200"
+                />
+                <Row gap={space.sm} wrap>
+                  {PORTION_SHORTCUTS.map(g => (
+                    <Chip
+                      key={g}
+                      label={`${g} g`}
+                      variant={portion === g ? 'selected' : 'default'}
+                      // A chip is a value the same as a keystroke is, so it
+                      // revalidates: without this the button below would still
+                      // be judging the field the chip just replaced.
+                      onPress={() => setValue('defaultPortionGrams', g, { shouldValidate: true })}
+                    />
+                  ))}
+                </Row>
+              </Stack>
+            </Card>
+          </Stack>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Dock>
         <Disclaimer text="Custom foods are private to your account and are never added to the shared database." />
-        <Gap h={space.sm + 2} />
-        <PrimaryButton
+        <Gap h={space.md} />
+        <Button
           label="Save and pick a portion"
-          disabled={!ready}
-          loading={saving}
+          disabled={!formState.isValid}
+          loading={formState.isSubmitting || formState.isSubmitSuccessful}
           onPress={onSave}
+          haptic="commit"
         />
       </Dock>
     </Screen>

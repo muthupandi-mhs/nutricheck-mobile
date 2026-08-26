@@ -2,14 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useApi } from '../../api/client';
 import type { FoodDetail, MealSlot, QuantitySource, QuantityType } from '../../api/types';
-import { Disclaimer } from '../../components/Banner';
-import { IconButton, PrimaryButton } from '../../components/Button';
+import { Button, IconButton } from '../../components/Button';
+import { Card } from '../../components/Card';
 import { Chip } from '../../components/Chip';
-import { Segmented, TextField } from '../../components/Field';
-import { Divider, Gap, Gutter, HeavyBar, Row, SplitRow } from '../../components/Layout';
+import { Disclaimer, TotalsRow } from '../../components/Feedback';
+import { Field, Segmented } from '../../components/Field';
+import { FoodGlyph } from '../../components/FoodGlyph';
+import { Gap, Gutter, Row, Split, Stack } from '../../components/Layout';
 import { Dock, Screen } from '../../components/Screen';
 import { Shimmer } from '../../components/Skeleton';
-import { Body, Display, Eyebrow, Mono, Num } from '../../components/Type';
+import { SectionLabel, Txt } from '../../components/Text';
+import { portionGramsField } from '../../forms/schemas';
 import { DASH, grams, gramsOrDash, kcal, mealSlotFor } from '../../lib/format';
 import { uuid } from '../../lib/id';
 import { scale } from '../../lib/nutrition';
@@ -27,52 +30,52 @@ const SOURCE_LABEL: Record<FoodDetail['source'], string> = {
 };
 
 /**
- * Portion, then commit.
+ * Portion, then commit. Household units lead and grams sit behind them —
+ * "1 medium" is verifiable by looking at your plate, "118 g" is not. The gram
+ * weight still shows beside the chip, since it is what the arithmetic uses.
  *
- * Household-unit chips come first and grams sit behind them, because "1 medium"
- * is a thing someone can verify by looking at their plate and "118 g" is a
- * thing they have to take on faith. The gram weight is still shown next to the
- * chip — it is the number the arithmetic actually uses, and hiding it would
- * make the totals unauditable.
- *
- * There is no confirm step after this one. Nothing here was estimated by a
- * model, so there is nothing to review: search goes straight to commit.
+ * No confirm step follows: nothing here was estimated by a model.
  */
 export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
   const { space } = useTheme();
   const api = useApi();
   const { commit } = useAppState();
 
-  const [foodDetail, setFoodDetail] = useState<FoodDetail | null>(null);
+  const [food, setFood] = useState<FoodDetail | null>(null);
   const [gramsValue, setGramsValue] = useState<number | null>(null);
-  const [chosenLabel, setChosenLabel] = useState<string | null>(null);
-  const [customMode, setCustomMode] = useState(false);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [custom, setCustom] = useState(false);
   const [customText, setCustomText] = useState('');
+  const [customProblem, setCustomProblem] = useState<string | null>(null);
   const [meal, setMeal] = useState<MealSlot>(mealSlotFor());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.getFood(route.params.foodId).then(f => {
-      setFoodDetail(f);
-      const def = f.portions.find(p => p.isDefault) ?? f.portions[0];
-      setGramsValue(def?.grams ?? 100);
-      setChosenLabel(def?.label ?? null);
-    });
+    api.getFood(route.params.foodId)
+      .then(f => {
+        setFood(f);
+        const def = f.portions.find(p => p.isDefault) ?? f.portions[0];
+        setGramsValue(def?.grams ?? 100);
+        setChosen(def?.label ?? null);
+      })
+      // `food` stays null and the screen holds its skeleton. A red box here
+      // would land on top of a half-finished log.
+      .catch(() => {});
   }, [api, route.params.foodId]);
 
   const nutrients = useMemo(
-    () => (foodDetail && gramsValue ? scale(foodDetail.nutrients, gramsValue) : null),
-    [foodDetail, gramsValue],
+    () => (food && gramsValue ? scale(food.nutrients, gramsValue) : null),
+    [food, gramsValue],
   );
 
   const onCommit = async () => {
-    if (!foodDetail || !gramsValue || !nutrients) return;
+    if (!food || !gramsValue || !nutrients) return;
     setSaving(true);
 
-    // A custom gram amount is a stated mass; a chip is the food table's own
-    // portion. Recording which is which is what keeps `user_portions` honest.
-    const quantityType: QuantityType = customMode ? 'exact_mass' : 'standard_measure';
-    const quantitySource: QuantitySource = customMode ? 'stated' : 'food_portion';
+    // A typed gram amount is a stated mass; a chip is the food table's own
+    // portion. Recording which keeps `user_portions` honest.
+    const quantityType: QuantityType = custom ? 'exact_mass' : 'standard_measure';
+    const quantitySource: QuantitySource = custom ? 'stated' : 'food_portion';
 
     await commit({
       clientId: uuid(),
@@ -83,7 +86,7 @@ export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
       draftId: null,
       items: [
         {
-          food: { id: foodDetail.id, name: foodDetail.name, brand: foodDetail.brand, kcalPer100g: foodDetail.kcalPer100g },
+          food: { id: food.id, name: food.name, brand: food.brand, kcalPer100g: food.kcalPer100g },
           grams: gramsValue,
           quantityType,
           quantitySource,
@@ -94,176 +97,156 @@ export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
     });
 
     setSaving(false);
-    if (route.params.firstLog) {
-      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-    } else {
-      navigation.navigate('Home');
-    }
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };
 
-  if (!foodDetail) {
+  if (!food) {
     return (
-      <Screen edges="top">
-        <Gutter style={{ gap: 12, paddingTop: space.lg }}>
-          <Shimmer width="70%" height={22} />
-          <Shimmer width="40%" height={12} delay={140} />
+      <Screen>
+        <Gutter>
+          <Stack gap={space.md}>
+            <Shimmer width={56} height={56} />
+            <Shimmer width="72%" height={26} delay={100} />
+            <Shimmer width="44%" height={14} delay={180} />
+          </Stack>
         </Gutter>
       </Screen>
     );
   }
 
-  const fiberUnknown = foodDetail.nutrients.fiberState === 'unknown';
+  const fibreUnknown = food.nutrients.fiberState === 'unknown';
 
   return (
-    <Screen edges="top">
-      <Gutter style={{ paddingBottom: space.md }}>
-        <SplitRow align="flex-start">
-          <View style={{ flexShrink: 1, gap: 4, paddingRight: space.sm }}>
-            <Eyebrow size={10} tone="ink3">
-              HOW MUCH?
-            </Eyebrow>
-            <Display size={26}>{foodDetail.name}</Display>
-            <Mono size={10.5} tone="ink3">
-              {SOURCE_LABEL[foodDetail.source]}
-              {foodDetail.brand ? ` · ${foodDetail.brand}` : ''} · {kcal(foodDetail.kcalPer100g)} kcal per 100 g
-            </Mono>
-          </View>
-          <IconButton name="close" size={20} onPress={() => navigation.goBack()} accessibilityLabel="Close" style={{ marginRight: -10 }} />
-        </SplitRow>
+    <Screen scrollable>
+      <Gutter>
+        <Split align="flex-start" style={{ minHeight: 44 }}>
+          <Row gap={space.md} align="flex-start" style={{ flexShrink: 1 }}>
+            <FoodGlyph name={food.name} seed={food.id} size={52} />
+            <Stack gap={4} style={{ flexShrink: 1 }}>
+              <Txt role="h2" numberOfLines={3}>
+                {food.name}
+              </Txt>
+              <Txt role="caption" tone="tertiary">
+                {SOURCE_LABEL[food.source]}
+                {food.brand ? ` · ${food.brand}` : ''} · {kcal(food.kcalPer100g)} kcal per 100 g
+              </Txt>
+            </Stack>
+          </Row>
+          <IconButton
+            name="close"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Close"
+            style={{ marginRight: -10 }}
+          />
+        </Split>
       </Gutter>
 
-      <HeavyBar />
+      <ScrollView
+        contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}
+        keyboardShouldPersistTaps="handled">
+        <Stack gap={space.lg}>
+          <Card level="raised">
+            <Stack gap={space.md}>
+              <SectionLabel>How much?</SectionLabel>
+              <Row gap={space.sm} wrap>
+                {food.portions.map(p => (
+                  <Chip
+                    key={p.label}
+                    label={p.label}
+                    variant={!custom && chosen === p.label ? 'selected' : 'default'}
+                    onPress={() => {
+                      setCustom(false);
+                      setChosen(p.label);
+                      setGramsValue(p.grams);
+                    }}
+                    accessibilityLabel={`${p.label}, ${grams(p.grams)} grams`}
+                  />
+                ))}
+                <Chip
+                  label="Exact grams"
+                  variant={custom ? 'selected' : 'default'}
+                  onPress={() => {
+                    setCustom(true);
+                    setCustomText(String(Math.round(gramsValue ?? 100)));
+                    setCustomProblem(null);
+                  }}
+                />
+              </Row>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: space.xl }} keyboardShouldPersistTaps="handled">
-        <Gutter style={{ paddingTop: space.lg, gap: space.md }}>
-          <Eyebrow size={10} tone="ink2">
-            PORTION
-          </Eyebrow>
-          <Row gap={7} wrap>
-            {foodDetail.portions.map(p => (
-              <Chip
-                key={p.label}
-                label={p.label}
-                variant={!customMode && chosenLabel === p.label ? 'selected' : 'plain'}
-                onPress={() => {
-                  setCustomMode(false);
-                  setChosenLabel(p.label);
-                  setGramsValue(p.grams);
-                }}
-                accessibilityLabel={`${p.label}, ${grams(p.grams)} grams`}
-              />
-            ))}
-            <Chip
-              label="grams"
-              variant={customMode ? 'selected' : 'plain'}
-              onPress={() => {
-                setCustomMode(true);
-                setCustomText(String(Math.round(gramsValue ?? 100)));
-              }}
+              {custom ? (
+                <Field
+                  label="Amount"
+                  value={customText}
+                  onChangeText={t => {
+                    // One field, so no form — but the rule for what counts as
+                    // an amount is the same rule, read from the same schema as
+                    // the custom-food screen rather than rewritten here.
+                    const amount = portionGramsField.safeParse(t);
+                    setCustomText(t.replace(/[^0-9.]/g, ''));
+                    setGramsValue(amount.success ? amount.data : null);
+                    setCustomProblem(amount.success ? null : amount.error.issues[0].message);
+                  }}
+                  keyboardType="numeric"
+                  suffix="g"
+                  autoFocus
+                  problem={customProblem}
+                />
+              ) : (
+                <Txt role="caption" tone="tertiary">
+                  {chosen} · {grams(gramsValue ?? 0)} g
+                </Txt>
+              )}
+            </Stack>
+          </Card>
+
+          <Card level="raised">
+            <TotalsRow
+              kcal={nutrients ? kcal(nutrients.kcal) : DASH}
+              protein={nutrients ? grams(nutrients.proteinG) : DASH}
+              carbs={nutrients ? gramsOrDash(nutrients.carbsG) : DASH}
+              fat={nutrients ? gramsOrDash(nutrients.fatG) : DASH}
+              fibre={nutrients ? gramsOrDash(nutrients.fiberG) : DASH}
+              fibreUnknown={fibreUnknown ? 1 : 0}
             />
-          </Row>
+            {fibreUnknown && (
+              <>
+                <Gap h={space.lg} />
+                <Disclaimer text="This source carries no fibre figure. It is left out of today's fibre total rather than counted as zero, and the day's denominator says so." />
+              </>
+            )}
+          </Card>
 
-          {customMode ? (
-            <View style={{ paddingTop: 4 }}>
-              <TextField
-                label="EXACT AMOUNT"
-                value={customText}
-                onChangeText={t => {
-                  const cleaned = t.replace(/[^0-9.]/g, '');
-                  setCustomText(cleaned);
-                  const n = parseFloat(cleaned);
-                  setGramsValue(Number.isFinite(n) && n > 0 ? n : null);
-                }}
-                keyboardType="numeric"
-                suffix="g"
-                autoFocus
-              />
-            </View>
-          ) : (
-            <Mono size={11} tone="ink3">
-              {chosenLabel} · {grams(gramsValue ?? 0)} g
-            </Mono>
-          )}
-        </Gutter>
-
-        <Gap h={space.xl} />
-        <Divider />
-
-        <Gutter style={{ paddingTop: space.lg }}>
-          <SplitRow style={{ gap: space.xl }}>
-            {[
-              { label: 'CALORIES', value: nutrients ? kcal(nutrients.kcal) : DASH, unit: '' },
-              { label: 'PROTEIN', value: nutrients ? grams(nutrients.proteinG) : DASH, unit: 'g' },
-              {
-                label: 'FIBER',
-                value: nutrients ? gramsOrDash(nutrients.fiberG) : DASH,
-                unit: fiberUnknown ? '' : 'g',
-              },
-            ].map(stat => (
-              <View key={stat.label} style={{ gap: 3 }}>
-                <Eyebrow size={9.5} tone="ink2">
-                  {stat.label}
-                </Eyebrow>
-                <Row gap={3} align="baseline">
-                  <Display size={26} tone={stat.value === DASH ? 'ink3' : 'ink'}>
-                    {stat.value}
-                  </Display>
-                  {stat.unit ? (
-                    <Mono size={13} tone="ink2">
-                      {stat.unit}
-                    </Mono>
-                  ) : null}
-                </Row>
-              </View>
-            ))}
-          </SplitRow>
-
-          {fiberUnknown && (
-            <View style={{ paddingTop: space.md }}>
-              <Disclaimer text="This source carries no fiber figure. It will be left out of today's fiber total rather than counted as zero — the day's denominator says so." />
-            </View>
-          )}
-        </Gutter>
-
-        <Gap h={space.xl} />
-
-        <Gutter>
-          <Segmented
-            label="MEAL"
-            value={meal}
-            onChange={setMeal}
-            options={[
-              { value: 'breakfast', label: 'Brkfst' },
-              { value: 'lunch', label: 'Lunch' },
-              { value: 'dinner', label: 'Dinner' },
-              { value: 'snack', label: 'Snack' },
-            ]}
-          />
-        </Gutter>
+          <Card level="raised">
+            <Segmented
+              label="Meal"
+              value={meal}
+              onChange={setMeal}
+              options={[
+                { value: 'breakfast', label: 'Brkfst' },
+                { value: 'lunch', label: 'Lunch' },
+                { value: 'dinner', label: 'Dinner' },
+                { value: 'snack', label: 'Snack' },
+              ]}
+            />
+          </Card>
+        </Stack>
       </ScrollView>
 
       <Dock>
-        {!gramsValue && (
-          <>
-            <Row gap={6}>
-              <Body size={13} tone="est">
-                Enter an amount to log this.
-              </Body>
-            </Row>
-            <Gap h={space.sm} />
-          </>
-        )}
-        <PrimaryButton
+        <Button
           label={route.params.firstLog ? 'Log it — that is onboarding done' : 'Add to today'}
           disabled={!gramsValue}
           loading={saving}
           onPress={onCommit}
+          haptic="commit"
         />
         <Gap h={space.sm} />
         <View style={{ alignItems: 'center' }}>
-          <Num size={10.5} tone="ink3">
-            {nutrients ? `${kcal(nutrients.kcal)} kcal · P ${grams(nutrients.proteinG)} g` : 'no amount yet'}
-          </Num>
+          <Txt role="caption" tone="tertiary" numeric>
+            {nutrients
+              ? `${kcal(nutrients.kcal)} kcal · P ${grams(nutrients.proteinG)} g`
+              : 'no amount yet'}
+          </Txt>
         </View>
       </Dock>
     </Screen>

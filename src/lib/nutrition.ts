@@ -8,49 +8,74 @@ import type {
 } from '../api/types';
 
 /**
- * Nutrient arithmetic.
- *
- * The client recomputes these only for optimistic rendering — the server
- * refreezes its own numbers at commit and history reads from the frozen copy.
- * Keeping the maths here anyway is what lets a portion chip retotal the sheet
- * without a round-trip.
+ * Nutrient arithmetic, client-side for optimistic rendering only — the server
+ * refreezes its own numbers at commit and history reads the frozen copy.
  */
 
 /** Scale a per-100 g row to an actual portion. Unknown fiber stays unknown. */
 export function scale(per100g: FoodNutrientsPer100g, gramsAmount: number): Nutrients {
   const f = gramsAmount / 100;
+  // Each nutrient carries its own state through the arithmetic. An unknown
+  // stays unknown: multiplying a missing measurement by a portion does not
+  // measure it.
   return {
     kcal: per100g.kcal * f,
     proteinG: per100g.proteinG * f,
+    carbsG: per100g.carbsG === null ? null : per100g.carbsG * f,
+    carbsState: per100g.carbsState,
+    fatG: per100g.fatG === null ? null : per100g.fatG * f,
+    fatState: per100g.fatState,
     fiberG: per100g.fiberG === null ? null : per100g.fiberG * f,
     fiberState: per100g.fiberState,
   };
 }
 
 /**
- * Sum a list of nutrient triples.
- *
- * Unknown fiber is *skipped*, not coerced to zero, and counted separately —
- * which is what lets the ring say "12 of 28 g, 2 items unmeasured" instead of
- * quietly under-reporting every day that contains one unmeasured food.
+ * Unknown fiber is skipped, not coerced to zero, and counted separately — so the
+ * ring can say "12 of 28 g, 2 items unmeasured" instead of under-reporting.
  */
 export function total(items: Nutrients[]): {
   kcal: number;
   proteinG: number;
+  carbsG: number;
+  fatG: number;
   fiberG: number;
+  carbsUnmeasuredItems: number;
+  fatUnmeasuredItems: number;
   fiberUnmeasuredItems: number;
 } {
   let kcal = 0;
   let proteinG = 0;
+  let carbsG = 0;
+  let fatG = 0;
   let fiberG = 0;
+  let carbsUnmeasuredItems = 0;
+  let fatUnmeasuredItems = 0;
   let fiberUnmeasuredItems = 0;
+
   for (const n of items) {
     kcal += n.kcal;
     proteinG += n.proteinG;
+    // Counted per nutrient, never shared: the item missing fibre is usually
+    // not the item missing carbs.
+    if (n.carbsG === null) carbsUnmeasuredItems += 1;
+    else carbsG += n.carbsG;
+    if (n.fatG === null) fatUnmeasuredItems += 1;
+    else fatG += n.fatG;
     if (n.fiberG === null) fiberUnmeasuredItems += 1;
     else fiberG += n.fiberG;
   }
-  return { kcal, proteinG, fiberG, fiberUnmeasuredItems };
+
+  return {
+    kcal,
+    proteinG,
+    carbsG,
+    fatG,
+    fiberG,
+    carbsUnmeasuredItems,
+    fatUnmeasuredItems,
+    fiberUnmeasuredItems,
+  };
 }
 
 export const entryTotals = (entry: LogEntry) => total(entry.items.map(i => i.nutrients));
@@ -89,11 +114,8 @@ export function bmr(p: UserProfile, now = new Date()): number {
 }
 
 /**
- * Derive the three targets from a profile, and keep the reasoning attached.
- *
- * The calorie target is floored at BMR: a user who asks for 1 kg a week at
- * 55 kg gets the floor and is told so, rather than a number that would make the
- * app complicit in an unsafe deficit.
+ * The calorie target is floored at BMR — an aggressive rate gets the floor and
+ * is told so, rather than a number that endorses an unsafe deficit.
  */
 export function deriveGoal(p: UserProfile, now = new Date()): Goal {
   const factor = ACTIVITY[p.activityLevel].factor;
@@ -115,10 +137,20 @@ export function deriveGoal(p: UserProfile, now = new Date()): Goal {
   // 14 g per 1,000 kcal — the dietary-guidelines basis.
   const fiberG = Math.round((kcal / 1000) * 14);
 
+  // Fat is a POLICY share; carbohydrate takes the remainder by difference.
+  // Both mirror the server's goal-calculator exactly — the targets screen
+  // previews live as the profile changes, and a preview that disagreed with
+  // the goal the user then accepts would be worse than no preview at all.
+  const fatPctOfKcal = 0.25;
+  const fatG = Math.round((kcal * fatPctOfKcal) / 9);
+  const carbsG = Math.max(0, Math.round((kcal - proteinG * 4 - fatG * 9) / 4));
+
   return {
     id: 'goal-derived',
     kcal: Math.round(kcal / 10) * 10,
     proteinG,
+    carbsG,
+    fatG,
     fiberG,
     effectiveFrom: new Date(now).toISOString().slice(0, 10),
     basis: {
@@ -127,11 +159,12 @@ export function deriveGoal(p: UserProfile, now = new Date()): Goal {
       activityFactor: factor,
       adjustmentPct: tdee === 0 ? 0 : Math.round((signed / tdee) * 100),
       flooredAtBmr,
+      fatPctOfKcal,
     },
   };
 }
 
-/** The sentence under each target on the reveal screen. Users who see the math trust it. */
+/** The sentence under each target on the reveal screen. */
 export function goalReasoning(goal: Goal, p: UserProfile): Record<'kcal' | 'protein' | 'fiber', string> {
   const { basis } = goal;
   const adj = Math.abs(basis.adjustmentPct);

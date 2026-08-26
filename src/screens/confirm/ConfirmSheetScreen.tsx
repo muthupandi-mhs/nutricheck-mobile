@@ -2,19 +2,20 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useApi } from '../../api/client';
 import {
-  OfflineError,
   isProblem,
+  OfflineError,
   type FoodSummary,
   type MealSlot,
   type ResolveDraft,
   type UnresolvedItem,
 } from '../../api/types';
-import { PrimaryButton, TextAction } from '../../components/Button';
+import { Button, TextButton } from '../../components/Button';
+import { TotalsRow } from '../../components/Feedback';
 import { Icon } from '../../components/Icon';
-import { Divider, Gap, Gutter, Row, SplitRow } from '../../components/Layout';
+import { Divider, Gap, Gutter, Row, Split, Stack } from '../../components/Layout';
 import { Sheet } from '../../components/Sheet';
-import { SkeletonItemRow } from '../../components/Skeleton';
-import { Body, Display, Eyebrow, Mono } from '../../components/Type';
+import { SkeletonRow } from '../../components/Skeleton';
+import { SectionLabel, Txt } from '../../components/Text';
 import { DASH, grams, kcal, mealSlotFor, plural } from '../../lib/format';
 import { uuid } from '../../lib/id';
 import { scale, total } from '../../lib/nutrition';
@@ -24,22 +25,17 @@ import { ConfirmRow, UnresolvedRow, type Line } from './ConfirmRow';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
- * The confirm sheet — where a parse becomes a user assertion.
+ * The confirm sheet — where a parse becomes a user assertion. Three rules that
+ * do not bend:
  *
- * Three rules, and none of them bends:
+ *  1. Never auto-commit a parse, on any confidence. Otherwise the log is the
+ *     model's opinion rather than something the user asserted.
+ *  2. Show ranges only where they are real. A range on "180 g of chicken" is
+ *     noise; on "a bowl of dal" before we know their bowl it is honesty.
+ *  3. Every correction is training data — portion edits write `user_portions`,
+ *     food swaps write the miss log. This sheet is the app's main sensor.
  *
- *  1. **Never auto-commit a parse.** Not on high confidence, not on a repeated
- *     phrase, not to win a second in the timing table. The user's number has to
- *     be a thing they asserted, or the whole log is the model's opinion.
- *  2. **Show ranges only where they are real.** A range on "180 g of chicken"
- *     is noise. A range on "a bowl of dal", before we have learned their bowl,
- *     is honesty. The quantity type tells us which case we are in.
- *  3. **Every correction is training data.** A portion edit writes to
- *     `user_portions`; a food swap writes the miss log that feeds the curated
- *     dish backlog. This sheet is the app's main sensor, not just a form.
- *
- * It opens *before* the resolve call returns. Two seconds of skeleton rows
- * filling in reads as progress; two seconds of nothing reads as a stall.
+ * It opens BEFORE the resolve returns; skeletons filling in read as progress.
  */
 export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>) {
   const { c, space } = useTheme();
@@ -85,8 +81,8 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
 
     api
       .resolve(phrase, source, parsed => {
-        // Frame one: quantities are known, foods are not. Real rows replace
-        // skeletons the moment there is anything true to put in them.
+        // Frame one: quantities known, foods not. Real rows replace skeletons
+        // the moment there is anything true to put in them.
         if (!alive) return;
         setLines(
           parsed.items.map(item => ({
@@ -109,19 +105,15 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
       .catch(err => {
         if (!alive) return;
         // Every failure keeps the phrase and lands on a route that cannot fail.
-        // A user who typed a sentence has already done the work; losing it is
-        // the failure that makes people delete a tracker.
-        if (isProblem(err, 'resolver-timeout', 'resolver-unavailable')) {
-          navigation.replace('Search', { prefill: phrase, notice: 'timeout' });
-        } else if (isProblem(err, 'resolver-refused', 'validation-failed')) {
-          navigation.replace('Search', { prefill: phrase, notice: 'unparsed' });
-        } else if (isProblem(err, 'quota-exhausted', 'rate-limited')) {
-          navigation.replace('Search', { prefill: phrase, notice: 'quota' });
-        } else if (err instanceof OfflineError) {
-          navigation.replace('Search', { prefill: phrase, notice: 'timeout' });
-        } else {
-          navigation.replace('Search', { prefill: phrase, notice: 'unparsed' });
-        }
+        // Losing typed input is the failure that makes people delete a tracker.
+        const notice = isProblem(err, 'resolver-refused', 'validation-failed')
+          ? 'unparsed'
+          : isProblem(err, 'quota-exhausted', 'rate-limited')
+            ? 'quota'
+            : isProblem(err, 'resolver-timeout', 'resolver-unavailable') || err instanceof OfflineError
+              ? 'timeout'
+              : 'unparsed';
+        navigation.replace('Search', { prefill: phrase, notice });
       });
 
     return () => {
@@ -164,8 +156,8 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
     [lines],
   );
 
-  const missingPortions = (lines ?? []).filter(l => l.grams === null).length;
-  const ready = lines !== null && lines.length > 0 && missingPortions === 0;
+  const missing = (lines ?? []).filter(l => l.grams === null).length;
+  const ready = lines !== null && lines.length > 0 && missing === 0;
 
   const onCommit = async () => {
     if (!lines || !ready) return;
@@ -175,8 +167,8 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
       loggedAt: new Date().toISOString(),
       meal,
       source,
-      // Kept on the entry: the reproducible input for any later correction, the
-      // miss-log row when nothing matched, and — unlike a photo — searchable.
+      // Kept on the entry: the reproducible input for a later correction, and
+      // the miss-log row when nothing matched.
       phrase,
       draftId,
       items: lines
@@ -192,58 +184,53 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
     });
     setCommitting(false);
     setVisible(false);
-    // A queued commit is not an error state here: the Home banner explains the
-    // queue, and there is nothing for the user to redo either way.
-    navigation.navigate('Home');
+    // A queued commit is not an error here — the Today banner explains the queue.
+    navigation.navigate('Main');
   };
 
   return (
     <View style={{ flex: 1 }}>
-      <Sheet visible={visible} onDismiss={() => navigation.goBack()} height={0.92} dismissible={!committing}>
-        {/* ── the phrase, kept verbatim ─────────────────────────────────── */}
-        <Gutter style={{ paddingTop: space.md, paddingBottom: space.md }}>
-          <SplitRow align="flex-start">
-            <View style={{ flexShrink: 1, paddingRight: space.md }}>
-              <Eyebrow size={10} tone="ink3">
-                {source === 'voice' ? 'YOU SAID' : 'YOU TYPED'}
-              </Eyebrow>
-              <Gap h={4} />
-              <Body size={15.5} tone="ink2" style={{ fontStyle: 'italic' }}>
+      <Sheet visible={visible} onDismiss={() => navigation.goBack()} height={0.9} dismissible={!committing}>
+        <Gutter style={{ paddingTop: space.sm, paddingBottom: space.lg }}>
+          <Split align="flex-start" gap={space.md}>
+            <Stack gap={5} style={{ flexShrink: 1 }}>
+              <SectionLabel>{source === 'voice' ? 'You said' : 'You typed'}</SectionLabel>
+              <Txt role="h3" tone="secondary" style={{ fontStyle: 'italic' }}>
                 “{phrase}”
-              </Body>
-            </View>
-            <TextAction
+              </Txt>
+            </Stack>
+            <TextButton
               label="Edit"
+              role="labelSm"
               onPress={() => navigation.replace('Composer', { prefill: phrase })}
-              size={11}
             />
-          </SplitRow>
+          </Split>
         </Gutter>
 
         <Divider />
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: space.gutter }}>
+        <ScrollView
+          style={{ flexGrow: 1, flexShrink: 1 }}
+          contentContainerStyle={{ paddingHorizontal: space.gutter, paddingVertical: space.lg }}>
           {lines === null ? (
             <>
-              <View style={{ paddingTop: space.sm }}>
-                <Row gap={9} style={{ paddingBottom: space.md }}>
-                  <Icon name="sparkle" size={15} color={c.est} weight={2.2} />
-                  <Eyebrow size={11} tone="est">
-                    READING YOUR MEAL
-                  </Eyebrow>
-                </Row>
-              </View>
+              <Row gap={space.sm} style={{ paddingBottom: space.md }}>
+                <Icon name="sparkle" size={16} color={c.primary} weight={2} />
+                <Txt role="labelSm" tone="primary">
+                  Reading your meal
+                </Txt>
+              </Row>
               {[0, 1, 2].map(i => (
-                <SkeletonItemRow key={i} index={i} widths={i === 1 ? ['44%', '41%'] : ['58%', '34%']} />
+                <SkeletonRow key={i} index={i} widths={i === 1 ? ['46%', '40%'] : ['60%', '34%']} />
               ))}
-              <View style={{ alignItems: 'center', paddingTop: 26 }}>
-                <Mono size={10.5} tone="ink3">
+              <View style={{ alignItems: 'center', paddingTop: space.xxl }}>
+                <Txt role="caption" tone="tertiary">
                   matching against 8,412 foods
-                </Mono>
+                </Txt>
               </View>
             </>
           ) : (
-            <>
+            <Stack gap={space.md}>
               {lines.map(line => (
                 <ConfirmRow
                   key={line.itemId}
@@ -262,81 +249,58 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
                 />
               ))}
 
-              <Row
-                gap={space.sm}
-                style={{ paddingVertical: 13 }}
-                accessibilityRole="button"
-                accessibilityLabel="Add something we missed">
-                <Icon name="plus" size={14} color={c.ink2} weight={2.2} />
-                <TextAction
+              <View style={{ alignItems: 'center', paddingTop: space.sm }}>
+                <TextButton
                   label="Add something we missed"
-                  tone="ink2"
-                  size={14.5}
-                  onPress={() => navigation.replace('Search', { prefill: '' })}
+                  icon="plus"
+                  onPress={() => navigation.replace('Search')}
                 />
-              </Row>
-            </>
+              </View>
+            </Stack>
           )}
         </ScrollView>
 
         <Divider />
 
-        {/* ── running totals ────────────────────────────────────────────── */}
-        <Gutter style={{ paddingTop: 13 }}>
-          <Row gap={space.xl}>
-            {[
-              { label: 'CALORIES', value: lines ? kcal(totals.kcal) : DASH, unit: '' },
-              { label: 'PROTEIN', value: lines ? grams(totals.proteinG) : DASH, unit: 'g' },
-              { label: 'FIBER', value: lines ? grams(totals.fiberG) : DASH, unit: 'g' },
-            ].map(stat => (
-              <View key={stat.label} style={{ gap: 2 }}>
-                <Eyebrow size={9.5} tone="ink2">
-                  {stat.label}
-                </Eyebrow>
-                <Row gap={3} align="baseline">
-                  <Display size={24} tone={lines ? 'ink' : 'ink3'}>
-                    {stat.value}
-                  </Display>
-                  {stat.unit ? (
-                    <Mono size={14} tone="ink2">
-                      {stat.unit}
-                    </Mono>
-                  ) : null}
-                </Row>
-              </View>
-            ))}
-          </Row>
+        <Gutter style={{ paddingTop: space.lg }}>
+          <TotalsRow
+            kcal={lines ? kcal(totals.kcal) : DASH}
+            protein={lines ? grams(totals.proteinG) : DASH}
+            carbs={lines ? grams(totals.carbsG) : DASH}
+            fat={lines ? grams(totals.fatG) : DASH}
+            fibre={lines ? grams(totals.fiberG) : DASH}
+            fibreUnknown={totals.fiberUnmeasuredItems}
+          />
 
           {totals.fiberUnmeasuredItems > 0 && (
-            <Row gap={6} style={{ paddingTop: 7 }}>
-              <Icon name="info" size={11} color={c.est} weight={2.2} />
-              <Mono size={10} tone="est">
-                fiber unknown on {plural(totals.fiberUnmeasuredItems, 'item')} — left out, not counted as zero
-              </Mono>
+            <Row gap={6} style={{ paddingTop: space.md }}>
+              <Icon name="info" size={13} color={c.attention} weight={2.1} />
+              <Txt role="caption" tone="attention" style={{ flexShrink: 1 }}>
+                Fibre unknown on {plural(totals.fiberUnmeasuredItems, 'item')} — left out, not counted as zero.
+              </Txt>
             </Row>
           )}
 
-          {missingPortions > 0 && (
-            <Row gap={6} style={{ paddingTop: 7 }}>
-              <Icon name="info" size={11} color={c.est} weight={2.2} />
-              <Mono size={10} tone="est">
-                {plural(missingPortions, 'item')} still {missingPortions === 1 ? 'needs' : 'need'} a portion
-              </Mono>
+          {missing > 0 && (
+            <Row gap={6} style={{ paddingTop: space.sm }}>
+              <Icon name="info" size={13} color={c.attention} weight={2.1} />
+              <Txt role="caption" tone="attention">
+                {plural(missing, 'item')} still {missing === 1 ? 'needs' : 'need'} a portion.
+              </Txt>
             </Row>
           )}
-        </Gutter>
 
-        <Gutter style={{ paddingTop: 14, paddingBottom: 26 }}>
-          <PrimaryButton
+          <Gap h={space.lg} />
+          <Button
             label="Add to today"
             disabled={!ready}
             loading={committing}
             onPress={onCommit}
+            haptic="commit"
           />
+          <Gap h={space.sm} />
         </Gutter>
       </Sheet>
-
     </View>
   );
 }
-

@@ -2,13 +2,9 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 import type { ActivityLevel, Objective, Sex, UserProfile } from '../api/types';
 
 /**
- * The profile under construction.
- *
- * Onboarding spans five screens and must survive a back-swipe on any of them
- * with the fields intact — nobody re-enters their height because they tapped
- * back to check the units toggle. Kept in memory rather than persisted: it is
- * a ninety-second flow, and a half-finished profile is not worth restoring
- * across a process death.
+ * The profile under construction. Must survive a back-swipe on any of the five
+ * onboarding screens with fields intact. In memory rather than persisted — a
+ * ninety-second flow is not worth restoring across a process death.
  */
 export type Draft = {
   sex: Sex;
@@ -50,9 +46,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       patch: p => setDraft(d => ({ ...d, ...p })),
       toProfile: () => ({
         sex: draft.sex,
-        // Age is what the formula needs; asking for a birth year rather than a
-        // full date is one field instead of a date picker, and no less accurate
-        // for a resting-burn estimate.
+        // The formula needs age, so a birth year is one field instead of a date
+        // picker and no less accurate for a resting-burn estimate.
         birthDate: `${draft.birthYear}-06-15`,
         heightCm: draft.heightCm,
         weightKg: draft.weightKg,

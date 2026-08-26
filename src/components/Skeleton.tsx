@@ -1,37 +1,35 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
-import { Hairline } from './Layout';
+import { Row, Stack } from './Layout';
 
 /**
- * Skeleton rows.
+ * Skeletons. There is no spinner anywhere in this app — the confirm sheet opens
+ * on these and swaps in real rows as the resolve lands.
  *
- * There is no spinner anywhere in this app. The composer waits about two
- * seconds on the resolver, and two seconds of a blank sheet feels materially
- * longer than two seconds of a sheet that is visibly filling in — so the sheet
- * opens immediately on these and swaps them for real rows as results land.
- *
- * The pulse is suppressed under Reduce Motion; the shapes stay, at a fixed
- * opacity, because they are still the layout, not decoration.
+ * Reduce Motion suppresses the pulse but keeps the shapes: they are the layout,
+ * not decoration.
  */
 export function Shimmer({
   width,
   height,
+  radius: r,
   delay = 0,
 }: {
   width: number | string;
   height: number;
+  radius?: number;
   delay?: number;
 }) {
-  const { c } = useTheme();
-  const pulse = useRef(new Animated.Value(0.38)).current;
+  const { c, radius } = useTheme();
+  const pulse = useRef(new Animated.Value(0.45)).current;
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled().then(v => !cancelled && setReduced(v));
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then(v => alive && setReduced(v));
     return () => {
-      cancelled = true;
+      alive = false;
     };
   }, []);
 
@@ -40,8 +38,8 @@ export function Shimmer({
     const loop = Animated.loop(
       Animated.sequence([
         Animated.delay(delay),
-        Animated.timing(pulse, { toValue: 0.85, duration: 675, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.38, duration: 675, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.45, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       ]),
     );
     loop.start();
@@ -53,27 +51,38 @@ export function Shimmer({
       style={{
         width: width as number,
         height,
-        backgroundColor: c.surface2,
-        opacity: reduced ? 0.6 : pulse,
+        borderRadius: r ?? radius.sm,
+        backgroundColor: c.sunken,
+        opacity: reduced ? 0.7 : pulse,
       }}
     />
   );
 }
 
-/** One placeholder line of the confirm sheet: name, portion, calories. */
-export function SkeletonItemRow({ index = 0, widths }: { index?: number; widths?: [string, string] }) {
-  const [w1, w2] = widths ?? (['58%', '34%'] as [string, string]);
-  const delay = index * 180;
+/** A placeholder food row: glyph, two lines, a trailing number. */
+export function SkeletonRow({ index = 0, widths }: { index?: number; widths?: [string, string] }) {
+  const { space, radius } = useTheme();
+  const [w1, w2] = widths ?? (['62%', '38%'] as [string, string]);
+  const delay = index * 140;
+
   return (
-    <View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 17 }}>
-        <View style={{ flexGrow: 1, gap: 8 }}>
-          <Shimmer width={w1} height={15} delay={delay} />
-          <Shimmer width={w2} height={11} delay={delay + 180} />
-        </View>
-        <Shimmer width={40} height={15} delay={delay} />
-      </View>
-      <Hairline />
+    <Row gap={space.md} style={{ paddingVertical: space.md }}>
+      <Shimmer width={44} height={44} radius={radius.md} delay={delay} />
+      <Stack gap={8} style={{ flexGrow: 1 }}>
+        <Shimmer width={w1} height={14} delay={delay} />
+        <Shimmer width={w2} height={11} delay={delay + 120} />
+      </Stack>
+      <Shimmer width={40} height={14} delay={delay} />
+    </Row>
+  );
+}
+
+/** A placeholder card, for the home hero before the day arrives. */
+export function SkeletonCard({ height = 180 }: { height?: number }) {
+  const { radius, space } = useTheme();
+  return (
+    <View style={{ paddingHorizontal: space.gutter }}>
+      <Shimmer width="100%" height={height} radius={radius.lg} />
     </View>
   );
 }

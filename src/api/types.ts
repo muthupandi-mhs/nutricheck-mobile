@@ -1,27 +1,94 @@
 /**
- * Wire types — a hand-mirrored copy of `packages/contracts/src/*`.
- *
- * The app is a standalone RN project today (see the repo README, "Mobile"), so
- * it cannot import `@nutricheck/contracts` yet. When it moves to `apps/mobile`
- * this file is deleted and replaced by:
- *
- *     export type { ... } from '@nutricheck/contracts';
- *
- * Until then: every shape below is the contract's inferred type. Change one
- * here only by changing the Zod schema first.
+ * Wire types — hand-mirrored from `nutricheck-api/packages/contracts`, which the
+ * app cannot import until both live in one workspace. Change a shape here only
+ * by changing the Zod schema there first.
  */
+
+// ── auth ─────────────────────────────────────────────────────────────────────
+
+export type RegisterRequest = { email: string; password: string };
+export type LoginRequest = { email: string; password: string };
+
+/**
+ * Length is the only rule. Composition rules reduce entropy in practice (NIST
+ * SP 800-63B advises against them); the upper bound stops Argon2id being asked
+ * to hash a megabyte.
+ */
+export const PASSWORD_MIN = 10;
+export const PASSWORD_MAX = 200;
+export const EMAIL_MAX = 254;
+
+export type TokenPair = {
+  accessToken: string;
+  /** Opaque, not a JWT. Only its SHA-256 hash is ever stored server-side. */
+  refreshToken: string;
+  tokenType: 'Bearer';
+  /** Access token lifetime in seconds, so the client can refresh ahead of expiry. */
+  expiresIn: number;
+};
+
+export type SessionUser = {
+  id: string;
+  email: string;
+  createdAt: string;
+  /** False until the profile and first goal exist — drives the onboarding jump. */
+  onboarded: boolean;
+};
+
+export type AuthResponse = { user: SessionUser; tokens: TokenPair };
+
+// ── transcription ────────────────────────────────────────────────────────────
+
+/** Mirrors the API's `TranscribeLocale`, which mirrors `SpeechLocaleId`. */
+export type TranscribeLocale = 'en-IN' | 'ta-IN';
+
+/** The subset of the API's `AudioMimeType` this device actually records. */
+export type AudioMimeType = 'audio/wav' | 'audio/aac' | 'audio/mp3';
+
+/**
+ * Server-side transcription — the fallback for when the phone's own recogniser
+ * cannot handle the language being spoken.
+ *
+ * `text` is empty when nothing intelligible was heard. That is an outcome, not
+ * an error: the mic caught silence, and the composer says so rather than
+ * showing a failure the user cannot act on.
+ */
+export type TranscribeResult = {
+  text: string;
+  locale: TranscribeLocale;
+  model: string;
+  latencyMs: number;
+};
 
 // ── nutrition ────────────────────────────────────────────────────────────────
 
-/** Fiber has three states, not two. `unknown` is excluded from the denominator. */
-export type FiberState = 'known' | 'imputed' | 'unknown';
+/**
+ * How much to trust one number. Three states, not two.
+ *
+ * `unknown` is excluded from the denominator rather than counted as zero;
+ * `imputed` is a real value from an estimate, rendered with a `~`.
+ */
+export type NutrientState = 'known' | 'imputed' | 'unknown';
+
+/** The original name — fibre is the nutrient this was written for. */
+export type FiberState = NutrientState;
 
 export type Nutrients = {
   kcal: number;
   proteinG: number;
-  /** null if and only if fiberState is 'unknown'. */
+  /**
+   * Each is null if and only if its own state is 'unknown'.
+   *
+   * Measured against the corpus: carbs and fat are present for 100% of the
+   * USDA rows and fibre for 92.8%, so in practice only fibre is often missing —
+   * but curated dishes are estimates and arrive 'imputed' across all three.
+   */
+  carbsG: number | null;
+  carbsState: NutrientState;
+  fatG: number | null;
+  fatState: NutrientState;
   fiberG: number | null;
-  fiberState: FiberState;
+  fiberState: NutrientState;
 };
 
 /** How the amount was expressed. Drives every branch of the confirm sheet. */
@@ -66,8 +133,12 @@ export type FoodSummary = {
 export type FoodNutrientsPer100g = {
   kcal: number;
   proteinG: number;
+  carbsG: number | null;
+  carbsState: NutrientState;
+  fatG: number | null;
+  fatState: NutrientState;
   fiberG: number | null;
-  fiberState: FiberState;
+  fiberState: NutrientState;
 };
 
 export type FoodDetail = FoodSummary & {
@@ -101,10 +172,7 @@ export type ResolvedItem = {
   matchedText: string;
   quantity: Quantity;
   food: FoodSummary | null;
-  /**
-   * The rows the re-rank chose from — shipped on every item, so the runner-up
-   * expander is instant instead of a second request.
-   */
+  /** The rows the re-rank chose from. Shipped inline so the runner-up expander needs no request. */
   candidates: FoodSummary[];
   confidence: 'high' | 'low';
   /** null exactly when quantity.grams is null. */
@@ -172,11 +240,21 @@ export type DaySummary = {
   totals: {
     kcal: number;
     proteinG: number;
+    carbsG: number;
+    fatG: number;
     fiberG: number;
-    /** Why the ring can honestly say "12 of 28 g, 2 items unmeasured". */
+    /**
+     * Why a meter can honestly say "12 of 28 g, 2 items unmeasured".
+     *
+     * One count per nutrient, not a shared one: the item missing fibre is
+     * usually not the item missing carbs, and a single number could not say
+     * which total to distrust.
+     */
+    carbsUnmeasuredItems: number;
+    fatUnmeasuredItems: number;
     fiberUnmeasuredItems: number;
   };
-  goal: { kcal: number; proteinG: number; fiberG: number };
+  goal: { kcal: number; proteinG: number; carbsG: number; fatG: number; fiberG: number };
   entries: LogEntry[];
 };
 
@@ -202,6 +280,8 @@ export type Goal = {
   id: string;
   kcal: number;
   proteinG: number;
+  carbsG: number;
+  fatG: number;
   fiberG: number;
   effectiveFrom: string;
   /** Shown on the targets screen so the user can see the math and trust it. */
@@ -211,10 +291,12 @@ export type Goal = {
     activityFactor: number;
     adjustmentPct: number;
     flooredAtBmr: boolean;
+    /** The fat share used for THIS goal. Policy, not derivation — so it is stored. */
+    fatPctOfKcal: number;
   };
 };
 
-export type SetGoal = Partial<Pick<Goal, 'kcal' | 'proteinG' | 'fiberG'>> & {
+export type SetGoal = Partial<Pick<Goal, 'kcal' | 'proteinG' | 'carbsG' | 'fatG' | 'fiberG'>> & {
   effectiveFrom?: string;
 };
 
@@ -225,6 +307,8 @@ export type DayPoint = {
   date: string;
   kcal: number;
   proteinG: number;
+  carbsG: number;
+  fatG: number;
   fiberG: number;
   logged: boolean;
 };
@@ -233,8 +317,8 @@ export type WeekSummary = {
   from: string;
   to: string;
   days: DayPoint[];
-  goal: { kcal: number; proteinG: number; fiberG: number };
-  averages: { kcal: number; proteinG: number; fiberG: number };
+  goal: { kcal: number; proteinG: number; carbsG: number; fatG: number; fiberG: number };
+  averages: { kcal: number; proteinG: number; carbsG: number; fatG: number; fiberG: number };
   /** Consecutive days with at least one entry, counting back from today. */
   streakDays: number;
 };

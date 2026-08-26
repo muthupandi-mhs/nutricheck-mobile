@@ -6,6 +6,10 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>So you can say what you ate instead of typing it.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Your words are turned into text on this device, so you can log a meal by speaking it.</string>
 	<key>CFBundleDisplayName</key>
 	<string>nutricheck</string>
 	<key>CFBundleExecutable</key>

@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ApiProvider, useApi, type NutriCheckApi } from './api/client';
-import { createMockApi } from './api/mock/mockApi';
+import { createHttpApi } from './api/http/httpApi';
+import { API_BASE_URL } from './config';
 import { RootNavigator } from './navigation/RootNavigator';
 import type { RootStackParamList } from './navigation/types';
 import { AppStateProvider } from './state/AppState';
@@ -10,27 +11,13 @@ import { OnboardingProvider } from './state/Onboarding';
 import { ThemeProvider, useTheme } from './theme/ThemeProvider';
 
 /**
- * NutriCheck.
- *
- * ── Swapping in the real backend ───────────────────────────────────────────
- *
- * One line. Implement `NutriCheckApi` (src/api/client.ts) against
- * `apps/api` and pass it here instead of `createMockApi()`:
- *
- *     const api = useMemo(() => createHttpApi(BASE_URL, getToken), []);
- *
- * Nothing else moves. No screen imports a fixture, no screen calls `fetch`,
- * and every shape crossing that boundary is already the wire shape from
- * `packages/contracts` — mirrored in `src/api/types.ts` only because this
- * project is not yet a workspace member.
- *
- * The mock is not a stub: it holds state, so a commit lands, an undo removes
- * it, and a portion correction trains the next parse. That is deliberate —
- * a fixture that returns the same canned day forever cannot tell you whether
- * the interaction design works across a session.
+ * The one place `NutriCheckApi` is constructed. There is a single
+ * implementation now — the fixture backend was deleted once the app moved onto
+ * the API — so this is the only thing standing between the screens and the
+ * server. No screen imports a fixture or calls `fetch`.
  */
 export default function App() {
-  const api = useMemo<NutriCheckApi>(() => createMockApi(), []);
+  const api = useMemo<NutriCheckApi>(() => createHttpApi({ baseUrl: API_BASE_URL }), []);
 
   return (
     <SafeAreaProvider>
@@ -48,11 +35,8 @@ export default function App() {
 }
 
 /**
- * The one branch before the navigator: has this person onboarded?
- *
- * It is resolved here rather than inside a screen so nobody ever sees Home
- * flash before being pushed into Welcome — the first frame is either the app
- * or the empty ground, never the wrong one.
+ * Resolved here rather than inside a screen so Home never flashes before the
+ * user is pushed into Welcome.
  */
 function Root() {
   const { c } = useTheme();
@@ -62,14 +46,19 @@ function Root() {
   useEffect(() => {
     let alive = true;
     api
-      .getProfile()
-      .then(profile => alive && setInitial(profile ? 'Home' : 'Welcome'))
+      .getSession()
+      .then(user => {
+        if (!alive) return;
+        // Three states, not two — collapsing the middle one lands a
+        // half-onboarded account on a home screen with no targets.
+        setInitial(!user ? 'Welcome' : user.onboarded ? 'Main' : 'OnboardProfile');
+      })
       .catch(() => alive && setInitial('Welcome'));
     return () => {
       alive = false;
     };
   }, [api]);
 
-  if (!initial) return <View style={{ flex: 1, backgroundColor: c.ground }} />;
+  if (!initial) return <View style={{ flex: 1, backgroundColor: c.canvas }} />;
   return <RootNavigator initialRoute={initial} />;
 }

@@ -1,231 +1,197 @@
-import React, { useRef } from 'react';
-import {
-  AccessibilityRole,
-  Animated,
-  Easing,
-  Pressable,
-  StyleProp,
-  View,
-  ViewStyle,
-} from 'react-native';
+import React from 'react';
+import { ActivityIndicator, StyleProp, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { Icon, IconName } from './Icon';
-import { Mono, Title } from './Type';
+import { Row } from './Layout';
+import { Press } from './Press';
+import { Txt } from './Text';
+
+type Variant = 'primary' | 'tonal' | 'outline' | 'ghost' | 'danger';
+type Size = 'lg' | 'md' | 'sm';
+
+const HEIGHTS: Record<Size, number> = { lg: 56, md: 48, sm: 38 };
 
 /**
- * Press feedback is a 40 ms opacity dip, not a scale or a ripple.
+ * `lg` is the full-width commit at the bottom of a screen, one per screen. `md`
+ * is for cards and sheets, `sm` for inline actions.
  *
- * The layout is built from hard edges meeting at right angles; a scaled button
- * momentarily breaks every alignment it participates in, and on this design
- * that is very visible.
+ * Disabled keeps a readable label rather than dropping to 30% opacity — the
+ * blocking reason is always stated in the line directly above it.
  */
-function usePressFade() {
-  const opacity = useRef(new Animated.Value(1)).current;
-  const to = (v: number) =>
-    Animated.timing(opacity, {
-      toValue: v,
-      duration: v === 1 ? 140 : 40,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  return { opacity, onPressIn: () => to(0.62), onPressOut: () => to(1) };
-}
-
-type BaseProps = {
-  onPress?: () => void;
-  disabled?: boolean;
-  accessibilityLabel?: string;
-  style?: StyleProp<ViewStyle>;
-};
-
-/**
- * The one primary action per screen: a 52pt inverted slab.
- *
- * `disabled` keeps the button visible and readable rather than dimming it to
- * 30% — the user needs to see what they are being blocked from, and the
- * blocking reason is always stated in the line above it.
- */
-export function PrimaryButton({
+export function Button({
   label,
-  icon,
   onPress,
+  variant = 'primary',
+  size = 'lg',
+  icon,
+  iconRight,
   disabled,
   loading,
-  style,
+  full = true,
+  haptic,
   accessibilityLabel,
-}: BaseProps & { label: string; icon?: IconName; loading?: boolean }) {
-  const { c, space } = useTheme();
-  const fade = usePressFade();
-  const inert = disabled || loading;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: Boolean(inert) }}
-      onPress={inert ? undefined : onPress}
-      onPressIn={inert ? undefined : fade.onPressIn}
-      onPressOut={inert ? undefined : fade.onPressOut}>
-      <Animated.View
-        style={[
-          {
-            height: 52,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: space.sm + 1,
-            backgroundColor: inert ? c.surface : c.heavy,
-            borderWidth: inert ? 1 : 0,
-            borderColor: c.rule,
-            opacity: inert ? 1 : undefined,
-          },
-          !inert && { opacity: fade.opacity },
-          style,
-        ]}>
-        {icon && <Icon name={icon} size={17} color={inert ? c.ink3 : c.onHeavy} weight={2.4} />}
-        <Title size={15.5} weight="700" color={inert ? c.ink3 : c.onHeavy}>
-          {loading ? 'Working…' : label}
-        </Title>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-/** The alternative action: same slab, outlined instead of filled. */
-export function SecondaryButton({
-  label,
-  icon,
-  onPress,
-  disabled,
+  accessibilityHint,
   style,
-}: BaseProps & { label: string; icon?: IconName }) {
-  const { c, space } = useTheme();
-  const fade = usePressFade();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: Boolean(disabled) }}
-      onPress={disabled ? undefined : onPress}
-      onPressIn={fade.onPressIn}
-      onPressOut={fade.onPressOut}>
-      <Animated.View
-        style={[
-          {
-            height: 52,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: space.sm,
-            backgroundColor: c.surface,
-            borderWidth: 1,
-            borderColor: c.ink,
-            opacity: fade.opacity,
-          },
-          style,
-        ]}>
-        {icon && <Icon name={icon} size={16} color={c.ink} />}
-        <Title size={15.5} weight="700" tone="ink">
-          {label}
-        </Title>
-      </Animated.View>
-    </Pressable>
-  );
-}
+}: {
+  label: string;
+  onPress?: () => void;
+  variant?: Variant;
+  size?: Size;
+  icon?: IconName;
+  iconRight?: IconName;
+  disabled?: boolean;
+  loading?: boolean;
+  full?: boolean;
+  haptic?: React.ComponentProps<typeof Press>['haptic'];
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { c, radius, space, elevation } = useTheme();
+  const inert = Boolean(disabled || loading);
 
-/** An inline mono action — "Edit", "Cancel", "Skip". Teal, never underlined. */
-export function TextAction({
-  label,
-  onPress,
-  tone = 'det',
-  size = 12,
-  style,
-}: BaseProps & { label: string; tone?: 'det' | 'est' | 'ink2'; size?: number }) {
-  const { hit } = useTheme();
-  const fade = usePressFade();
+  const skin: Record<Variant, { bg: string; fg: string; border: string; raise: boolean }> = {
+    primary: { bg: c.primary, fg: c.onPrimary, border: 'transparent', raise: true },
+    tonal: { bg: c.primarySoft, fg: c.primarySoftInk, border: 'transparent', raise: false },
+    outline: { bg: 'transparent', fg: c.ink, border: c.borderStrong, raise: false },
+    ghost: { bg: 'transparent', fg: c.primary, border: 'transparent', raise: false },
+    danger: { bg: c.dangerSoft, fg: c.danger, border: 'transparent', raise: false },
+  };
+
+  const s = skin[variant];
+  const bg = inert ? c.sunken : s.bg;
+  const fg = inert ? c.inkTertiary : s.fg;
+  const height = HEIGHTS[size];
+  const iconSize = size === 'sm' ? 16 : 19;
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
+    <Press
       onPress={onPress}
-      onPressIn={fade.onPressIn}
-      onPressOut={fade.onPressOut}
-      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      style={[{ minHeight: hit / 2, justifyContent: 'center' }, style]}>
-      <Animated.View style={{ opacity: fade.opacity }}>
-        <Mono size={size} tone={tone}>
-          {label}
-        </Mono>
-      </Animated.View>
-    </Pressable>
+      disabled={inert}
+      haptic={haptic}
+      feedback="scale"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      style={[
+        {
+          height,
+          alignSelf: full ? 'stretch' : 'flex-start',
+          paddingHorizontal: size === 'sm' ? space.lg : space.xxl,
+          borderRadius: radius.pill,
+          backgroundColor: bg,
+          borderWidth: variant === 'outline' && !inert ? 1.5 : 0,
+          borderColor: s.border,
+          justifyContent: 'center',
+          ...(s.raise && !inert ? elevation.e1 : {}),
+        },
+        style,
+      ]}>
+      <Row gap={space.sm} justify="center">
+        {loading ? (
+          <ActivityIndicator size="small" color={fg} />
+        ) : (
+          <>
+            {icon && <Icon name={icon} size={iconSize} color={fg} weight={2.1} />}
+            <Txt role={size === 'sm' ? 'labelSm' : 'label'} color={fg}>
+              {label}
+            </Txt>
+            {iconRight && <Icon name={iconRight} size={iconSize} color={fg} weight={2.1} />}
+          </>
+        )}
+      </Row>
+    </Press>
   );
 }
 
-/** A 44pt icon-only target. Never smaller, even when the glyph is 17px. */
+/** A circular icon-only target. Never smaller than 44pt regardless of glyph size. */
 export function IconButton({
   name,
   onPress,
+  size = 22,
   color,
-  size = 20,
+  variant = 'plain',
   accessibilityLabel,
-  accessibilityRole = 'button',
   style,
-}: BaseProps & {
+}: {
   name: IconName;
-  color?: string;
+  onPress?: () => void;
   size?: number;
-  accessibilityRole?: AccessibilityRole;
+  color?: string;
+  variant?: 'plain' | 'surface' | 'tonal';
+  accessibilityLabel: string;
+  style?: StyleProp<ViewStyle>;
 }) {
-  const { hit } = useTheme();
-  const fade = usePressFade();
+  const { c, hit, radius } = useTheme();
+
+  const bg =
+    variant === 'surface' ? c.surface : variant === 'tonal' ? c.primarySoft : 'transparent';
+  const fg = color ?? (variant === 'tonal' ? c.primarySoftInk : c.ink);
+
   return (
-    <Pressable
-      accessibilityRole={accessibilityRole}
-      accessibilityLabel={accessibilityLabel}
+    <Press
       onPress={onPress}
-      onPressIn={fade.onPressIn}
-      onPressOut={fade.onPressOut}
-      style={[{ width: hit, height: hit, alignItems: 'center', justifyContent: 'center' }, style]}>
-      <Animated.View style={{ opacity: fade.opacity }}>
-        <Icon name={name} size={size} color={color} />
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-/** A whole row that presses. Used for list rows, option rows, and recents tiles. */
-export function PressableRow({
-  children,
-  onPress,
-  onLongPress,
-  accessibilityLabel,
-  accessibilityHint,
-  disabled,
-  style,
-}: BaseProps & {
-  children: React.ReactNode;
-  onLongPress?: () => void;
-  accessibilityHint?: string;
-}) {
-  const fade = usePressFade();
-  return (
-    <Pressable
-      accessibilityRole="button"
+      feedback="scale"
       accessibilityLabel={accessibilityLabel}
-      accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: Boolean(disabled) }}
-      onPress={disabled ? undefined : onPress}
-      onLongPress={onLongPress}
-      delayLongPress={320}
-      onPressIn={fade.onPressIn}
-      onPressOut={fade.onPressOut}>
-      <Animated.View style={[{ opacity: fade.opacity }, style]}>{children}</Animated.View>
-    </Pressable>
+      style={[
+        {
+          width: hit,
+          height: hit,
+          borderRadius: radius.pill,
+          backgroundColor: bg,
+          borderWidth: variant === 'surface' ? 1 : 0,
+          borderColor: c.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        style,
+      ]}>
+      <Icon name={name} size={size} color={fg} />
+    </Press>
   );
 }
 
-/** A 44pt tap target wrapper for anything that is not already one. */
-export const Target = ({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) => {
+/** An inline text action — "Edit", "Cancel", "See all". */
+export function TextButton({
+  label,
+  onPress,
+  tone = 'primary',
+  role = 'label',
+  icon,
+}: {
+  label: string;
+  onPress?: () => void;
+  tone?: 'primary' | 'secondary' | 'danger';
+  role?: 'label' | 'labelSm';
+  icon?: IconName;
+}) {
+  const { c, hit } = useTheme();
+  const color = tone === 'primary' ? c.primary : tone === 'danger' ? c.danger : c.inkSecondary;
+
+  return (
+    <Press
+      onPress={onPress}
+      feedback="fade"
+      accessibilityLabel={label}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      style={{ minHeight: hit / 2, justifyContent: 'center' }}>
+      <Row gap={5}>
+        <Txt role={role} color={color}>
+          {label}
+        </Txt>
+        {icon && <Icon name={icon} size={15} color={color} weight={2.2} />}
+      </Row>
+    </Press>
+  );
+}
+
+/** A 44pt minimum wrapper for anything that is not already a target. */
+export const Target = ({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) => {
   const { hit } = useTheme();
   return <View style={[{ minHeight: hit, justifyContent: 'center' }, style]}>{children}</View>;
 };

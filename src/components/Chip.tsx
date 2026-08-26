@@ -1,95 +1,113 @@
 import React from 'react';
-import { Pressable, StyleProp, View, ViewStyle } from 'react-native';
+import { StyleProp, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
-import { Mono } from './Type';
+import { Icon, IconName } from './Icon';
+import { Row } from './Layout';
+import { Press } from './Press';
+import { Txt } from './Text';
+
+export type ChipVariant = 'default' | 'selected' | 'attention' | 'ask' | 'success';
 
 /**
- * The portion chip and its relatives.
- *
- * Four variants, and which one a chip wears is a statement about where its
- * number came from:
- *
- *   plain     the user stated it, or the food table did — nothing to question
- *   det       teal: confirmed, exact, learned from this user
- *   est       amber: an estimate, or a value the user has not supplied yet
- *   empty     a dashed amber outline: nothing here, and we are asking
- *
- * The dashed variant is the one that matters. "Some nuts" specifies nothing;
- * a chip that looks like an unanswered question costs one tap, and a chip
- * quietly reading "100 g" costs a wrong week.
+ * A pill. `ask` is the load-bearing variant: a dashed amber outline on an empty
+ * portion chip, which has to read as an unanswered question rather than quietly
+ * showing "100 g" for a portion nobody stated. The rest is selection state.
  */
-
-export type ChipVariant = 'plain' | 'det' | 'est' | 'empty' | 'selected';
-
-type Props = {
+export function Chip({
+  label,
+  variant = 'default',
+  icon,
+  onPress,
+  accessibilityLabel,
+  style,
+}: {
   label: string;
   variant?: ChipVariant;
+  icon?: IconName;
   onPress?: () => void;
-  size?: number;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
-};
+}) {
+  const { c, radius, space } = useTheme();
 
-export function Chip({ label, variant = 'plain', onPress, size = 12, accessibilityLabel, style }: Props) {
-  const { c } = useTheme();
-
-  const skin: Record<ChipVariant, { bg: string; border: string; text: string; dashed?: boolean; width?: number }> = {
-    plain: { bg: c.surface, border: c.rule, text: c.ink },
-    det: { bg: c.surface, border: c.det, text: c.det },
-    est: { bg: c.surface, border: c.est, text: c.est },
-    empty: { bg: c.surface, border: c.est, text: c.ink3, dashed: true, width: 2 },
-    selected: { bg: c.surface, border: c.ink, text: c.ink, width: 2 },
+  const skin: Record<ChipVariant, { bg: string; fg: string; border: string; dashed?: boolean; width: number }> = {
+    default: { bg: c.surface, fg: c.ink, border: c.borderStrong, width: 1 },
+    selected: { bg: c.primary, fg: c.onPrimary, border: 'transparent', width: 0 },
+    attention: { bg: c.attentionSoft, fg: c.attentionInk, border: 'transparent', width: 0 },
+    ask: { bg: 'transparent', fg: c.attentionInk, border: c.attention, dashed: true, width: 1.5 },
+    success: { bg: c.primarySoft, fg: c.primarySoftInk, border: 'transparent', width: 0 },
   };
   const s = skin[variant];
 
   const body = (
-    <View
+    <Row
+      gap={6}
       style={[
         {
           backgroundColor: s.bg,
-          borderWidth: s.width ?? 1,
+          borderWidth: s.width,
           borderColor: s.border,
           borderStyle: s.dashed ? 'dashed' : 'solid',
-          paddingVertical: 6,
-          paddingHorizontal: variant === 'empty' ? 14 : 10,
+          borderRadius: radius.pill,
+          paddingVertical: 9,
+          paddingHorizontal: space.lg,
           alignSelf: 'flex-start',
         },
         style,
       ]}>
-      <Mono size={size} color={s.text}>
+      {icon && <Icon name={icon} size={14} color={s.fg} weight={2.1} />}
+      <Txt role="labelSm" color={s.fg}>
         {label}
-      </Mono>
-    </View>
+      </Txt>
+    </Row>
   );
 
   if (!onPress) return body;
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
+    <Press
       onPress={onPress}
-      hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
+      haptic="select"
+      feedback="scale"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ selected: variant === 'selected' }}
+      accessibilityRole="button"
+      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
       {body}
-    </Pressable>
+    </Press>
   );
 }
 
-/** A tiny inline badge — "your usual", "USDA", "MEAL". Never interactive. */
-export function Tag({ label, tone = 'ink3' }: { label: string; tone?: 'ink3' | 'det' | 'est' }) {
-  const { c } = useTheme();
+/** A small non-interactive badge — "your usual", "USDA", "3 items". */
+export function Badge({
+  label,
+  tone = 'neutral',
+  icon,
+}: {
+  label: string;
+  tone?: 'neutral' | 'success' | 'attention';
+  icon?: IconName;
+}) {
+  const { c, radius } = useTheme();
+  const bg = tone === 'success' ? c.primarySoft : tone === 'attention' ? c.attentionSoft : c.sunken;
+  const fg =
+    tone === 'success' ? c.primarySoftInk : tone === 'attention' ? c.attentionInk : c.inkSecondary;
+
   return (
     <View
       style={{
-        borderWidth: 1,
-        borderColor: tone === 'ink3' ? c.rule : c[tone],
-        backgroundColor: c.surface,
-        paddingVertical: 3,
-        paddingHorizontal: 6,
+        backgroundColor: bg,
+        borderRadius: radius.pill,
+        paddingVertical: 4,
+        paddingHorizontal: 9,
         alignSelf: 'flex-start',
       }}>
-      <Mono size={10} tone={tone}>
-        {label}
-      </Mono>
+      <Row gap={4}>
+        {icon && <Icon name={icon} size={11} color={fg} weight={2.2} />}
+        <Txt role="caption" color={fg}>
+          {label}
+        </Txt>
+      </Row>
     </View>
   );
 }

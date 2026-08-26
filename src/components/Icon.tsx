@@ -3,16 +3,17 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeProvider';
 
 /**
- * The icon set, traced from the design canvas.
- *
- * All of them are 24×24, stroked, never filled — a filled icon would read as a
- * different weight class next to Archivo and break the flat, drawn look the
- * canvas establishes. `strokeWidth` scales inversely with size so a 12px icon
- * has the same optical weight as a 22px one.
+ * The icon set. Drawn on a 24×24 grid, stroked, rounded joins, never filled.
+ * Two rules keep a hand-rolled set from looking hand-rolled: one stroke weight
+ * across the whole set, scaled inversely with size so a 14px glyph carries the
+ * same optical weight as a 26px one; and nothing filled, since a filled glyph
+ * breaks the density of a row that mixes them.
  */
 
 export type IconName =
-  | 'gear'
+  | 'home'
+  | 'chart'
+  | 'user'
   | 'plus'
   | 'close'
   | 'search'
@@ -22,32 +23,42 @@ export type IconName =
   | 'chevronLeft'
   | 'chevronRight'
   | 'chevronDown'
-  | 'layers'
+  | 'settings'
   | 'clock'
   | 'alert'
   | 'info'
-  | 'pencil'
+  | 'edit'
   | 'sparkle'
   | 'trash'
   | 'undo'
-  | 'cloudOff'
-  | 'chart'
-  | 'flame';
+  | 'offline'
+  | 'flame'
+  | 'bookmark'
+  | 'bowl'
+  | 'leaf'
+  | 'scale'
+  | 'egg'
+  | 'apple'
+  | 'grain'
+  | 'cup'
+  | 'nut';
 
-type Props = {
+export function Icon({
+  name,
+  size = 22,
+  color,
+  weight,
+}: {
   name: IconName;
   size?: number;
-  /** Defaults to the current text colour. */
   color?: string;
-  /** Optical weight. Overridden rarely; the default tracks size. */
+  /** Override optical weight. Defaults to a size-compensated 1.8 at 22px. */
   weight?: number;
-};
-
-export function Icon({ name, size = 18, color, weight }: Props) {
+}) {
   const { c } = useTheme();
   const stroke = color ?? c.ink;
-  const sw = weight ?? Math.max(1.5, 24 / size + 0.6);
-  const common = {
+  const sw = weight ?? Math.max(1.5, Math.min(2.4, 40 / size));
+  const p = {
     stroke,
     strokeWidth: sw,
     strokeLinecap: 'round' as const,
@@ -57,67 +68,83 @@ export function Icon({ name, size = 18, color, weight }: Props) {
 
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      {name === 'gear' && (
+      {name === 'home' && <Path d="M3.5 10.4 12 3.8l8.5 6.6V19a1.5 1.5 0 0 1-1.5 1.5h-3.2v-5.2H9.2v5.2H5A1.5 1.5 0 0 1 3.5 19z" {...p} />}
+      {name === 'chart' && <Path d="M4 19.5V12M9.3 19.5V5.5M14.7 19.5v-9M20 19.5v-5" {...p} />}
+      {name === 'user' && (
         <>
-          <Circle cx={12} cy={12} r={3.2} {...common} />
-          <Path
-            d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1M18.7 18.7l-2.1-2.1M7.4 7.4L5.3 5.3"
-            {...common}
-          />
+          <Circle cx={12} cy={8} r={3.6} {...p} />
+          <Path d="M4.8 20a7.4 7.4 0 0 1 14.4 0" {...p} />
         </>
       )}
-      {name === 'plus' && <Path d="M12 5v14M5 12h14" {...common} />}
-      {name === 'close' && <Path d="M6 6l12 12M18 6L6 18" {...common} />}
+      {name === 'plus' && <Path d="M12 5.2v13.6M5.2 12h13.6" {...p} />}
+      {name === 'close' && <Path d="M6.4 6.4l11.2 11.2M17.6 6.4L6.4 17.6" {...p} />}
       {name === 'search' && (
         <>
-          <Circle cx={11} cy={11} r={7} {...common} />
-          <Path d="M16.2 16.2L21 21" {...common} />
+          <Circle cx={11} cy={11} r={6.8} {...p} />
+          <Path d="M16 16l4.4 4.4" {...p} />
         </>
       )}
       {name === 'mic' && (
         <>
-          <Rect x={9} y={2.5} width={6} height={11.5} rx={3} {...common} />
-          <Path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5" {...common} />
+          <Rect x={9} y={2.8} width={6} height={11} rx={3} {...p} />
+          <Path d="M5.6 11.4a6.4 6.4 0 0 0 12.8 0M12 17.8v3.4" {...p} />
         </>
       )}
-      {name === 'check' && <Path d="M4.5 12.5l5 5 10-11" {...common} />}
-      {name === 'arrowRight' && <Path d="M5 12h13M12.5 6l6 6-6 6" {...common} />}
-      {name === 'chevronLeft' && <Path d="M14.5 5l-7 7 7 7" {...common} />}
-      {name === 'chevronRight' && <Path d="M9.5 5l7 7-7 7" {...common} />}
-      {name === 'chevronDown' && <Path d="M5 9.5l7 7 7-7" {...common} />}
-      {name === 'layers' && (
-        <Path d="M3 7.5l9-4.5 9 4.5-9 4.5zM3 12.5l9 4.5 9-4.5M3 17l9 4.5 9-4.5" {...common} />
+      {name === 'check' && <Path d="M5 12.6l4.6 4.6L19 7.4" {...p} />}
+      {name === 'arrowRight' && <Path d="M4.6 12h14.2M13 6.2l5.8 5.8-5.8 5.8" {...p} />}
+      {name === 'chevronLeft' && <Path d="M14.6 5.6L8.2 12l6.4 6.4" {...p} />}
+      {name === 'chevronRight' && <Path d="M9.4 5.6L15.8 12l-6.4 6.4" {...p} />}
+      {name === 'chevronDown' && <Path d="M5.6 9.4L12 15.8l6.4-6.4" {...p} />}
+      {name === 'settings' && (
+        <>
+          <Circle cx={12} cy={12} r={3.1} {...p} />
+          <Path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8M18.6 18.6l-1.8-1.8M7.2 7.2 5.4 5.4" {...p} />
+        </>
       )}
       {name === 'clock' && (
         <>
-          <Circle cx={12} cy={12} r={9} {...common} />
-          <Path d="M12 7v5.2l3.2 2" {...common} />
+          <Circle cx={12} cy={12} r={8.6} {...p} />
+          <Path d="M12 7.2v5l3.2 2" {...p} />
         </>
       )}
-      {name === 'alert' && <Path d="M12 3.5L22 20H2zM12 9.5v4.2M12 17v.1" {...common} />}
+      {name === 'alert' && (
+        <>
+          <Path d="M10.7 3.9 2.5 18.2A1.5 1.5 0 0 0 3.8 20.5h16.4a1.5 1.5 0 0 0 1.3-2.3L13.3 3.9a1.5 1.5 0 0 0-2.6 0z" {...p} />
+          <Path d="M12 9.4v4.1M12 16.9v.1" {...p} />
+        </>
+      )}
       {name === 'info' && (
         <>
-          <Circle cx={12} cy={12} r={9.5} {...common} />
-          <Path d="M12 7.5v5.5M12 16.4v.1" {...common} />
+          <Circle cx={12} cy={12} r={8.8} {...p} />
+          <Path d="M12 11.2v5M12 7.9v.1" {...p} />
         </>
       )}
-      {name === 'pencil' && <Path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z" {...common} />}
+      {name === 'edit' && <Path d="M4 20h4.2L20 8.2a2.2 2.2 0 0 0-3.1-3.1L5 16.9zM14.8 6.6l2.6 2.6" {...p} />}
       {name === 'sparkle' && (
-        <Path
-          d="M12 3v3.5M12 17.5V21M21 12h-3.5M6.5 12H3M18.4 5.6l-2.5 2.5M8.1 15.9l-2.5 2.5M18.4 18.4l-2.5-2.5M8.1 8.1L5.6 5.6"
-          {...common}
-        />
+        <Path d="M12 3.4l1.9 4.7 4.7 1.9-4.7 1.9L12 16.6l-1.9-4.7-4.7-1.9 4.7-1.9zM19 16l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" {...p} />
       )}
-      {name === 'trash' && (
-        <Path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 14h9l1-14M10 10.5v6M14 10.5v6" {...common} />
+      {name === 'trash' && <Path d="M4.4 6.6h15.2M9.8 6.6V4.4h4.4v2.2M6.8 6.6l.9 13.1h8.6l.9-13.1M10.2 10.4v5.6M13.8 10.4v5.6" {...p} />}
+      {name === 'undo' && <Path d="M4 9.4h10.6a5.4 5.4 0 1 1 0 10.8H8.6M4 9.4l4-4M4 9.4l4 4" {...p} />}
+      {name === 'offline' && <Path d="M3 3l18 18M7.4 18.2h9a4.1 4.1 0 0 0 1.2-8A6.1 6.1 0 0 0 8.6 7.1M5.7 10.6a4.1 4.1 0 0 0 1.4 7.6" {...p} />}
+      {name === 'flame' && <Path d="M12 21c3.8 0 6.4-2.5 6.4-5.9 0-4.4-3.9-6.4-4.4-10.8-2 2-3 3.9-3 5.9-1-.5-1.5-1.5-1.5-3-2 2-3.9 4.4-3.9 7.9C5.6 18.5 8.2 21 12 21z" {...p} />}
+      {name === 'bookmark' && <Path d="M6.4 4.4h11.2v16l-5.6-4-5.6 4z" {...p} />}
+      {name === 'bowl' && <Path d="M3.4 10.6h17.2a8.6 8.6 0 0 1-8.6 8.4 8.6 8.6 0 0 1-8.6-8.4zM8.4 7.4c0-1.4 1.2-2 1.2-3.2M12 7.4c0-1.4 1.2-2 1.2-3.2M15.6 7.4c0-1.4 1.2-2 1.2-3.2" {...p} />}
+      {name === 'leaf' && <Path d="M4.6 19.4c-1.6-6.6 2.4-13 14.8-14.4 1.4 9.6-4 15.4-11.4 14.6M8 16.2c1.6-3.6 4.4-6.4 8-7.8" {...p} />}
+      {name === 'scale' && (
+        <>
+          <Circle cx={12} cy={12} r={8.6} {...p} />
+          <Path d="M12 12l4-4" {...p} />
+        </>
       )}
-      {name === 'undo' && <Path d="M4 9h10a5.5 5.5 0 1 1 0 11h-6M4 9l4-4M4 9l4 4" {...common} />}
-      {name === 'cloudOff' && (
-        <Path d="M3 3l18 18M7 18h9.5a4 4 0 0 0 1.2-7.8A6 6 0 0 0 8.3 7.4M5.6 10.4A4 4 0 0 0 7 18" {...common} />
-      )}
-      {name === 'chart' && <Path d="M4 20V9M10 20V4M16 20v-7M22 20H2" {...common} />}
-      {name === 'flame' && (
-        <Path d="M12 21c3.9 0 6.5-2.5 6.5-6 0-4.5-4-6.5-4.5-11-2 2-3 4-3 6-1-.5-1.5-1.5-1.5-3-2 2-4 4.5-4 8 0 3.5 2.6 6 6.5 6z" {...common} />
+      {name === 'egg' && <Path d="M12 3.4c3.4 0 6.2 5.2 6.2 9.2A6.2 6.2 0 0 1 12 20.6a6.2 6.2 0 0 1-6.2-8C5.8 8.6 8.6 3.4 12 3.4z" {...p} />}
+      {name === 'apple' && <Path d="M12 8c-3.6-2.6-7.4.4-7.4 5 0 4 2.8 7.6 4.8 7.6 1.2 0 1.6-.8 2.6-.8s1.4.8 2.6.8c2 0 4.8-3.6 4.8-7.6 0-4.6-3.8-7.6-7.4-5zM12 8c0-2 1.2-3.6 3-4.2" {...p} />}
+      {name === 'grain' && <Path d="M12 21V8M12 8c0-2.6 2-4.6 4.6-4.6 0 2.6-2 4.6-4.6 4.6zM12 8C12 5.4 10 3.4 7.4 3.4 7.4 6 9.4 8 12 8zM12 14.4c0-2.6 2-4.6 4.6-4.6 0 2.6-2 4.6-4.6 4.6zM12 14.4c0-2.6-2-4.6-4.6-4.6 0 2.6 2 4.6 4.6 4.6z" {...p} />}
+      {name === 'cup' && <Path d="M4.6 6.6h12v6.8a5.4 5.4 0 0 1-10.8 0zM16.6 8.4h1.8a2.6 2.6 0 0 1 0 5.2h-1.8M4 20.6h13.2" {...p} />}
+      {name === 'nut' && (
+        <>
+          <Path d="M12 3.6 20 8v8l-8 4.4L4 16V8z" {...p} />
+          <Circle cx={12} cy={12} r={3.2} {...p} />
+        </>
       )}
     </Svg>
   );

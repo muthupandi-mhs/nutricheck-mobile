@@ -1,125 +1,162 @@
-import React, { useState } from 'react';
-import { Platform, Pressable, View } from 'react-native';
-import { TextAction } from '../../components/Button';
-import { Icon, IconName } from '../../components/Icon';
-import { Gap, Gutter, HeavyBar, Row, Spacer } from '../../components/Layout';
-import { Dock, Screen } from '../../components/Screen';
-import { Body, Display, Eyebrow, Mono, Title } from '../../components/Type';
+import React from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { EMAIL_MAX, PASSWORD_MAX } from '../../api/types';
+import { Button, IconButton, TextButton } from '../../components/Button';
+import { Notice } from '../../components/Feedback';
+import { Gap, Gutter, Stack } from '../../components/Layout';
+import { Screen } from '../../components/Screen';
+import { Txt } from '../../components/Text';
+import { FormField } from '../../forms/fields';
+import { useKeyboardVisible } from '../../lib/keyboard';
 import { useTheme } from '../../theme/ThemeProvider';
+import { BrandField, useSheetStyle } from './BrandField';
+import { useAuthForm } from './useAuthForm';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
- * Sign in.
+ * Sign in — the first stop after Welcome, for everyone. A returning user
+ * finishes here; a new one leaves through "I need an account".
  *
- * Apple is listed first and is not optional on iOS: offering any third-party
- * login without it fails App Store review. Email sits below the two social
- * buttons rather than beside them, because the account someone can actually
- * recover is worth a row of its own.
- *
- * Note what this screen does *not* do: it asks for no system permission. The
- * whole first-run experience is fully functional without granting one, which
- * is unusual for a health app and worth protecting.
+ * No step counter and no password rules: the minimum length applies to a
+ * password being created, not to one that already exists, and enforcing it
+ * here would lock out an older account and leak the rule to anyone probing.
  */
 export function SignInScreen({ navigation }: ScreenProps<'SignIn'>) {
   const { c, space } = useTheme();
-  const [busy, setBusy] = useState<string | null>(null);
-
-  const go = (provider: string) => {
-    setBusy(provider);
-    // Stands in for the OAuth round-trip; the real handler swaps in here and
-    // the rest of the screen — including the busy state — is unchanged.
-    setTimeout(() => {
-      setBusy(null);
-      navigation.navigate('OnboardProfile');
-    }, 650);
-  };
-
-  const providers: Array<{ id: string; label: string; icon: IconName; primary?: boolean }> = [
-    ...(Platform.OS === 'ios' ? [{ id: 'apple', label: 'Continue with Apple', icon: 'check' as IconName, primary: true }] : []),
-    { id: 'google', label: 'Continue with Google', icon: 'search', primary: Platform.OS !== 'ios' },
-    ...(Platform.OS !== 'ios' ? [{ id: 'apple', label: 'Continue with Apple', icon: 'check' as IconName }] : []),
-  ];
+  const insets = useSafeAreaInsets();
+  const sheet = useSheetStyle();
+  const keyboard = useKeyboardVisible();
+  const f = useAuthForm('login', navigation);
 
   return (
-    <Screen>
-      <Gutter>
-        <Eyebrow size={10.5} tone="ink3">
-          STEP 1 OF 6
-        </Eyebrow>
-        <Gap h={space.sm} />
-        <Display size={32}>Make an account</Display>
-        <Gap h={space.sm} />
-        <Body size={15.5} tone="ink2">
-          So your log survives a new phone. We store what you ate and your targets — nothing else.
-        </Body>
-      </Gutter>
+    <Screen style={{ paddingTop: 0, paddingBottom: 0 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          {/* The brand zone is what gives way to the keyboard. `minHeight` is a
+              floor flex cannot push through, so it has to drop to zero while
+              typing — otherwise 132pt of decoration keeps squeezing the form. */}
+          <BrandField markSize={56} minHeight={keyboard ? 0 : 132} collapsed={keyboard} />
 
-      <Gap h={space.lg} />
-      <HeavyBar />
+          {/* With the field gone the sheet is the whole screen, so it drops the
+              corners and the top hairline — there is nothing behind it to be a
+              sheet over — and grows to fill, or the canvas shows through below. */}
+          <View
+            style={[
+              sheet,
+              { paddingTop: space.xxl },
+              keyboard && {
+                flexGrow: 1,
+                // Clears the back button, which is absolutely positioned and no
+                // longer has a brand field to sit on.
+                paddingTop: insets.top + 52,
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
+                borderTopWidth: 0,
+              },
+            ]}>
+            <Gutter>
+              <Txt role="h1">Sign in</Txt>
+              <Gap h={space.sm} />
+              <Txt role="bodyLg" tone="secondary">
+                Use the email and password you signed up with.
+              </Txt>
+            </Gutter>
 
-      <Gutter style={{ paddingTop: space.xl, gap: space.md }}>
-        {providers.map(p => (
-          <Pressable
-            key={p.id}
-            accessibilityRole="button"
-            accessibilityLabel={p.label}
-            accessibilityState={{ disabled: busy !== null }}
-            onPress={() => busy === null && go(p.id)}
-            style={{
-              height: 54,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: space.sm + 2,
-              backgroundColor: p.primary ? c.heavy : c.surface,
-              borderWidth: p.primary ? 0 : 1,
-              borderColor: c.ink,
-              opacity: busy && busy !== p.id ? 0.4 : 1,
-            }}>
-            <Icon name={p.icon} size={16} color={p.primary ? c.onHeavy : c.ink} weight={2.2} />
-            <Title size={15.5} weight="700" color={p.primary ? c.onHeavy : c.ink}>
-              {busy === p.id ? 'Signing in…' : p.label}
-            </Title>
-          </Pressable>
-        ))}
+            <Gap h={space.xl} />
 
-        <Row gap={space.md} style={{ paddingVertical: space.sm }}>
-          <View style={{ flexGrow: 1, height: 1, backgroundColor: c.rule }} />
-          <Mono size={10} tone="ink3">
-            OR
-          </Mono>
-          <View style={{ flexGrow: 1, height: 1, backgroundColor: c.rule }} />
-        </Row>
+            {f.error && (
+              <>
+                <Notice
+                  icon={f.error.title === 'No connection' ? 'offline' : 'alert'}
+                  title={f.error.title}
+                  detail={f.error.detail}
+                />
+                <Gap h={space.lg} />
+              </>
+            )}
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Continue with email"
-          onPress={() => busy === null && go('email')}
+            <Gutter>
+              <Stack gap={space.xl}>
+                <FormField
+                  control={f.control}
+                  name="email"
+                  label="Email"
+                  icon="user"
+                  placeholder="you@example.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  maxLength={EMAIL_MAX}
+                  returnKeyType="next"
+                />
+
+                <FormField
+                  control={f.control}
+                  name="password"
+                  label="Password"
+                  placeholder="your password"
+                  secure
+                  autoCapitalize="none"
+                  autoComplete="current-password"
+                  textContentType="password"
+                  maxLength={PASSWORD_MAX}
+                  returnKeyType="go"
+                  onSubmitEditing={f.submit}
+                />
+
+                <View style={{ alignSelf: 'flex-start' }}>
+                  <TextButton label="I forgot my password" onPress={() => {}} role="labelSm" />
+                </View>
+              </Stack>
+            </Gutter>
+
+            <Gap h={space.xl} />
+          </View>
+        </ScrollView>
+
+        {/* Outside the scroll and on the sheet's own fill, so it reads as the
+            bottom of the sheet rather than a bar floating over it. */}
+        <View
           style={{
-            height: 54,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: c.rule,
             backgroundColor: c.surface,
+            paddingTop: space.sm,
+            paddingBottom: Math.max(insets.bottom, space.lg) + space.xs,
           }}>
-          <Title size={15.5} weight="600" tone="ink2">
-            Continue with email
-          </Title>
-        </Pressable>
-      </Gutter>
-
-      <Spacer />
-
-      <Dock divided={false}>
-        <Mono size={11} tone="ink3" style={{ textAlign: 'center', lineHeight: 17 }}>
-          By continuing you agree to the terms and the privacy policy.
-        </Mono>
-        <Gap h={space.sm} />
-        <View style={{ alignItems: 'center' }}>
-          <TextAction label="Read what we store" onPress={() => {}} size={11.5} />
+          <Gutter>
+            <Button
+              label="Sign in"
+              loading={f.busy}
+              disabled={f.tried && !f.ready}
+              onPress={f.submit}
+              haptic="select"
+            />
+            <Gap h={space.sm} />
+            <View style={{ alignItems: 'center' }}>
+              <TextButton
+                label="I need an account"
+                tone="secondary"
+                // Pushed, not replaced. Sign-up has no link back here — the
+                // header's Back button is the return trip, and that only works
+                // if this screen is still underneath it.
+                onPress={() => navigation.navigate('SignUp')}
+              />
+            </View>
+          </Gutter>
         </View>
-      </Dock>
+      </KeyboardAvoidingView>
+
+      {/* Over the brand field, where there is nothing to collide with. */}
+      <View style={{ position: 'absolute', top: insets.top + 4, left: space.gutter - 10 }}>
+        <IconButton name="chevronLeft" onPress={() => navigation.goBack()} accessibilityLabel="Back" />
+      </View>
     </Screen>
   );
 }

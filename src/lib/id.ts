@@ -1,10 +1,7 @@
 /**
- * RFC 4122 v4 identifiers without a native dependency.
- *
- * `clientId` has to be mintable at the instant the user taps commit, offline,
- * before any module that could fail to load has loaded — so this deliberately
- * has no imports. `Math.random` is not a CSPRNG, but a clientId is a collision
- * key inside one user's account, not a secret.
+ * RFC 4122 v4 identifiers, deliberately with no imports — a `clientId` must be
+ * mintable offline at the instant of commit. `Math.random` is not a CSPRNG, but
+ * a clientId is a collision key inside one account, not a secret.
  */
 /* eslint-disable no-bitwise -- hex nibble extraction; the arithmetic form is slower and less clear here */
 export function uuid(): string {

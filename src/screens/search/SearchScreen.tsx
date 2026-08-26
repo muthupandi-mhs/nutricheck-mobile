@@ -1,107 +1,98 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useApi } from '../../api/client';
 import type { FoodSearchResult } from '../../api/types';
-import { Banner, EmptyState } from '../../components/Banner';
-import { PressableRow, TextAction } from '../../components/Button';
-import { Icon } from '../../components/Icon';
-import { Divider, Gap, Gutter, Hairline, HeavyBar, Row, SplitRow } from '../../components/Layout';
+import { Button, IconButton, TextButton } from '../../components/Button';
+import { Card } from '../../components/Card';
+import { Badge } from '../../components/Chip';
+import { EmptyState, Notice } from '../../components/Feedback';
+import { Field } from '../../components/Field';
+import { FoodGlyph } from '../../components/FoodGlyph';
+import { Divider, Gap, Gutter, Row, Split, Stack } from '../../components/Layout';
+import { Press } from '../../components/Press';
 import { Screen } from '../../components/Screen';
-import { SkeletonItemRow } from '../../components/Skeleton';
-import { Body, Eyebrow, Mono, Num, Title } from '../../components/Type';
+import { SkeletonRow } from '../../components/Skeleton';
+import { SectionLabel, Txt } from '../../components/Text';
 import { grams, kcal } from '../../lib/format';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
- * A run of result rows.
- *
  * Hoisted out of the screen deliberately: defined inline, React sees a new
- * component type on every keystroke and tears down the whole list, which on a
- * search field is every character the user types.
+ * component type every keystroke and tears down the whole list.
  */
 function ResultRows({
   rows,
-  emphasiseFirst,
   onPick,
 }: {
   rows: FoodSearchResult[];
-  emphasiseFirst?: boolean;
   onPick: (row: FoodSearchResult) => void;
 }) {
-  const { c, space } = useTheme();
+  const { space } = useTheme();
+
   return (
-    <>
+    <Card level="raised" padded={false}>
       {rows.map((row, i) => {
         const portion = row.defaultPortion;
         const factor = (portion?.grams ?? 100) / 100;
         return (
           <View key={row.id}>
-            <View
-              style={{
-                height: emphasiseFirst && i === 0 ? 2 : 1,
-                backgroundColor: emphasiseFirst && i === 0 ? c.heavy : c.rule,
-              }}
-            />
-            <PressableRow
+            {i > 0 && <Divider inset={space.xl + 44 + space.md} />}
+            <Press
               onPress={() => onPick(row)}
-              accessibilityLabel={`${row.name}, ${Math.round(
-                row.kcalPer100g * factor,
-              )} calories per ${portion?.label ?? '100 g'}`}
-              style={{ paddingVertical: 12 }}>
-              <SplitRow align="center">
-                <View style={{ flexShrink: 1, gap: 3, paddingRight: space.md }}>
-                  {row.familiarity !== 'none' ? (
-                    <Title size={15.5} weight="700">
-                      {row.name}
-                    </Title>
-                  ) : (
-                    <Body size={15.5}>{row.name}</Body>
-                  )}
-                  <Mono size={10} tone="ink3">
-                    {portion ? `${portion.label} · ${grams(portion.grams)} g` : 'per 100 g'}
-                    {row.brand ? ` · ${row.brand}` : ''}
-                    {row.familiarity === 'logged' ? ' · your usual portion' : ''}
-                  </Mono>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Num size={14} weight={row.familiarity !== 'none' ? '600' : '400'}>
+              feedback="none"
+              accessibilityLabel={`${row.name}, ${Math.round(row.kcalPer100g * factor)} calories per ${
+                portion?.label ?? '100 g'
+              }`}
+              style={{ paddingHorizontal: space.xl, paddingVertical: space.md }}>
+              <Row gap={space.md}>
+                <FoodGlyph name={row.name} seed={row.id} />
+
+                <Stack gap={4} style={{ flexGrow: 1, flexShrink: 1 }}>
+                  <Txt role="h3" numberOfLines={2}>
+                    {row.name}
+                  </Txt>
+                  <Row gap={space.sm} wrap>
+                    <Txt role="caption" tone="tertiary">
+                      {portion ? `${portion.label} · ${grams(portion.grams)} g` : 'per 100 g'}
+                    </Txt>
+                    {row.familiarity === 'logged' && <Badge label="your usual" tone="success" />}
+                    {row.familiarity === 'custom' && <Badge label="yours" tone="success" />}
+                  </Row>
+                </Stack>
+
+                <Stack gap={1} align="flex-end">
+                  <Txt role="label" numeric>
                     {kcal(row.kcalPer100g * factor)}
-                  </Num>
-                  <Mono size={9.5} tone={row.familiarity !== 'none' ? 'det' : 'ink3'}>
+                  </Txt>
+                  <Txt role="caption" tone="tertiary" numeric>
                     P {grams(row.proteinPer100g * factor)} g
-                  </Mono>
-                </View>
-              </SplitRow>
-            </PressableRow>
+                  </Txt>
+                </Stack>
+              </Row>
+            </Press>
           </View>
         );
       })}
-    </>
+    </Card>
   );
 }
 
 /**
- * Manual search — the route with no model in it.
+ * Manual search — the route with no model in it. Every failure path in the app
+ * lands here, so search quality caps how gracefully the product degrades.
  *
- * It is the floor under everything else *and* the first log a new user ever
- * makes, so it is built to be genuinely good rather than a grudging fallback.
- * Every failure path in the app lands here, which means search quality caps
- * how gracefully the whole product degrades.
- *
- * The result row carries calories and protein per standard portion. Without
- * them, choosing between four near-identical chicken rows means opening each
- * one — which is most of why manual logging feels like work.
+ * Rows carry kcal and protein per standard portion; without them, choosing
+ * between four near-identical chicken rows means opening each one.
  */
 export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
-  const { c, space } = useTheme();
+  const { space } = useTheme();
   const api = useApi();
   const params = route.params ?? {};
 
   const [q, setQ] = useState(params.prefill ?? '');
   const [results, setResults] = useState<FoodSearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
-  const input = useRef<React.ComponentRef<typeof TextInput>>(null);
   const generation = useRef(0);
 
   useEffect(() => {
@@ -112,8 +103,8 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
       return;
     }
     setSearching(true);
-    // Debounce, and drop any response that is not from the newest keystroke —
-    // otherwise a slow early query can overwrite a fast later one.
+    // Debounce, and drop responses that are not from the newest keystroke, or a
+    // slow early query overwrites a fast later one.
     const mine = ++generation.current;
     const t = setTimeout(async () => {
       const rows = await api.searchFoods(needle);
@@ -129,159 +120,172 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
     return [rows.filter(r => r.familiarity !== 'none'), rows.filter(r => r.familiarity === 'none')];
   }, [results]);
 
-  const notice = params.notice;
-
   const pick = (row: FoodSearchResult) =>
     navigation.navigate('Portion', { foodId: row.id, firstLog: params.firstLog });
 
+  const notice = params.notice;
+
   return (
-    <Screen edges="top">
-      <Gutter style={{ paddingBottom: space.md }}>
-        <Row gap={10}>
-          <Row
-            gap={9}
-            style={{
-              flexGrow: 1,
-              backgroundColor: c.surface,
-              borderWidth: 1,
-              borderColor: c.rule,
-              borderBottomWidth: 2,
-              borderBottomColor: c.heavy,
-              height: 46,
-              paddingHorizontal: 12,
-            }}>
-            <Icon name="search" size={16} color={c.ink2} weight={2} />
-            <TextInput
-              ref={input}
-              value={q}
-              onChangeText={setQ}
-              autoFocus
-              placeholder={params.firstLog ? 'Try one thing you ate today' : 'Search foods'}
-              placeholderTextColor={c.ink3}
-              selectionColor={c.est}
-              returnKeyType="search"
-              accessibilityLabel="Search foods"
-              style={{ flexGrow: 1, fontSize: 16, color: c.ink, padding: 0 }}
-            />
-            {q.length > 0 && (
-              <TextAction label="Clear" onPress={() => setQ('')} tone="ink2" size={11} />
-            )}
-          </Row>
-          <TextAction label="Cancel" onPress={() => navigation.goBack()} />
-        </Row>
+    <Screen scrollable>
+      <Gutter>
+        <Split style={{ minHeight: 44 }}>
+          <Txt role="h1">{params.firstLog ? 'Your first log' : 'Find a food'}</Txt>
+          <IconButton
+            name="close"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Close"
+            style={{ marginRight: -10 }}
+          />
+        </Split>
+        <Gap h={space.md} />
+        <Field
+          icon="search"
+          value={q}
+          onChangeText={setQ}
+          // Not on the first log. The keyboard would cover the sentence route
+          // below, and offering a choice the user cannot see is not offering it.
+          // Every other entry into search is someone who came here to search.
+          autoFocus={!params.firstLog}
+          placeholder={params.firstLog ? 'Try one thing you ate today' : 'Search foods'}
+          returnKeyType="search"
+          accessibilityHint="Search the food database"
+        />
       </Gutter>
 
-      <HeavyBar />
+      <Gap h={space.lg} />
 
       {notice === 'timeout' && (
-        <Banner
-          icon="clock"
-          title="That took too long"
-          detail="We tried twice and stopped. Your words are in the box above — search will not fail."
-        />
+        <>
+          <Notice
+            icon="clock"
+            title="That took too long"
+            detail="We tried twice and stopped. Your words are in the box above — search will not fail."
+          />
+          <Gap h={space.lg} />
+        </>
       )}
       {notice === 'unparsed' && (
-        <Banner
-          icon="alert"
-          title="We couldn't read that"
-          detail="Nothing in the phrase matched a food. It is here as a query, and we have logged the miss so the corpus improves."
-        />
+        <>
+          <Notice
+            icon="alert"
+            title="We couldn't read that"
+            detail="Nothing in the phrase matched a food. It is here as a query, and we logged the miss so the corpus improves."
+          />
+          <Gap h={space.lg} />
+        </>
       )}
       {notice === 'quota' && (
-        <Banner
-          icon="info"
-          title="Daily AI limit reached"
-          detail="Search and one-tap repeats are unaffected — the app never fully stops."
-        />
+        <>
+          <Notice
+            icon="info"
+            title="Daily AI limit reached"
+            detail="Search and one-tap repeats are unaffected — the app never fully stops."
+          />
+          <Gap h={space.lg} />
+        </>
       )}
 
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: space.xxl }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: space.huge }}>
         {params.firstLog && !q && (
-          <Gutter style={{ paddingTop: space.lg }}>
-            <Eyebrow size={10.5} tone="ink2">
-              STEP 6 OF 6
-            </Eyebrow>
-            <Gap h={space.sm} />
-            <Title size={22} weight="800">
-              Log one thing you ate today
-            </Title>
-            <Gap h={6} />
-            <Body size={14.5} tone="ink2">
-              Anything at all. Once one meal is in, the strip on your home screen makes the next one
-              a single tap.
-            </Body>
+          <Gutter>
+            <Card level="raised" fill="primarySoft">
+              <Stack gap={6}>
+                <SectionLabel tone="primary">Step 6 of 6</SectionLabel>
+                <Txt role="h2">Log one thing you ate today</Txt>
+                <Txt role="body" tone="secondary">
+                  Anything at all. Once one meal is in, the strip on your home screen makes the next one a
+                  single tap.
+                </Txt>
+              </Stack>
+            </Card>
+
+            {/* The sentence route, offered but not taken for them.
+                USER-FLOWS §2 puts the first log in search on purpose — it is the
+                route with no model in it, so it cannot fail on a bad parse at the
+                one moment a new user has no reason to forgive it. That argument
+                is about the *default*, not about hiding the feature: a user who
+                never sees the composer during onboarding has no idea the app
+                accepts a whole meal in one line. So search stays the thing the
+                cursor is already in, and this sits under it. */}
+            <Gap h={space.md} />
+            <Button
+              label="Or say the whole meal in one line"
+              variant="tonal"
+              icon="sparkle"
+              onPress={() => navigation.navigate('Composer')}
+              accessibilityHint="Type or speak everything you ate, and we work out the foods and amounts"
+            />
           </Gutter>
         )}
 
         {searching && results === null && (
-          <Gutter style={{ paddingTop: space.md }}>
+          <Gutter>
             {[0, 1, 2].map(i => (
-              <SkeletonItemRow key={i} index={i} widths={['64%', '30%']} />
+              <SkeletonRow key={i} index={i} widths={['66%', '32%']} />
             ))}
           </Gutter>
         )}
 
         {known.length > 0 && (
           <>
-            <Gutter style={{ paddingTop: 13, paddingBottom: 8 }}>
-              <Eyebrow size={10.5} tone="det">
-                YOU'VE LOGGED THIS BEFORE
-              </Eyebrow>
-            </Gutter>
             <Gutter>
-              <ResultRows rows={known} emphasiseFirst onPick={pick} />
-              <Hairline />
+              <SectionLabel tone="primary">You've logged this before</SectionLabel>
             </Gutter>
+            <Gap h={space.sm} />
+            <Gutter>
+              <ResultRows rows={known} onPick={pick} />
+            </Gutter>
+            <Gap h={space.xl} />
           </>
         )}
 
         {generic.length > 0 && (
           <>
-            <Gutter style={{ paddingTop: known.length ? space.lg : 13, paddingBottom: 8 }}>
-              <Eyebrow size={10.5} tone="ink2">
-                ALL FOODS
-              </Eyebrow>
+            <Gutter>
+              <SectionLabel>All foods</SectionLabel>
             </Gutter>
+            <Gap h={space.sm} />
             <Gutter>
               <ResultRows rows={generic} onPick={pick} />
-              <Hairline />
             </Gutter>
           </>
         )}
 
         {results !== null && results.length === 0 && !searching && (
           <EmptyState
+            icon="search"
             title={`Nothing matched “${q.trim()}”`}
             detail="We have recorded the exact words. Meanwhile, adding it yourself takes two fields and it is reusable forever after."
+            action={{
+              label: 'Create this food',
+              icon: 'plus',
+              onPress: () => navigation.navigate('CreateFood', { name: q.trim() }),
+            }}
           />
         )}
 
-        {q.trim().length > 0 && !searching && (
-          <>
-            <Divider />
-            <PressableRow
+        {q.trim().length > 0 && !searching && results !== null && results.length > 0 && (
+          <Gutter style={{ paddingTop: space.xl, alignItems: 'center' }}>
+            <TextButton
+              label="Can't find it — create a food"
+              icon="plus"
+              tone="secondary"
               onPress={() => navigation.navigate('CreateFood', { name: q.trim() })}
-              accessibilityLabel="Create a food"
-              style={{ paddingVertical: 15, paddingHorizontal: space.gutter }}>
-              <Row gap={space.sm}>
-                <Icon name="plus" size={14} color={c.ink2} weight={2.2} />
-                <Body size={14.5} tone="ink2">
-                  Can't find it — create a food
-                </Body>
-              </Row>
-            </PressableRow>
-          </>
+            />
+          </Gutter>
         )}
 
         {!q && !params.firstLog && (
-          <Gutter style={{ paddingTop: space.xl, gap: space.sm }}>
-            <Eyebrow size={10} tone="ink3">
-              A NOTE ON SEARCH
-            </Eyebrow>
-            <Body size={14} tone="ink2">
-              Foods you have logged before rank above the generic database, and the numbers are on
-              every row — so picking between four similar entries does not mean opening each one.
-            </Body>
+          <Gutter>
+            <Card fill="sunken">
+              <Stack gap={6}>
+                <SectionLabel>A note on search</SectionLabel>
+                <Txt role="body" tone="secondary">
+                  Foods you have logged before rank above the generic database, and the numbers are on every
+                  row — so picking between four similar entries does not mean opening each one.
+                </Txt>
+              </Stack>
+            </Card>
           </Gutter>
         )}
       </ScrollView>

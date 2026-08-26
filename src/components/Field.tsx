@@ -1,78 +1,174 @@
 import React, { useState } from 'react';
-import { KeyboardTypeOptions, Pressable, TextInput, View } from 'react-native';
+import { KeyboardTypeOptions, TextInput, TextInputProps, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
-import { Icon } from './Icon';
-import { Hairline, Row, SplitRow } from './Layout';
-import { Body, Eyebrow, Mono, Num, Title } from './Type';
+import { Icon, IconName } from './Icon';
+import { Row, Split, Stack } from './Layout';
+import { Press } from './Press';
+import { Txt } from './Text';
 
 /**
- * Form controls.
- *
- * The focus ring is a 2pt bottom edge that switches from `heavy` to `est`, not
- * a coloured glow — it is the same device the canvas uses on the search field
- * and the composer, and it survives both colour schemes without a shadow.
+ * Named rather than inline so the form layer can wrap this component without
+ * restating fifteen props. `src/forms/fields.tsx` takes everything here except
+ * the four a `Controller` owns: value, change, blur and problem.
  */
-
-export function TextField({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType,
-  suffix,
-  autoFocus,
-  maxLength,
-  accessibilityHint,
-}: {
+export type FieldProps = {
   label?: string;
   value: string;
   onChangeText: (v: string) => void;
+  /** Called when the field loses focus, on top of dropping the focus ring. */
+  onBlur?: () => void;
   placeholder?: string;
   keyboardType?: KeyboardTypeOptions;
   suffix?: string;
+  icon?: IconName;
   autoFocus?: boolean;
   maxLength?: number;
+  secure?: boolean;
+  autoCapitalize?: TextInputProps['autoCapitalize'];
+  autoComplete?: TextInputProps['autoComplete'];
+  textContentType?: TextInputProps['textContentType'];
+  /** The reason this field is blocking, said in words. Turns the ring amber. */
+  problem?: string | null;
+  /** Neutral guidance shown when there is no problem. */
+  hint?: string;
+  multiline?: boolean;
+  minHeight?: number;
+  onSubmitEditing?: () => void;
+  returnKeyType?: TextInputProps['returnKeyType'];
   accessibilityHint?: string;
-}) {
-  const { c, space, type } = useTheme();
+};
+
+/**
+ * A text field. Filled rather than outlined, so stacked forms stay quiet. Focus
+ * raises it to `surface` and draws a 2pt primary ring.
+ */
+export function Field({
+  label,
+  value,
+  onChangeText,
+  onBlur,
+  placeholder,
+  keyboardType,
+  suffix,
+  icon,
+  autoFocus,
+  maxLength,
+  secure,
+  autoCapitalize = 'sentences',
+  autoComplete,
+  textContentType,
+  problem,
+  hint,
+  multiline,
+  minHeight,
+  onSubmitEditing,
+  returnKeyType,
+  accessibilityHint,
+}: FieldProps) {
+  const { c, radius, space, text } = useTheme();
   const [focused, setFocused] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+
+  const ring = problem ? c.attention : focused ? c.primary : 'transparent';
 
   return (
-    <View style={{ gap: 6 }}>
-      {label ? <Eyebrow size={10} tone="ink2">{label}</Eyebrow> : null}
+    <Stack gap={8}>
+      {label ? (
+        <Txt role="labelSm" tone="secondary">
+          {label}
+        </Txt>
+      ) : null}
+
       <Row
-        gap={space.sm}
+        gap={space.md}
+        align={multiline ? 'flex-start' : 'center'}
         style={{
-          backgroundColor: c.surface,
-          borderWidth: 1,
-          borderColor: c.rule,
-          borderBottomWidth: 2,
-          borderBottomColor: focused ? c.est : c.heavy,
-          height: 46,
-          paddingHorizontal: space.md,
+          backgroundColor: focused || problem ? c.surface : c.sunken,
+          borderRadius: radius.md,
+          borderWidth: 2,
+          borderColor: ring,
+          minHeight: minHeight ?? 56,
+          paddingHorizontal: space.lg,
+          paddingVertical: multiline ? space.lg : 0,
         }}>
+        {icon && <Icon name={icon} size={19} color={c.inkTertiary} />}
+
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={c.ink3}
+          placeholderTextColor={c.inkTertiary}
           keyboardType={keyboardType}
           autoFocus={autoFocus}
           maxLength={maxLength}
+          secureTextEntry={secure && !revealed}
+          autoCapitalize={autoCapitalize}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          autoCorrect={!secure}
+          multiline={multiline}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          selectionColor={c.est}
+          onBlur={() => {
+            setFocused(false);
+            onBlur?.();
+          }}
+          onSubmitEditing={onSubmitEditing}
+          returnKeyType={returnKeyType}
+          selectionColor={c.primary}
           accessibilityLabel={label}
           accessibilityHint={accessibilityHint}
-          style={[type.body(16), { flexGrow: 1, color: c.ink, padding: 0 }]}
+          style={[
+            text.bodyLg,
+            {
+              flexGrow: 1,
+              flexShrink: 1,
+              color: c.ink,
+              padding: 0,
+              textAlignVertical: multiline ? 'top' : 'center',
+            },
+          ]}
         />
-        {suffix ? <Mono size={12} tone="ink3">{suffix}</Mono> : null}
+
+        {/* Reveal, not a strength meter. Being able to check what you typed is
+            what actually reduces failed sign-ins on a phone keyboard. */}
+        {secure ? (
+          <Press
+            onPress={() => setRevealed(r => !r)}
+            feedback="fade"
+            accessibilityLabel={revealed ? 'Hide password' : 'Show password'}
+            hitSlop={{ top: 14, bottom: 14, left: 12, right: 8 }}>
+            <Txt role="labelSm" tone="primary">
+              {revealed ? 'Hide' : 'Show'}
+            </Txt>
+          </Press>
+        ) : null}
+
+        {suffix ? (
+          <Txt role="label" tone="tertiary">
+            {suffix}
+          </Txt>
+        ) : null}
       </Row>
-    </View>
+
+      {problem ? (
+        <Row gap={6} align="flex-start" accessibilityLiveRegion="polite">
+          <View style={{ paddingTop: 1 }}>
+            <Icon name="alert" size={13} color={c.attention} weight={2.1} />
+          </View>
+          <Txt role="caption" tone="attention" style={{ flexShrink: 1 }}>
+            {problem}
+          </Txt>
+        </Row>
+      ) : hint ? (
+        <Txt role="caption" tone="tertiary">
+          {hint}
+        </Txt>
+      ) : null}
+    </Stack>
   );
 }
 
-/** A two-to-five way switch. Wide enough for "Desk job" but happy with "kg". */
+/** A segmented control. The indicator slides rather than cross-fades, so it shows direction. */
 export function Segmented<T extends string>({
   options,
   value,
@@ -84,143 +180,154 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   label?: string;
 }) {
-  const { c, space } = useTheme();
+  const { c, radius, space } = useTheme();
+
   return (
-    <View style={{ gap: 6 }}>
-      {label ? <Eyebrow size={10} tone="ink2">{label}</Eyebrow> : null}
-      <Row style={{ borderWidth: 1, borderColor: c.rule, backgroundColor: c.surface }}>
-        {options.map((o, i) => {
+    <Stack gap={8}>
+      {label ? (
+        <Txt role="labelSm" tone="secondary">
+          {label}
+        </Txt>
+      ) : null}
+      <Row
+        style={{
+          backgroundColor: c.sunken,
+          borderRadius: radius.pill,
+          padding: 4,
+          gap: 4,
+        }}>
+        {options.map(o => {
           const active = o.value === value;
           return (
-            <Pressable
+            <Press
               key={o.value}
-              accessibilityRole="radio"
+              onPress={() => onChange(o.value)}
+              haptic="select"
+              feedback="none"
+              accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={o.label}
-              onPress={() => onChange(o.value)}
               style={{
                 flexGrow: 1,
                 flexBasis: 0,
-                height: 44,
+                height: 42,
+                borderRadius: radius.pill,
+                backgroundColor: active ? c.surface : 'transparent',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: active ? c.heavy : 'transparent',
-                borderLeftWidth: i === 0 ? 0 : 1,
-                borderLeftColor: c.rule,
+                ...(active ? { shadowColor: '#2A2318', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 } : {}),
               }}>
-              <Mono size={12.5} color={active ? c.onHeavy : c.ink2}>
+              <Txt role="labelSm" tone={active ? 'ink' : 'secondary'}>
                 {o.label}
-              </Mono>
-            </Pressable>
+              </Txt>
+            </Press>
           );
         })}
       </Row>
-      <View style={{ height: space.xs }} />
-    </View>
+      <View style={{ height: space.xs / 2 }} />
+    </Stack>
   );
 }
 
-/**
- * A full-width choice row — activity levels, objectives, settings.
- * The selection mark is a 3pt left edge plus a check, never a radio circle:
- * circles are the one soft shape in a design built entirely from squares.
- */
+/** A full-width choice row inside a card. Check mark, never a radio circle. */
 export function OptionRow({
   title,
   detail,
   selected,
   onPress,
-  trailing,
+  first,
   last,
 }: {
   title: string;
   detail?: string;
   selected?: boolean;
   onPress: () => void;
-  trailing?: React.ReactNode;
+  first?: boolean;
   last?: boolean;
 }) {
-  const { c, space, rule } = useTheme();
+  const { c, space, radius } = useTheme();
   return (
-    <View>
-      <Pressable
-        accessibilityRole="radio"
-        accessibilityState={{ selected: Boolean(selected) }}
-        accessibilityLabel={title}
-        accessibilityHint={detail}
-        onPress={onPress}
-        style={{
-          minHeight: 62,
-          justifyContent: 'center',
-          paddingVertical: space.md,
-          paddingLeft: selected ? space.md : space.md + rule.edge,
-          paddingRight: space.md,
-          backgroundColor: selected ? c.detBg : 'transparent',
-          borderLeftWidth: selected ? rule.edge : 0,
-          borderLeftColor: c.det,
-        }}>
-        <SplitRow>
-          <View style={{ flexShrink: 1, gap: 2 }}>
-            <Title size={15.5} weight={selected ? '700' : '600'}>
-              {title}
-            </Title>
-            {detail ? (
-              <Mono size={10.5} tone="ink3">
-                {detail}
-              </Mono>
-            ) : null}
-          </View>
-          {trailing ?? (selected ? <Icon name="check" size={16} color={c.det} weight={2.6} /> : null)}
-        </SplitRow>
-      </Pressable>
-      {!last && <Hairline />}
-    </View>
+    <Press
+      onPress={onPress}
+      haptic="select"
+      feedback="none"
+      accessibilityRole="button"
+      accessibilityState={{ selected: Boolean(selected) }}
+      accessibilityLabel={title}
+      accessibilityHint={detail}
+      style={{
+        minHeight: 68,
+        justifyContent: 'center',
+        paddingVertical: space.lg,
+        paddingHorizontal: space.xl,
+        backgroundColor: selected ? c.primarySoft : 'transparent',
+        borderTopLeftRadius: first ? radius.lg : 0,
+        borderTopRightRadius: first ? radius.lg : 0,
+        borderBottomLeftRadius: last ? radius.lg : 0,
+        borderBottomRightRadius: last ? radius.lg : 0,
+      }}>
+      <Split gap={space.md}>
+        <Stack gap={3} style={{ flexShrink: 1 }}>
+          <Txt role="h3" color={selected ? c.primarySoftInk : c.ink}>
+            {title}
+          </Txt>
+          {detail ? (
+            <Txt role="bodySm" tone="secondary">
+              {detail}
+            </Txt>
+          ) : null}
+        </Stack>
+        {selected ? <Icon name="check" size={20} color={c.primary} weight={2.4} /> : null}
+      </Split>
+    </Press>
   );
 }
 
-/** The ± square beside a stepper. Hoisted so it is not remounted per render. */
-function NudgeButton({ dir, label, onPress }: { dir: -1 | 1; label: string; onPress: () => void }) {
-  const { c } = useTheme();
+/** The circular +/- beside a stepper. Hoisted so it is not remounted per render. */
+function Nudge({
+  dir,
+  label,
+  disabled,
+  onPress,
+}: {
+  dir: -1 | 1;
+  label: string;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const { c, radius } = useTheme();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${dir > 0 ? 'Increase' : 'Decrease'} ${label}`}
+    <Press
       onPress={onPress}
+      disabled={disabled}
+      haptic="select"
+      accessibilityLabel={`${dir > 0 ? 'Increase' : 'Decrease'} ${label}`}
       style={{
-        width: 46,
-        height: 46,
+        width: 48,
+        height: 48,
+        borderRadius: radius.pill,
+        backgroundColor: disabled ? c.sunken : c.primarySoft,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: c.rule,
-        backgroundColor: c.surface,
       }}>
       {dir > 0 ? (
-        <Icon name="plus" size={16} color={c.ink} />
+        <Icon name="plus" size={20} color={disabled ? c.inkTertiary : c.primarySoftInk} weight={2.4} />
       ) : (
-        // A minus glyph would be the only 1px-tall icon in the set; a rule is
-        // the same mark, drawn the way the rest of the design draws marks.
-        <View style={{ width: 14, height: 2, backgroundColor: c.ink }} />
+        // A minus glyph would be the only 1px-tall icon in the set.
+        <View
+          style={{
+            width: 16,
+            height: 2.4,
+            borderRadius: 2,
+            backgroundColor: disabled ? c.inkTertiary : c.primarySoftInk,
+          }}
+        />
       )}
-    </Pressable>
+    </Press>
   );
 }
 
-/**
- * A stepper for a whole number with a unit — weight, height, a calorie target.
- * The buttons exist because a nudge of ±1 through a keyboard is four taps and
- * a dismissed keyboard.
- */
-export function Stepper({
-  label,
-  value,
-  unit,
-  step = 1,
-  min,
-  max,
-  onChange,
-  hint,
-}: {
+export type StepperProps = {
   label: string;
   value: number;
   unit: string;
@@ -229,57 +336,69 @@ export function Stepper({
   max?: number;
   onChange: (v: number) => void;
   hint?: string;
-}) {
+};
+
+/** A numeric stepper. The ± targets exist because a one-kilo nudge via keyboard is four taps. */
+export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint }: StepperProps) {
   const { space } = useTheme();
-  const nudge = (d: number) => {
-    const next = value + d * step;
+
+  const nudge = (dir: -1 | 1) => {
+    const next = value + dir * step;
     if (min !== undefined && next < min) return;
     if (max !== undefined && next > max) return;
     onChange(next);
   };
 
+  const atMin = min !== undefined && value - step < min;
+  const atMax = max !== undefined && value + step > max;
+
   return (
-    <View style={{ gap: 8 }}>
-      <SplitRow align="flex-end">
-        <View style={{ gap: 3, flexShrink: 1 }}>
-          <Eyebrow size={10} tone="ink2">
+    <Stack gap={10}>
+      <Split align="center">
+        <Stack gap={2} style={{ flexShrink: 1 }}>
+          <Txt role="labelSm" tone="secondary">
             {label}
-          </Eyebrow>
+          </Txt>
           <Row gap={6} align="baseline">
-            <Num size={30} weight="600" tone="ink">
+            <Txt role="h1" numeric>
               {value.toLocaleString('en-US')}
-            </Num>
-            <Mono size={12} tone="ink2">
+            </Txt>
+            <Txt role="body" tone="secondary">
               {unit}
-            </Mono>
+            </Txt>
           </Row>
-        </View>
-        <Row gap={space.sm}>
-          <NudgeButton dir={-1} label={label} onPress={() => nudge(-1)} />
-          <NudgeButton dir={1} label={label} onPress={() => nudge(1)} />
+        </Stack>
+        <Row gap={space.md}>
+          <Nudge dir={-1} label={label} disabled={atMin} onPress={() => nudge(-1)} />
+          <Nudge dir={1} label={label} disabled={atMax} onPress={() => nudge(1)} />
         </Row>
-      </SplitRow>
+      </Split>
       {hint ? (
-        <Body size={13} tone="ink2">
+        <Txt role="bodySm" tone="secondary">
           {hint}
-        </Body>
+        </Txt>
       ) : null}
-    </View>
+    </Stack>
   );
 }
 
-/** Onboarding progress. Six segments, filled left to right. */
+/** Onboarding progress. A single rounded track with a filled portion. */
 export function StepBar({ step, of }: { step: number; of: number }) {
-  const { c, space } = useTheme();
+  const { c, radius, space } = useTheme();
   return (
     <Row
       gap={6}
       accessibilityLabel={`Step ${step} of ${of}`}
-      style={{ paddingHorizontal: space.gutter, paddingTop: 6, paddingBottom: space.lg }}>
+      style={{ paddingHorizontal: space.gutter, paddingTop: space.sm, paddingBottom: space.xl }}>
       {Array.from({ length: of }, (_, i) => (
         <View
           key={i}
-          style={{ height: 3, flexGrow: 1, backgroundColor: i < step ? c.heavy : c.rule }}
+          style={{
+            height: 4,
+            flexGrow: 1,
+            borderRadius: radius.pill,
+            backgroundColor: i < step ? c.primary : c.sunken,
+          }}
         />
       ))}
     </Row>

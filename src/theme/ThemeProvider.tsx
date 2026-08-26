@@ -1,17 +1,20 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
-import { HIT, Palette, palettes, radius, rule, space } from './tokens';
-import { tabular, type } from './typography';
+import { elevation, HIT, motion, Palette, palettes, radius, space } from './tokens';
+import { tabular, text } from './typography';
 
 export type Theme = {
   scheme: 'light' | 'dark';
   c: Palette;
   space: typeof space;
-  rule: typeof rule;
   radius: typeof radius;
-  type: typeof type;
+  elevation: typeof elevation;
+  motion: typeof motion;
+  text: typeof text;
   tabular: typeof tabular;
   hit: number;
+  /** Stable tint for a food glyph, derived from its id so it never re-rolls. */
+  glyphTint: (seed: string) => string;
 };
 
 const ThemeContext = createContext<Theme | null>(null);
@@ -21,25 +24,35 @@ export function ThemeProvider({
   force,
 }: {
   children: React.ReactNode;
-  /** Test and screenshot hook; production reads the system scheme. */
+  /** Test and screenshot hook; production follows the system. */
   force?: 'light' | 'dark';
 }) {
   const system = useColorScheme();
   const scheme = force ?? (system === 'dark' ? 'dark' : 'light');
 
-  const value = useMemo<Theme>(
-    () => ({
+  const value = useMemo<Theme>(() => {
+    const c = palettes[scheme];
+    return {
       scheme,
-      c: palettes[scheme],
+      c,
       space,
-      rule,
       radius,
-      type,
+      elevation,
+      motion,
+      text,
       tabular,
       hit: HIT,
-    }),
-    [scheme],
-  );
+      glyphTint: seed => {
+        // A cheap stable hash: the same food keeps the same tint across
+        // sessions and screens, which is what makes the list feel designed
+        // rather than randomly coloured.
+        let h = 0;
+        /* eslint-disable-next-line no-bitwise -- 32-bit string hash; the arithmetic form overflows */
+        for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+        return c.glyph[h % c.glyph.length];
+      },
+    };
+  }, [scheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

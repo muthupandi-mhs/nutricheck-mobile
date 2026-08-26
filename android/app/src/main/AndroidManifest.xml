@@ -1,6 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Requested at the moment of use, never at launch. See lib/speech.ts. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
+      Package visibility, Android 11+. Without this the speech service is simply
+      invisible to us: SpeechRecognizer.isRecognitionAvailable() returns false on
+      a device that can perfectly well recognise speech, and dictation fails with
+      no error anyone can act on.
+    -->
+    <queries>
+      <intent>
+        <action android:name="android.speech.RecognitionService" />
+      </intent>
+    </queries>
 
     <application
       android:name=".MainApplication"
