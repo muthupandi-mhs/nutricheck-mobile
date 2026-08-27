@@ -160,7 +160,6 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
     navigation.navigate('Confirm', { phrase: text, source: spoke ? 'voice' : 'text' });
   };
 
-  const items = countItems(phrase);
   const ready = phrase.trim().length > 0;
 
   return (
@@ -207,7 +206,13 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
           <Gap h={space.sm} />
           <Split>
             <Txt role="caption" tone="tertiary">
-              {items === 0 ? 'One sentence, however you would say it' : `${items} item${items === 1 ? '' : 's'} detected`}
+              {/* No item count. It was a comma-and-'and' heuristic, which cannot read
+                  Tamil at all -- "Rendu dosai chutney appuram sambar oothi sapten.
+                  So, how much..." counted 2, from the comma in "So,". Worse, the
+                  count is now unknowable here: nothing splits the sentence until
+                  the model answers, so any number shown is a guess presented as
+                  a reading. */}
+              One sentence, however you would say it
             </Txt>
             {/* The language the mic listens in. A control, not a label — it was
                 a dead "EN" caption, which told a Tamil speaker the answer was

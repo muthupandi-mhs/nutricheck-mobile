@@ -166,10 +166,34 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
       )}
       {notice === 'unparsed' && (
         <>
+          {/*
+            Said "nothing in the phrase matched a food ... so the corpus
+            improves", which described a corpus search that no longer happens.
+            Nothing is matched against anything now: the model read the
+            sentence and could not turn it into foods. Telling someone their
+            words failed to match a database they never queried is the kind of
+            wrong that makes the next message unbelievable too.
+          */}
           <Notice
             icon="alert"
-            title="We couldn't read that"
-            detail="Nothing in the phrase matched a food. It is here as a query, and we logged the miss so the corpus improves."
+            title="We could not read that"
+            detail="The sentence did not come back as food. Your words are in the box above — try naming one food at a time."
+          />
+          <Gap h={space.lg} />
+        </>
+      )}
+      {notice === 'off' && (
+        <>
+          {/*
+            Distinct from "we could not read that". No key, or a provider
+            outage, is not the user having said something unreadable, and the
+            two were previously the same message -- which is exactly what was
+            shown when the app hit a staging box with no AI key at all.
+          */}
+          <Notice
+            icon="info"
+            title="AI is unavailable"
+            detail="Reading a whole sentence needs it. Search still works, one food at a time, and nothing you typed is lost."
           />
           <Gap h={space.lg} />
         </>

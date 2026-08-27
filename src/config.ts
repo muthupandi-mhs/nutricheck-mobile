@@ -20,7 +20,7 @@ type Backend = 'staging' | 'local';
 // literal 'staging', and every comparison against the other value becomes an
 // error about types with no overlap -- so flipping the switch, the one thing
 // this file exists to let you do, would not compile.
-const BACKEND = 'staging' as Backend;
+const BACKEND = 'local' as Backend;
 
 /**
  * Staging, over HTTPS with a real Let's Encrypt certificate.

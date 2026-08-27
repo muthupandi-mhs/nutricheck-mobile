@@ -125,13 +125,20 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
         if (!alive) return;
         // Every failure keeps the phrase and lands on a route that cannot fail.
         // Losing typed input is the failure that makes people delete a tracker.
-        const notice = isProblem(err, 'resolver-refused', 'validation-failed')
-          ? 'unparsed'
-          : isProblem(err, 'quota-exhausted', 'rate-limited')
-            ? 'quota'
-            : isProblem(err, 'resolver-timeout', 'resolver-unavailable') || err instanceof OfflineError
-              ? 'timeout'
-              : 'unparsed';
+        // resolver-unavailable is split out from resolver-timeout. Both used to
+        // read "that took too long", but no API key is not slowness -- and it
+        // is the state a fresh environment is in, so it is the first message a
+        // new deployment shows. Getting it wrong tells the user their sentence
+        // was bad when the server simply has no key.
+        const notice = isProblem(err, 'resolver-unavailable')
+          ? 'off'
+          : isProblem(err, 'resolver-refused', 'validation-failed')
+            ? 'unparsed'
+            : isProblem(err, 'quota-exhausted', 'rate-limited')
+              ? 'quota'
+              : isProblem(err, 'resolver-timeout') || err instanceof OfflineError
+                ? 'timeout'
+                : 'unparsed';
         navigation.replace('Search', { prefill: phrase, notice });
       });
 
