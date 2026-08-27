@@ -61,13 +61,15 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
         {draft.objective !== 'maintain' && (
           <StepGroup label="How fast, in kg a week">
             <Stack gap={space.md}>
-              {/* One row, four equal tiles, in order. They were pills that
-                  wrapped, which let an ordinal scale reflow into two lines and
-                  put 1.0 under 0.25 — the arrangement said nothing about the
-                  fact that these run slowest to fastest. */}
-              <Row gap={space.sm}>
+              {/* Down, not across. Four across had to share the width three
+                  objective tiles were using, so they came out smaller than the
+                  row above and ragged against it — and the labels under the
+                  numbers were the first thing to get squeezed. Stacked, every
+                  rate is the same full-width row, the numbers line up in a
+                  column of their own, and a scale still reads top to bottom. */}
+              <Stack gap={space.sm}>
                 {RATES.map(rate => (
-                  <RateTile
+                  <RateRow
                     key={rate}
                     rate={rate}
                     verb={verb}
@@ -76,15 +78,15 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
                     onPress={() => patch({ rateKgPerWeek: rate })}
                   />
                 ))}
-              </Row>
+              </Stack>
               {/* Only the half that explains something the user can see. The
                   deficit in calories went: it restated the rate they had just
                   picked, in a unit they had not asked about, one screen before
                   the screen that is nothing but calories.
 
-                  This half stays because a greyed-out chip with no reason
-                  beside it is just a control that does not work — and it only
-                  appears when there is actually one greyed out. */}
+                  This half stays because a dimmed row with no reason beside it
+                  is just a control that does not work — and it only appears
+                  when there is actually one dimmed. */}
               {RATES.some(r => !rateAllowed(r)) ? (
                 <Txt role="bodySm" tone="secondary">
                   Greyed-out rates would put your target below your resting burn.
@@ -108,18 +110,19 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
 }
 
 /**
- * One rate.
+ * One rate, as a full-width row.
  *
- * The number leads and a word sits under it, because 0.25 kg a week is a
- * quantity and "gentle" is what it means — the same problem the objective
- * tiles had, where three correct words named nothing.
+ * The number sits in a fixed column so all four line up under each other
+ * regardless of how many characters they have — 0.25 and 1 are the same width
+ * of space, which is the whole reason a column of numbers reads as a scale
+ * rather than as four separate labels.
  *
- * A disallowed rate stays on the row, dimmed, rather than disappearing. Four
+ * A disallowed rate stays on the list, dimmed, rather than disappearing. Four
  * options that become two as the weight is edited would be a scale that keeps
  * changing shape; and a rate that is missing tells nobody why, where one that
  * is visible and out of reach is explained by the line beneath.
  */
-function RateTile({
+function RateRow({
   rate,
   verb,
   selected,
@@ -148,28 +151,29 @@ function RateTile({
           : `${rate} kilograms per week is unavailable — it would take your target below your resting burn`
       }
       style={{
-        flex: 1,
         opacity: allowed ? 1 : 0.35,
         backgroundColor: c.surface,
         borderRadius: radius.lg,
         borderWidth: 2,
         borderColor: selected ? c.ink : 'transparent',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 2,
-        paddingVertical: space.lg,
-        paddingHorizontal: space.xs,
+        paddingVertical: space.md,
+        paddingHorizontal: space.lg,
       }}>
-      <Txt role="h3" numeric color={selected ? c.ink : c.inkSecondary}>
-        {rate}
-      </Txt>
-      <Txt
-        role="caption"
-        caps
-        color={selected ? c.ink : c.inkTertiary}
-        style={{ letterSpacing: 0.8, textAlign: 'center' }}>
-        {RATE_WORD[rate]}
-      </Txt>
+      <Row gap={space.lg}>
+        {/* Right-aligned in a fixed column: the decimal points stack, so the
+            four numbers read as one scale instead of four labels. */}
+        <Txt
+          role="h3"
+          numeric
+          color={selected ? c.ink : c.inkSecondary}
+          style={{ width: 44, textAlign: 'right' }}>
+          {rate}
+        </Txt>
+        <Txt role="body" color={selected ? c.ink : c.inkSecondary} style={{ flexGrow: 1 }}>
+          {RATE_WORD[rate]}
+        </Txt>
+        {selected ? <Icon name="check" size={18} color={c.ink} weight={2.4} /> : null}
+      </Row>
     </Press>
   );
 }
