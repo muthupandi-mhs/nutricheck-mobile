@@ -7,7 +7,6 @@ import { Icon, type IconName } from '../../components/Icon';
 import { Gap, Row, Stack } from '../../components/Layout';
 import { Press } from '../../components/Press';
 import { Txt } from '../../components/Text';
-import { kcal } from '../../lib/format';
 import { deriveGoal, OBJECTIVE_LABEL } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useOnboarding } from '../../state/Onboarding';
@@ -83,11 +82,19 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
                   );
                 })}
               </Row>
-              <Txt role="bodySm" tone="secondary">
-                About {kcal(Math.abs((draft.rateKgPerWeek * 7700) / 7))} kcal a day{' '}
-                {verb === 'lose' ? 'under' : 'over'} what you burn. Greyed-out rates would put your
-                target below your resting burn.
-              </Txt>
+              {/* Only the half that explains something the user can see. The
+                  deficit in calories went: it restated the rate they had just
+                  picked, in a unit they had not asked about, one screen before
+                  the screen that is nothing but calories.
+
+                  This half stays because a greyed-out chip with no reason
+                  beside it is just a control that does not work — and it only
+                  appears when there is actually one greyed out. */}
+              {RATES.some(r => !rateAllowed(r)) ? (
+                <Txt role="bodySm" tone="secondary">
+                  Greyed-out rates would put your target below your resting burn.
+                </Txt>
+              ) : null}
             </Stack>
           </StepGroup>
         )}
