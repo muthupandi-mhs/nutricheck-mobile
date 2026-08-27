@@ -44,7 +44,11 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
       footer={
         <Button label="See my targets" loud onPress={() => navigation.navigate('OnboardTargets')} haptic="select" />
       }>
-      <Stack gap={space.xxl}>
+      {/* `huge`, not the usual section gap. These are two separate questions —
+          which way, and then how fast — and at 24 the second one's label sat
+          close enough to the tiles to read as a caption on them. The screen has
+          the room to say they are different questions. */}
+      <Stack gap={space.huge}>
         <Row gap={space.md}>
           {objectives.map(o => (
             <ObjectiveTile
