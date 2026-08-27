@@ -18,6 +18,7 @@ import type {
   ResolveDraft,
   ResolveSource,
   SessionUser,
+  SuggestedTargets,
   SetGoal,
   TranscribeLocale,
   TranscribeResult,
@@ -72,6 +73,8 @@ export interface NutriCheckApi {
   saveProfile(profile: UserProfile): Promise<UserProfile>;
   /** POST /v1/me/goals/preview — derives targets without persisting, for live recompute. */
   previewGoal(profile: UserProfile): Promise<Goal>;
+  /** POST /v1/me/goals/suggest — 503 when no model is configured. */
+  suggestTargets(profile: UserProfile): Promise<SuggestedTargets>;
   /** GET /v1/me/goals */
   getGoal(): Promise<Goal>;
   /** POST /v1/me/goals — a user override. Append-only; effectiveFrom decides history. */

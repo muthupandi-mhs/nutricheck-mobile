@@ -148,6 +148,15 @@ export function createStubApi(): NutriCheckApi {
     // Unregistered by default: the stub's job is to let screens render, and the
     // sign-up half of the flow is the one with more on it to draw.
     checkEmail: async () => ({ registered: false }),
+  // A suggestion that changed nothing, which is both the common real answer
+  // and the one that leaves the derived figures on screen to assert against.
+  suggestTargets: async () => ({
+    kcal: 2100,
+    proteinG: 130,
+    fiberG: 29,
+    reasoning: 'The standard calculation fits you well.',
+    corrections: [],
+  }),
     register: async () => ({ user: { ...session, onboarded: false }, tokens }),
     login: async () => ({ user: session, tokens }),
     getSession: async () => session,

@@ -56,6 +56,22 @@ export type SessionUser = {
 
 export type AuthResponse = { user: SessionUser; tokens: TokenPair };
 
+/**
+ * Targets a model proposed for a profile, already bounded by the server.
+ *
+ * `corrections` is one line per figure the server had to move, and it is
+ * normally empty. When it is not, the screen has to say so: a number shown
+ * without mentioning it was corrected is the server's answer wearing the
+ * model's name.
+ */
+export type SuggestedTargets = {
+  kcal: number;
+  proteinG: number;
+  fiberG: number;
+  reasoning: string;
+  corrections: string[];
+};
+
 // ── transcription ────────────────────────────────────────────────────────────
 
 /** Mirrors the API's `TranscribeLocale`, which mirrors `SpeechLocaleId`. */

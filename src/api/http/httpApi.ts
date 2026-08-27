@@ -24,6 +24,7 @@ import {
   type ResolveDraft,
   type ResolveSource,
   type SessionUser,
+  type SuggestedTargets,
   type SetGoal,
   type TranscribeLocale,
   type TranscribeResult,
@@ -196,6 +197,19 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
         { method: 'POST', body: profile },
       );
       return { ...preview, id: 'preview', effectiveFrom: localDate(tz) };
+    },
+
+    /**
+     * Asks the model what it would set, for a profile that is not saved yet.
+     *
+     * Persists nothing on either side. The suggestion is a thing to look at,
+     * and taking it is the ordinary goal-override call the screen already makes.
+     */
+    async suggestTargets(profile: UserProfile): Promise<SuggestedTargets> {
+      return transport.request<SuggestedTargets>('/v1/me/goals/suggest', {
+        method: 'POST',
+        body: profile,
+      });
     },
 
     /** `GET /v1/me/goals`. */
