@@ -6,7 +6,7 @@ import { Row } from './Layout';
 import { Press } from './Press';
 import { Txt } from './Text';
 
-type Variant = 'primary' | 'tonal' | 'outline' | 'ghost' | 'danger';
+type Variant = 'primary' | 'inverse' | 'tonal' | 'outline' | 'ghost' | 'danger';
 type Size = 'lg' | 'md' | 'sm';
 
 const HEIGHTS: Record<Size, number> = { lg: 56, md: 48, sm: 38 };
@@ -59,6 +59,9 @@ export function Button({
 
   const skin: Record<Variant, { bg: string; fg: string; border: string; raise: boolean }> = {
     primary: { bg: c.primary, fg: c.onPrimary, border: 'transparent', raise: true },
+    // Ink on canvas, inverted. The loudest control the palette can make without
+    // spending the accent, for a screen whose whole job is one decision.
+    inverse: { bg: c.ink, fg: c.canvas, border: 'transparent', raise: true },
     tonal: { bg: c.primarySoft, fg: c.primarySoftInk, border: 'transparent', raise: false },
     outline: { bg: 'transparent', fg: c.ink, border: c.borderStrong, raise: false },
     ghost: { bg: 'transparent', fg: c.primary, border: 'transparent', raise: false },
