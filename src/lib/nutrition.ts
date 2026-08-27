@@ -83,12 +83,24 @@ export const entryTotals = (entry: LogEntry) => total(entry.items.map(i => i.nut
 // ── target derivation ────────────────────────────────────────────────────────
 
 /** Plain-language levels, and the multiplier the user never sees. */
-export const ACTIVITY: Record<ActivityLevel, { label: string; detail: string; factor: number }> = {
-  sedentary: { label: 'Desk job, little exercise', detail: 'Mostly seated', factor: 1.2 },
-  light: { label: 'Light — 1–2 workouts a week', detail: 'On your feet some days', factor: 1.375 },
-  moderate: { label: 'Moderate — 3–4 a week', detail: 'Regular training', factor: 1.55 },
-  active: { label: 'Active — 5–6 a week', detail: 'Hard training most days', factor: 1.725 },
-  very_active: { label: 'Very active — physical job', detail: 'Or twice-daily training', factor: 1.9 },
+/**
+ * `label` is the sentence, `short` is the name.
+ *
+ * Both, because they are read in different places: the sentence is what makes
+ * the question answerable about yourself and is what a screen reader says, and
+ * the name is what fits on a tile next to an icon. Deriving one from the other
+ * — splitting the label on its dash — works for four of these five and breaks
+ * on the one that has no dash.
+ */
+export const ACTIVITY: Record<
+  ActivityLevel,
+  { label: string; short: string; detail: string; factor: number }
+> = {
+  sedentary: { label: 'Desk job, little exercise', short: 'Desk job', detail: 'Mostly seated', factor: 1.2 },
+  light: { label: 'Light — 1–2 workouts a week', short: 'Light', detail: 'On your feet some days', factor: 1.375 },
+  moderate: { label: 'Moderate — 3–4 a week', short: 'Moderate', detail: 'Regular training', factor: 1.55 },
+  active: { label: 'Active — 5–6 a week', short: 'Active', detail: 'Hard training most days', factor: 1.725 },
+  very_active: { label: 'Very active — physical job', short: 'Very active', detail: 'Or twice-daily training', factor: 1.9 },
 };
 
 export const OBJECTIVE_LABEL = {

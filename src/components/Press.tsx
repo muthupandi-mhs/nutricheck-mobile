@@ -79,9 +79,9 @@ export function Press({
    * is a basis on the cross axis of the row it was written for — a height of
    * zero — which is its own quiet bug.
    */
-  const { flex, flexGrow, flexShrink, flexBasis, alignSelf, ...inner } =
+  const { flex, flexGrow, flexShrink, flexBasis, alignSelf, aspectRatio, ...inner } =
     (StyleSheet.flatten(style) ?? {}) as ViewStyle;
-  const box = { flex, flexGrow, flexShrink, flexBasis, alignSelf };
+  const box = { flex, flexGrow, flexShrink, flexBasis, alignSelf, aspectRatio };
 
   const animate = (to: number) =>
     Animated.spring(value, {

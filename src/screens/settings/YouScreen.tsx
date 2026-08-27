@@ -104,7 +104,7 @@ export function YouScreen({ navigation }: ScreenProps<'You'>) {
                   </Txt>
                   {profile && (
                     <Row gap={space.sm} wrap style={{ paddingTop: 2 }}>
-                      <Badge label={ACTIVITY[profile.activityLevel].label.split('—')[0].trim()} />
+                      <Badge label={ACTIVITY[profile.activityLevel].short} />
                       <Badge label={OBJECTIVE_LABEL[profile.objective]} tone="success" />
                     </Row>
                   )}

@@ -43,7 +43,7 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
     `${new Date().getFullYear() - draft.birthYear} years`,
     `${draft.heightCm} cm`,
     `${draft.weightKg} kg`,
-    ACTIVITY[draft.activityLevel].label.split('—')[0].trim(),
+    ACTIVITY[draft.activityLevel].short,
     draft.objective === 'maintain' ? 'Maintain' : `${draft.objective === 'lose' ? 'Lose' : 'Gain'} ${draft.rateKgPerWeek} kg/wk`,
   ];
 
