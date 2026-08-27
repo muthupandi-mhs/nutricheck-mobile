@@ -13,7 +13,8 @@ import { ActivityScreen } from '../screens/onboarding/ActivityScreen';
 import { ObjectiveScreen } from '../screens/onboarding/ObjectiveScreen';
 import { ProfileScreen } from '../screens/onboarding/ProfileScreen';
 import { SignInScreen } from '../screens/onboarding/SignInScreen';
-import { SignUpScreen } from '../screens/onboarding/SignUpScreen';
+import { SignUpEmailScreen } from '../screens/onboarding/SignUpEmailScreen';
+import { SignUpPasswordScreen } from '../screens/onboarding/SignUpPasswordScreen';
 import { TargetsScreen } from '../screens/onboarding/TargetsScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { CreateFoodScreen } from '../screens/search/CreateFoodScreen';
@@ -79,7 +80,8 @@ export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackP
         }}>
         {/* onboarding */}
         <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: 'fade' }} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
+        <Stack.Screen name="SignUp" component={SignUpEmailScreen} />
+        <Stack.Screen name="SignUpPassword" component={SignUpPasswordScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="OnboardProfile" component={ProfileScreen} />
         <Stack.Screen name="OnboardActivity" component={ActivityScreen} />

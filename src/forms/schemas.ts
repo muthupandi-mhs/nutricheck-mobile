@@ -101,6 +101,23 @@ export const newPasswordField = z
  */
 export const existingPasswordField = z.string().min(1, 'Enter your password.').max(PASSWORD_MAX);
 
+/**
+ * The first step of registering, which asks for an email and nothing else.
+ *
+ * Its own schema rather than `registerSchema.pick`: the two screens are
+ * validated at different moments, and a password field that exists in the type
+ * but not on the screen is a required field nobody can see.
+ */
+export const emailStepSchema = z.object({ email: emailField });
+export type EmailStepValues = z.input<typeof emailStepSchema>;
+
+/**
+ * The second step. The email is already settled and travels as a route param,
+ * so the only thing left to validate is the password being created.
+ */
+export const passwordStepSchema = z.object({ password: newPasswordField });
+export type PasswordStepValues = z.input<typeof passwordStepSchema>;
+
 export const registerSchema = z.object({ email: emailField, password: newPasswordField });
 export const loginSchema = z.object({ email: emailField, password: existingPasswordField });
 

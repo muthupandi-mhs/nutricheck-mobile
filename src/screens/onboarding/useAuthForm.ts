@@ -2,37 +2,35 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useApi } from '../../api/client';
-import { ApiError, OfflineError } from '../../api/types';
+import { ApiError, OfflineError, type TokenPair, type SessionUser } from '../../api/types';
 import { REVEAL_ON_SUBMIT } from '../../forms/fields';
-import { credentialsSchema, type CredentialsValues } from '../../forms/schemas';
+import {
+  credentialsSchema,
+  passwordStepSchema,
+  type CredentialsValues,
+  type PasswordStepValues,
+} from '../../forms/schemas';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Nav = {
   reset(state: { index: number; routes: Array<{ name: keyof RootStackParamList }> }): void;
 };
 
+type Auth = { user: SessionUser; tokens: TokenPair };
+
 /**
- * The shared half of sign-up and sign-in.
+ * What a failed call means, and where a successful one goes.
  *
- * The two screens differ in their copy, their affordances and their password
- * rules; they do not differ in what a failed call means or where a success
- * goes. Keeping that here is what stops the register path and the login path
- * drifting into two different answers for "no connection".
+ * Sign-in and registration differ in their copy, their affordances and their
+ * password rules; they do not differ in either of those. Keeping it in one
+ * place is what stops the login path and the register path drifting into two
+ * different answers for "no connection" — which they did once already.
  *
- * Field state, validation and the message under each field belong to
- * react-hook-form and `credentialsSchema`. What is left here is the half a
- * schema cannot know about: what the server said, and where to go next.
+ * Split out of `useAuthForm` when registration became two screens: the call now
+ * happens on the second of them, with the email arriving as a route param
+ * rather than as a field.
  */
-export function useAuthForm(mode: 'register' | 'login', navigation: Nav) {
-  const api = useApi();
-  const registering = mode === 'register';
-
-  const form = useForm<CredentialsValues>({
-    ...REVEAL_ON_SUBMIT,
-    resolver: zodResolver(credentialsSchema(mode)),
-    defaultValues: { email: '', password: '' },
-  });
-
+export function useAuthOutcome(navigation: Nav) {
   /**
    * A rejected call, not a rejected field. It survives until the next attempt
    * rather than clearing on the next keystroke: "that password is wrong" is
@@ -45,11 +43,11 @@ export function useAuthForm(mode: 'register' | 'login', navigation: Nav) {
   // spinner rather than flicker back to a live control.
   const [leaving, setLeaving] = useState(false);
 
-  const submit = form.handleSubmit(async credentials => {
+  const attempt = async (call: () => Promise<Auth>) => {
     setError(null);
 
     try {
-      const auth = registering ? await api.register(credentials) : await api.login(credentials);
+      const auth = await call();
 
       setLeaving(true);
       // Trust the server's `onboarded` rather than probing for a profile, so a
@@ -70,15 +68,71 @@ export function useAuthForm(mode: 'register' | 'login', navigation: Nav) {
         setError({ title: 'Something went wrong', detail: 'Try that again.' });
       }
     }
+  };
+
+  return { error, leaving, attempt };
+}
+
+/**
+ * Sign-in: both credentials on one screen, because somebody signing in already
+ * knows both and splitting them would be two taps to say one thing.
+ *
+ * Field state, validation and the message under each field belong to
+ * react-hook-form and `credentialsSchema`.
+ */
+export function useAuthForm(mode: 'register' | 'login', navigation: Nav) {
+  const api = useApi();
+  const registering = mode === 'register';
+  const outcome = useAuthOutcome(navigation);
+
+  const form = useForm<CredentialsValues>({
+    ...REVEAL_ON_SUBMIT,
+    resolver: zodResolver(credentialsSchema(mode)),
+    defaultValues: { email: '', password: '' },
   });
+
+  const submit = form.handleSubmit(credentials =>
+    outcome.attempt(() => (registering ? api.register(credentials) : api.login(credentials))),
+  );
 
   return {
     control: form.control,
-    busy: form.formState.isSubmitting || leaving,
+    busy: form.formState.isSubmitting || outcome.leaving,
     /** True once they have pressed the button, which is when we start saying no. */
     tried: form.formState.isSubmitted,
     ready: form.formState.isValid,
-    error,
+    error: outcome.error,
+    submit,
+  };
+}
+
+/**
+ * The second step of registering: a password, for an email already settled.
+ *
+ * `watch` rather than `getValues` — the rule list under the field is live, and
+ * it has to re-render on every keystroke to be worth putting there at all.
+ */
+export function useRegisterForm(email: string, navigation: Nav) {
+  const api = useApi();
+  const outcome = useAuthOutcome(navigation);
+
+  const form = useForm<PasswordStepValues>({
+    ...REVEAL_ON_SUBMIT,
+    resolver: zodResolver(passwordStepSchema),
+    defaultValues: { password: '' },
+  });
+
+  const submit = form.handleSubmit(({ password }) =>
+    outcome.attempt(() => api.register({ email, password })),
+  );
+
+  return {
+    control: form.control,
+    password: form.watch('password'),
+    busy: form.formState.isSubmitting || outcome.leaving,
+    tried: form.formState.isSubmitted,
+    ready: form.formState.isValid,
+    error: outcome.error,
     submit,
   };
 }

@@ -13,11 +13,12 @@ import type { ScreenProps } from '../../navigation/types';
  * Welcome. A full-bleed brand field that absorbs all spare height, and a sheet
  * docked to the bottom edge carrying the copy and the one action.
  *
- * One button, and it leads to sign-in. This screen is only ever reached when
- * there is no stored session, and sign-in is where both audiences resolve: a
- * returning user signs in, a new one takes the "I need an account" link from
- * there. Auth then decides the destination — onboarding if the account has no
- * profile yet, the app itself if it has.
+ * Two buttons, one per audience, because the first screen is the cheapest
+ * place to name both. It used to offer only "Get started" into sign-in, on the
+ * reasoning that a new user would find the "Create new" link from there — true,
+ * but it made the more common of the two journeys the one you had to read your
+ * way into. Auth still decides the destination after either: onboarding if the
+ * account has no profile yet, the app itself if it has.
  *
  * Copy is written for a broad Indian audience, so it avoids product English:
  * "tell", not "log" or "type" — it is the only common verb covering both the
@@ -116,9 +117,21 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
           <Gap h={space.xxxl} />
 
           <Gutter>
+            {/* Both paths named on the first screen. The filled one is
+                sign-in rather than sign-up because a returning user opens
+                the app far more often than a new one arrives. */}
             <Button
-              label="Get started"
+              label="I have an account"
+              loud
               onPress={() => navigation.navigate('SignIn')}
+              haptic="select"
+            />
+            <Gap h={space.md} />
+            <Button
+              label="Create an account"
+              variant="outline"
+              loud
+              onPress={() => navigation.navigate('SignUp')}
               haptic="select"
             />
           </Gutter>

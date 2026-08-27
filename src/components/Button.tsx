@@ -27,6 +27,7 @@ export function Button({
   iconRight,
   disabled,
   loading,
+  loud,
   full = true,
   haptic,
   accessibilityLabel,
@@ -41,6 +42,12 @@ export function Button({
   iconRight?: IconName;
   disabled?: boolean;
   loading?: boolean;
+  /**
+   * Uppercase and letterspaced, for the full-width commit on a screen that asks
+   * one question. Opt-in rather than the default: it suits a screen with a
+   * single decision on it and shouts on a card with three.
+   */
+  loud?: boolean;
   full?: boolean;
   haptic?: React.ComponentProps<typeof Press>['haptic'];
   accessibilityLabel?: string;
@@ -92,7 +99,11 @@ export function Button({
         ) : (
           <>
             {icon && <Icon name={icon} size={iconSize} color={fg} weight={2.1} />}
-            <Txt role={size === 'sm' ? 'labelSm' : 'label'} color={fg}>
+            <Txt
+              role={size === 'sm' ? 'labelSm' : 'label'}
+              color={fg}
+              caps={loud}
+              style={loud ? { letterSpacing: 1.2 } : undefined}>
               {label}
             </Txt>
             {iconRight && <Icon name={iconRight} size={iconSize} color={fg} weight={2.1} />}

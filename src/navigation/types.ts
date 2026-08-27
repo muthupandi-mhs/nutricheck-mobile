@@ -26,7 +26,16 @@ export type TabParamList = {
 export type RootStackParamList = {
   // onboarding
   Welcome: undefined;
+  /** Registration step one. Asks for the address and sends nothing. */
   SignUp: undefined;
+  /**
+   * Registration step two, which is where the account is actually created.
+   *
+   * The email travels as a param rather than in a shared store: it is a value,
+   * it is the whole of what step one produced, and carrying it this way means
+   * the screen cannot be reached without one.
+   */
+  SignUpPassword: { email: string };
   SignIn: undefined;
   OnboardProfile: undefined;
   OnboardActivity: undefined;
