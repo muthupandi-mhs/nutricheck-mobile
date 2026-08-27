@@ -12,13 +12,18 @@ import type { ActivityLevel } from '../../api/types';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
- * Activity level in plain language. The five options map onto multipliers from
+ * Activity level in plain language. The four options map onto multipliers from
  * 1.2 to 1.9 and the user never sees one — "desk job, little exercise" is
  * answerable about yourself, "1.2x" is a question about an unseen formula.
  *
- * Two square tiles per row. Five full-width rows were a list to be read top to
- * bottom; a grid is a set to be looked at, which is the right shape for a
- * question whose answers are five versions of one thing.
+ * Two tiles per row, two rows, filling whatever height the heading leaves. A
+ * list of full-width rows was something to read top to bottom; a grid that
+ * fills the screen is a set to look at, which is the shape this question wants
+ * — four versions of one thing, all visible at once with nothing to scroll.
+ *
+ * The tiles flex rather than holding a square aspect: filling the screen and
+ * staying square are the same thing only at one screen height, and of the two
+ * it is filling that was asked for.
  */
 export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
   const { space } = useTheme();
@@ -33,27 +38,25 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
       footer={
         <Button label="Continue" loud onPress={() => navigation.navigate('OnboardObjective')} haptic="select" />
       }>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
-        {levels.map(level => (
-          <Tile
-            key={level}
-            level={level}
-            selected={draft.activityLevel === level}
-            onPress={() => patch({ activityLevel: level })}
-          />
+      <View style={{ flex: 1, gap: space.md }}>
+        {[levels.slice(0, 2), levels.slice(2)].map((row, i) => (
+          <View key={i} style={{ flex: 1, flexDirection: 'row', gap: space.md }}>
+            {row.map(level => (
+              <Tile
+                key={level}
+                level={level}
+                selected={draft.activityLevel === level}
+                onPress={() => patch({ activityLevel: level })}
+              />
+            ))}
+          </View>
         ))}
       </View>
     </OnboardStep>
   );
 }
 
-/**
- * One tile.
- *
- * `flexBasis` at 48% with no grow, deliberately: two fit a row, and the fifth
- * stays the size of the other four rather than stretching to fill the row it is
- * alone in — which on a square would have made it twice as tall as the rest.
- */
+/** One tile. Splits its row, and its row splits the height. */
 function Tile({
   level,
   selected,
@@ -78,8 +81,7 @@ function Tile({
       accessibilityLabel={ACTIVITY[level].label}
       accessibilityHint={ACTIVITY[level].detail}
       style={{
-        flexBasis: '48%',
-        aspectRatio: 1,
+        flex: 1,
         backgroundColor: c.surface,
         borderRadius: radius.lg,
         borderWidth: 2,
@@ -102,14 +104,13 @@ function Tile({
 }
 
 /**
- * One subject per level, escalating: sitting, walking, training, running,
- * burning.
+ * One subject per level, escalating: sitting, walking, training, burning.
  *
- * Deliberately five different things rather than five poses of a person. A jog
- * and a run are the same two sticks at this size, and a set that can only be
- * told apart by studying it is a set nobody reads — whereas a desk, a shoe, a
- * dumbbell, a runner and a flame are distinguishable at a glance and still
- * arrive in an order.
+ * Deliberately four different things rather than four poses of a person. Two
+ * figures at this size are the same two sticks, and a set that can only be told
+ * apart by studying it is a set nobody reads — whereas a desk, a shoe, a
+ * dumbbell and a flame are distinguishable at a glance and still arrive in an
+ * order.
  *
  * They name the kind of week, not the exercise. Nobody at 'moderate' has to
  * lift weights, any more than 'very active' means being on fire.
@@ -118,6 +119,5 @@ const ACTIVITY_ICON: Record<ActivityLevel, IconName> = {
   sedentary: 'desk',
   light: 'shoe',
   moderate: 'dumbbell',
-  active: 'run',
   very_active: 'flame',
 };

@@ -33,13 +33,12 @@ export type IconName =
   | 'undo'
   | 'offline'
   | 'flame'
-  // Activity levels. One silhouette each rather than five figures: a jog and a
-  // run are the same two sticks at this size, so the set escalates by subject
-  // — sitting, walking, training, running, burning — not by pose.
+  // Activity levels. One silhouette each rather than a set of figures: two
+  // people at this size are the same two sticks, so it escalates by subject —
+  // sitting, walking, training, burning — not by pose.
   | 'desk'
   | 'shoe'
   | 'dumbbell'
-  | 'run'
   | 'bookmark'
   | 'bowl'
   | 'leaf'
@@ -147,14 +146,6 @@ export function Icon({
       )}
       {name === 'dumbbell' && (
         <Path d="M8.4 12h7.2M6.2 8.8v6.4M17.8 8.8v6.4M3.8 10.2v3.6M20.2 10.2v3.6" {...p} />
-      )}
-      {name === 'run' && (
-        <>
-          <Circle cx={14.8} cy={5.2} r={2.1} {...p} />
-          <Path d="M12.8 9.6 9.2 12.2l2.9 2.5-1.7 5.4" {...p} />
-          <Path d="M12.1 14.7l3.9 1 1.7 4.4" {...p} />
-          <Path d="M12.9 11.1l3.9 1.4 2.4-1.7" {...p} />
-        </>
       )}
       {name === 'flame' && <Path d="M12 21c3.8 0 6.4-2.5 6.4-5.9 0-4.4-3.9-6.4-4.4-10.8-2 2-3 3.9-3 5.9-1-.5-1.5-1.5-1.5-3-2 2-3.9 4.4-3.9 7.9C5.6 18.5 8.2 21 12 21z" {...p} />}
       {name === 'bookmark' && <Path d="M6.4 4.4h11.2v16l-5.6-4-5.6 4z" {...p} />}

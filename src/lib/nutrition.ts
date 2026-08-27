@@ -99,7 +99,6 @@ export const ACTIVITY: Record<
   sedentary: { label: 'Desk job, little exercise', short: 'Desk job', detail: 'Mostly seated', factor: 1.2 },
   light: { label: 'Light — 1–2 workouts a week', short: 'Light', detail: 'On your feet some days', factor: 1.375 },
   moderate: { label: 'Moderate — 3–4 a week', short: 'Moderate', detail: 'Regular training', factor: 1.55 },
-  active: { label: 'Active — 5–6 a week', short: 'Active', detail: 'Hard training most days', factor: 1.725 },
   very_active: { label: 'Very active — physical job', short: 'Very active', detail: 'Or twice-daily training', factor: 1.9 },
 };
 

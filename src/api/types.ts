@@ -332,7 +332,7 @@ export type DaySummary = {
 // ── profile ──────────────────────────────────────────────────────────────────
 
 export type Sex = 'male' | 'female';
-export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very_active';
 export type Objective = 'lose' | 'maintain' | 'gain';
 
 export type UserProfile = {

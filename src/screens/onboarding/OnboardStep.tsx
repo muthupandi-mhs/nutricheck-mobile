@@ -51,7 +51,15 @@ export function OnboardStep({
           // Claims the space left over after the footer. Without it the scroll
           // sizes to its own content and runs on underneath the button.
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: space.xl }}
+          // flexGrow, so a step whose content wants to fill the screen can:
+          // a child's `flex: 1` measures against a content box, and without
+          // this that box is only ever as tall as what is already in it. Taller
+          // content still scrolls — this sets a floor, not a ceiling.
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: space.gutter,
+            paddingBottom: space.xl,
+          }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           {/* The heading scrolls with the content rather than sitting above it.
