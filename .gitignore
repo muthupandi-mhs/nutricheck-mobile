@@ -53,6 +53,29 @@ yarn-error.log
 **/fastlane/screenshots
 **/fastlane/test_output
 
+# Built apps
+#
+# build/ above already covers debug output, because gradle puts it under
+# android/app/build/. A signed release does NOT land there -- assembleRelease
+# writes android/app/release/app-release.apk, outside every rule above -- so a
+# 70 MB binary sat one `git add -A` away from the history of this repository,
+# where deleting it later would not make it smaller.
+#
+# Releases belong in the Play Console or an artifact store, not in git: they are
+# regenerable from the commit that produced them, and a repo that carries every
+# build gets slower for everybody, forever.
+*.apk
+*.aab
+android/app/release/
+
+# Signing keys for a release build. *.keystore above catches the common case and
+# deliberately exempts debug.keystore, which React Native ships on purpose so
+# every developer produces the same debug signature. A RELEASE key is the
+# opposite: it is the identity of the app on the Play Store, it cannot be
+# rotated without users reinstalling, and it must never be committed.
+*.jks
+keystore.properties
+
 # Bundle artifact
 *.jsbundle
 
