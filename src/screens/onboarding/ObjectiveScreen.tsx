@@ -1,7 +1,5 @@
 import React, { useMemo } from 'react';
-import { View } from 'react-native';
 import { Button } from '../../components/Button';
-import { Chip } from '../../components/Chip';
 import { Notice } from '../../components/Feedback';
 import { Icon, type IconName } from '../../components/Icon';
 import { Gap, Row, Stack } from '../../components/Layout';
@@ -61,26 +59,23 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
         </Row>
 
         {draft.objective !== 'maintain' && (
-          <StepGroup label="How fast">
+          <StepGroup label="How fast, in kg a week">
             <Stack gap={space.md}>
-              <Row gap={space.sm} wrap>
-                {RATES.map(rate => {
-                  const allowed = rateAllowed(rate);
-                  return (
-                    <View key={rate} style={allowed ? undefined : { opacity: 0.35 }}>
-                      <Chip
-                        label={`${rate} kg / wk`}
-                        variant={draft.rateKgPerWeek === rate ? 'selected' : 'default'}
-                        onPress={allowed ? () => patch({ rateKgPerWeek: rate }) : undefined}
-                        accessibilityLabel={
-                          allowed
-                            ? `${verb} ${rate} kilograms per week`
-                            : `${rate} kilograms per week is unavailable — it would take your target below your resting burn`
-                        }
-                      />
-                    </View>
-                  );
-                })}
+              {/* One row, four equal tiles, in order. They were pills that
+                  wrapped, which let an ordinal scale reflow into two lines and
+                  put 1.0 under 0.25 — the arrangement said nothing about the
+                  fact that these run slowest to fastest. */}
+              <Row gap={space.sm}>
+                {RATES.map(rate => (
+                  <RateTile
+                    key={rate}
+                    rate={rate}
+                    verb={verb}
+                    selected={draft.rateKgPerWeek === rate}
+                    allowed={rateAllowed(rate)}
+                    onPress={() => patch({ rateKgPerWeek: rate })}
+                  />
+                ))}
               </Row>
               {/* Only the half that explains something the user can see. The
                   deficit in calories went: it restated the rate they had just
@@ -111,6 +106,81 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
     </OnboardStep>
   );
 }
+
+/**
+ * One rate.
+ *
+ * The number leads and a word sits under it, because 0.25 kg a week is a
+ * quantity and "gentle" is what it means — the same problem the objective
+ * tiles had, where three correct words named nothing.
+ *
+ * A disallowed rate stays on the row, dimmed, rather than disappearing. Four
+ * options that become two as the weight is edited would be a scale that keeps
+ * changing shape; and a rate that is missing tells nobody why, where one that
+ * is visible and out of reach is explained by the line beneath.
+ */
+function RateTile({
+  rate,
+  verb,
+  selected,
+  allowed,
+  onPress,
+}: {
+  rate: number;
+  verb: string;
+  selected: boolean;
+  allowed: boolean;
+  onPress: () => void;
+}) {
+  const { c, radius, space } = useTheme();
+
+  return (
+    <Press
+      onPress={allowed ? onPress : undefined}
+      disabled={!allowed}
+      haptic="select"
+      feedback="none"
+      accessibilityRole="button"
+      accessibilityState={{ selected, disabled: !allowed }}
+      accessibilityLabel={
+        allowed
+          ? `${verb} ${rate} kilograms per week, ${RATE_WORD[rate]}`
+          : `${rate} kilograms per week is unavailable — it would take your target below your resting burn`
+      }
+      style={{
+        flex: 1,
+        opacity: allowed ? 1 : 0.35,
+        backgroundColor: c.surface,
+        borderRadius: radius.lg,
+        borderWidth: 2,
+        borderColor: selected ? c.ink : 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+        paddingVertical: space.lg,
+        paddingHorizontal: space.xs,
+      }}>
+      <Txt role="h3" numeric color={selected ? c.ink : c.inkSecondary}>
+        {rate}
+      </Txt>
+      <Txt
+        role="caption"
+        caps
+        color={selected ? c.ink : c.inkTertiary}
+        style={{ letterSpacing: 0.8, textAlign: 'center' }}>
+        {RATE_WORD[rate]}
+      </Txt>
+    </Press>
+  );
+}
+
+/** What each rate feels like. The number is the amount; this is the meaning. */
+const RATE_WORD: Record<number, string> = {
+  0.25: 'Gentle',
+  0.5: 'Steady',
+  0.75: 'Brisk',
+  1: 'Fast',
+};
 
 /** One of three, splitting the row. Square-ish by the padding, not by an aspect. */
 function ObjectiveTile({
