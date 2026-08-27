@@ -23,9 +23,24 @@ import type { ScreenProps } from '../../navigation/types';
  * "tell", not "log" or "type" — it is the only common verb covering both the
  * keyboard and the mic, and voice is the input nobody guesses is there.
  *
- * The screen never says "AI" on purpose. PLAN §2 puts the model on the words
- * and a real food table on every number; leading with the model would sell the
- * one part of the system the architecture refuses to stand behind.
+ * "In Tamil, in English, or both in the same breath" is the whole product in one
+ * line. Code-switching is what nothing else handles — every other tracker makes
+ * you translate your own dinner before you can log it — and "in the same breath"
+ * describes it more exactly than "Tanglish" does, without asking the reader to
+ * know that word.
+ *
+ * It promises no figure. The previous line said "we'll count the calories and
+ * protein for you", which was true when a food table stood behind every number
+ * and stopped being true when /v1/ai-meal started estimating them: the app now
+ * marks every value with a "~", so the first screen was making a promise the
+ * second screen visibly walks back. "Take care of the numbers" is a claim about
+ * effort rather than precision, which is the claim this system can keep. It also
+ * stops naming two macros when five are tracked.
+ *
+ * The screen still never says "AI", though the original reason for that is gone
+ * -- there is no longer a real food table behind every number. The reason now is
+ * that it is not a differentiator. Everything says AI; almost nothing
+ * understands "rendu dosai".
  */
 export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
   const { space } = useTheme();
@@ -85,7 +100,8 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
             </Txt>
             <Gap h={space.md} />
             <Txt role="bodyLg" tone="secondary">
-              Say it or type it. We'll count the calories and protein for you.
+              In Tamil, in English, or both in the same breath. We'll take care
+              of the numbers.
             </Txt>
           </Gutter>
 
