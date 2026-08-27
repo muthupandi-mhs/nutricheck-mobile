@@ -1,10 +1,11 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useApi } from '../../api/client';
 import type { CreateCustomFood } from '../../api/types';
 import { Button, IconButton } from '../../components/Button';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Card } from '../../components/Card';
 import { Chip } from '../../components/Chip';
 import { Disclaimer } from '../../components/Feedback';
@@ -76,7 +77,7 @@ export function CreateFoodScreen({ navigation, route }: ScreenProps<'CreateFood'
         </Split>
       </Gutter>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid>
         <ScrollView
           contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}
           keyboardShouldPersistTaps="handled">
@@ -188,7 +189,7 @@ export function CreateFoodScreen({ navigation, route }: ScreenProps<'CreateFood'
             </Card>
           </Stack>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
 
       <Dock>
         <Disclaimer text="Custom foods are private to your account and are never added to the shared database." />

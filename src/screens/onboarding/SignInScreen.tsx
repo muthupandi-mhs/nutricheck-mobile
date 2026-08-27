@@ -1,8 +1,9 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EMAIL_MAX, PASSWORD_MAX } from '../../api/types';
 import { Button, IconButton, TextButton } from '../../components/Button';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Notice } from '../../components/Feedback';
 import { Gap, Gutter, Split, Stack } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
@@ -31,9 +32,7 @@ export function SignInScreen({ navigation }: ScreenProps<'SignIn'>) {
 
   return (
     <Screen style={{ paddingTop: 0, paddingBottom: 0 }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1 }}
@@ -167,7 +166,7 @@ export function SignInScreen({ navigation }: ScreenProps<'SignIn'>) {
             </View>
           </Gutter>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
 
       {/* Over the brand field, where there is nothing to collide with. */}
       <View style={{ position: 'absolute', top: insets.top + 4, left: space.gutter - 10 }}>

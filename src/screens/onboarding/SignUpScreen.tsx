@@ -1,8 +1,9 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../../api/types';
 import { Button, IconButton } from '../../components/Button';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Notice } from '../../components/Feedback';
 import { Gap, Gutter, Stack } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
@@ -35,9 +36,7 @@ export function SignUpScreen({ navigation }: ScreenProps<'SignUp'>) {
 
   return (
     <Screen style={{ paddingTop: 0, paddingBottom: 0 }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1 }}
@@ -137,7 +136,7 @@ export function SignUpScreen({ navigation }: ScreenProps<'SignUp'>) {
             />
           </Gutter>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
 
       <View style={{ position: 'absolute', top: insets.top + 4, left: space.gutter - 10 }}>
         <IconButton name="chevronLeft" onPress={() => navigation.goBack()} accessibilityLabel="Back" />

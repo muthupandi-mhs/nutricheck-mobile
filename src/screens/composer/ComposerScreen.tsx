@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Button, IconButton, TextButton } from '../../components/Button';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Card } from '../../components/Card';
 import { Notice } from '../../components/Feedback';
 import { Field } from '../../components/Field';
@@ -180,7 +181,7 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
         </Split>
       </Gutter>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={8}>
+      <KeyboardAvoid offset={8}>
         <Gutter style={{ paddingTop: space.lg }}>
           <Field
             value={phrase}
@@ -333,7 +334,7 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
             />
           </Gutter>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
 
       {micState === 'priming' && (
         <MicPrimer
