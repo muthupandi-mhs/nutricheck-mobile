@@ -43,6 +43,7 @@ export function SignUpPasswordScreen({ navigation, route }: ScreenProps<'SignUpP
       footer={
         <Button
           label="Set password"
+          variant="inverse"
           loud
           loading={f.busy}
           disabled={f.tried && !f.ready}

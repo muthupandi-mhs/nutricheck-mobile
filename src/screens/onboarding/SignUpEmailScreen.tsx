@@ -41,6 +41,7 @@ export function SignUpEmailScreen({ navigation }: ScreenProps<'SignUp'>) {
       footer={
         <Button
           label="Confirm email"
+          variant="inverse"
           loud
           disabled={form.formState.isSubmitted && !form.formState.isValid}
           onPress={submit}

@@ -24,14 +24,19 @@ export function SignInScreen({ navigation }: ScreenProps<'SignIn'>) {
 
   return (
     <AuthStep
+      hero
       title="Sign in"
       subtitle="Use the email and password you signed up with."
       error={f.error}
       onBack={() => navigation.goBack()}
       footer={
         <>
+          {/* Inverse, as on Welcome. This is the same commit the white button
+              there promised, one screen later — a different fill would read as
+              a different action. */}
           <Button
             label="Sign in"
+            variant="inverse"
             loud
             loading={f.busy}
             disabled={f.tried && !f.ready}

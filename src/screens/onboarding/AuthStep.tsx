@@ -1,5 +1,6 @@
 import React from 'react';
 import { ScrollView, View } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from '../../components/Button';
 import { Icon, type IconName } from '../../components/Icon';
@@ -8,7 +9,9 @@ import { Notice } from '../../components/Feedback';
 import { Gap, Gutter } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
+import { useKeyboardVisible } from '../../lib/keyboard';
 import { useTheme } from '../../theme/ThemeProvider';
+import { BrandField } from './BrandField';
 
 /**
  * The scaffold every auth screen is built on: one question, sat at the bottom
@@ -17,12 +20,14 @@ import { useTheme } from '../../theme/ThemeProvider';
  * Bottom-aligned because the thumb is down there and the keyboard comes up to
  * meet it — a form centred on a tall phone puts its first field under the
  * user's own hand. The space above is not waste; it is what makes a screen
- * asking for one thing look like a screen asking for one thing.
+ * asking for one thing look like a screen asking for one thing — and `hero`
+ * fills it with the brand mark on the screens that come straight off Welcome.
  *
  * There is no page header. The back chevron floats over the empty space, since
  * a title bar above an empty half-screen would be furniture for its own sake.
  */
 export function AuthStep({
+  hero,
   glyph,
   title,
   subtitle,
@@ -31,6 +36,12 @@ export function AuthStep({
   children,
   footer,
 }: {
+  /**
+   * Fills the empty space above the copy with the brand field, as Welcome does.
+   * For the screens that continue straight off it — arriving at a blank half-
+   * screen from a mark that filled one reads as a different app.
+   */
+  hero?: boolean;
   /** Sits above the title, at the size the reference draws its illustration. */
   glyph?: IconName;
   title: string;
@@ -44,6 +55,7 @@ export function AuthStep({
 }) {
   const { c, space } = useTheme();
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardVisible();
 
   return (
     <Screen style={{ paddingTop: 0, paddingBottom: 0 }}>
@@ -55,7 +67,22 @@ export function AuthStep({
           contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 56 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <View style={{ flexGrow: 1 }} />
+          {/* The spacer is what pins the copy to the bottom; with `hero` set it
+              also holds the mark. It gives way to the keyboard rather than
+              squeezing the fields — collapsed rather than unmounted, or the
+              field replays its entrance every time the keyboard closes. */}
+          <View style={{ flexGrow: 1 }}>
+            {hero ? (
+              <BrandField wordmark={false} markSize={64} minHeight={0} collapsed={keyboard} style={{ flex: 1 }} />
+            ) : null}
+            {hero && !keyboard ? (
+              <LinearGradient
+                colors={[`${c.canvas}00`, c.canvas]}
+                pointerEvents="none"
+                style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 }}
+              />
+            ) : null}
+          </View>
 
           {glyph ? (
             <Gutter>
