@@ -23,22 +23,28 @@ import type { ScreenProps } from '../../navigation/types';
  * "tell", not "log" or "type" — it is the only common verb covering both the
  * keyboard and the mic, and voice is the input nobody guesses is there.
  *
- * Every word here is one a reader gets on the first pass. An earlier draft said
- * "or both in the same breath", which is a nicer sentence and a worse one: a
- * first screen is read in about two seconds by someone deciding whether to
- * bother, and anything that has to be admired before it is understood costs
- * more than it earns.
+ * The line says what the app DOES, which is the only question a first screen has
+ * to answer: you tell it a meal, it works out the nutrition, it keeps the day's
+ * running total. Someone deciding whether to bother is asking what this is for,
+ * not how it works.
  *
- * "In Tamil, English, or a mix" is the product. Code-switching is what nothing
- * else handles — every other tracker makes you translate your own dinner before
- * you can log it — and "a mix" says it without requiring the word "Tanglish".
+ * Two earlier drafts led with language — "in Tamil, English, or a mix". Handling
+ * a code-switched sentence is the hardest thing this app does and the thing
+ * nothing else does, which makes it tempting to open with. But it answers a
+ * question nobody has yet. Somebody who does not know what the app is for
+ * cannot be impressed that it accepts their language, and somebody who does
+ * know will find out on the first sentence they speak.
  *
- * "We'll do the rest" promises no figure. The line before it said "we'll count
- * the calories and protein for you", which was true while a food table stood
- * behind every number and stopped being true when /v1/ai-meal began estimating
- * them: every value now carries a "~", so the first screen was making a promise
- * the second screen visibly walks back. A claim about effort is one this system
- * can keep. It also stops naming two macros when five are tracked.
+ * "What's in it" covers five tracked values without listing them or reaching for
+ * "macros". "Keep the day's total" is the second half of the product and was
+ * missing entirely from every previous version of this screen — the app is not a
+ * calculator, it is a day you can see.
+ *
+ * It still promises no figure. The original line said "we'll count the calories
+ * and protein for you", which was true while a food table stood behind every
+ * number and stopped being true when /v1/ai-meal began estimating them: every
+ * value now carries a "~", so a first screen claiming to count anything is a
+ * promise the second screen walks back.
  *
  * The screen still never says "AI", though the original reason for that is gone
  * -- there is no longer a real food table behind every number. The reason now is
@@ -103,7 +109,7 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
             </Txt>
             <Gap h={space.md} />
             <Txt role="bodyLg" tone="secondary">
-              Just say it — in Tamil, English, or a mix. We'll do the rest.
+              We'll work out what's in it, and keep the day's total.
             </Txt>
           </Gutter>
 
