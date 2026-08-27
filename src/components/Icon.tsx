@@ -41,10 +41,13 @@ export type IconName =
   | 'dumbbell'
   | 'run'
   | 'bolt'
-  // Objective. A direction each, which is the whole of what the question asks.
-  | 'trendDown'
-  | 'trendFlat'
-  | 'trendUp'
+  // Objective. The same weighing dial three times, its needle low, level and
+  // high — one metaphor in three states rather than three abstract arrows. An
+  // arrow says "down"; a dial with the needle swung left says "less weight",
+  // which is the actual question.
+  | 'dialLow'
+  | 'dialLevel'
+  | 'dialHigh'
   | 'bookmark'
   | 'bowl'
   | 'leaf'
@@ -161,9 +164,26 @@ export function Icon({
           <Path d="M12.9 11.1l3.9 1.4 2.4-1.7" {...p} />
         </>
       )}
-      {name === 'trendDown' && <Path d="M3.6 7.4 10 13.8l3.4-3.4 7 7M20.4 17.4v-5.2h-5.2" {...p} />}
-      {name === 'trendFlat' && <Path d="M3.6 12h13.2M14.6 8.4l3.8 3.6-3.8 3.6" {...p} />}
-      {name === 'trendUp' && <Path d="M3.6 16.6 10 10.2l3.4 3.4 7-7M20.4 6.6v5.2h-5.2" {...p} />}
+      {/* Built off the same circle and centre as `scale`, so the dial reads as
+          the same object each time and only the needle has moved. */}
+      {name === 'dialLow' && (
+        <>
+          <Circle cx={12} cy={12} r={8.6} {...p} />
+          <Path d="M12 12 6.4 8.6" {...p} />
+        </>
+      )}
+      {name === 'dialLevel' && (
+        <>
+          <Circle cx={12} cy={12} r={8.6} {...p} />
+          <Path d="M12 12V5.4" {...p} />
+        </>
+      )}
+      {name === 'dialHigh' && (
+        <>
+          <Circle cx={12} cy={12} r={8.6} {...p} />
+          <Path d="M12 12 17.6 8.6" {...p} />
+        </>
+      )}
       {name === 'bolt' && <Path d="M13.4 2.6 5.6 13.4h5.2l-.6 8 7.8-10.8h-5.2z" {...p} />}
       {name === 'flame' && <Path d="M12 21c3.8 0 6.4-2.5 6.4-5.9 0-4.4-3.9-6.4-4.4-10.8-2 2-3 3.9-3 5.9-1-.5-1.5-1.5-1.5-3-2 2-3.9 4.4-3.9 7.9C5.6 18.5 8.2 21 12 21z" {...p} />}
       {name === 'bookmark' && <Path d="M6.4 4.4h11.2v16l-5.6-4-5.6 4z" {...p} />}

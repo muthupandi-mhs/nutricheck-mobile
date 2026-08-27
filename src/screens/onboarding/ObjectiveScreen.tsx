@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
 import { Chip } from '../../components/Chip';
 import { Notice } from '../../components/Feedback';
 import { Icon, type IconName } from '../../components/Icon';
@@ -44,7 +43,7 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
   return (
     <OnboardStep
       step={4}
-      title="What are you after?"
+      title="Where should your weight go?"
       footer={
         <Button label="See my targets" loud onPress={() => navigation.navigate('OnboardTargets')} haptic="select" />
       }>
@@ -92,29 +91,6 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
             </Stack>
           </StepGroup>
         )}
-
-        {/* The answer, on the card the rest of the screen is asking for. It sat
-            in a labelled group like any other section, which is the same weight
-            as the controls that produce it — and this is the one thing on the
-            screen that is a result rather than a question. */}
-        <Card>
-          <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
-            That works out to
-          </Txt>
-          <Gap h={space.md} />
-          <Row gap={8} align="baseline">
-            <Txt role="display" numeric style={{ fontSize: 48, lineHeight: 52 }}>
-              {kcal(goal.kcal)}
-            </Txt>
-            <Txt role="bodyLg" tone="secondary">
-              kcal a day
-            </Txt>
-          </Row>
-          <Gap h={space.sm} />
-          <Txt role="caption" tone="tertiary" numeric>
-            Resting burn {kcal(goal.basis.bmr)} · daily burn {kcal(goal.basis.tdee)}
-          </Txt>
-        </Card>
 
         {goal.basis.flooredAtBmr && (
           <Notice
@@ -174,17 +150,26 @@ function ObjectiveTile({
 }
 
 /**
- * A direction each, which is the whole of what this question asks. Nothing here
- * is a picture of a person or a scale — the answer is which way the number
- * should go, and an arrow is the shortest way to say that.
+ * One weighing dial, its needle low, level and high.
+ *
+ * One metaphor in three states rather than three separate signs. An arrow says
+ * "down" and leaves the reader to supply what is going down; a dial with the
+ * needle swung left says "less weight", which is the question being asked.
+ *
+ * It also means the three tiles are the same object three times, so the eye
+ * compares needle positions instead of decoding three different drawings.
  */
 const OBJECTIVE_ICON: Record<Objective, IconName> = {
-  lose: 'trendDown',
-  maintain: 'trendFlat',
-  gain: 'trendUp',
+  lose: 'dialLow',
+  maintain: 'dialLevel',
+  gain: 'dialHigh',
 };
 
-/** A word each. The full phrase is on the tile's accessibility label. */
+/**
+ * A word each, and it is the title that says what they are about — "Where
+ * should your weight go?" makes Lose, Stay and Gain unambiguous without three
+ * tiles all repeating the word "weight" in a space too narrow to hold it.
+ */
 const OBJECTIVE_SHORT: Record<Objective, string> = {
   lose: 'Lose',
   maintain: 'Stay',
