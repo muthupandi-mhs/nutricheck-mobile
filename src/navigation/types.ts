@@ -1,6 +1,7 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { SuggestedTargets } from '../api/types';
 
 /**
  * Routes.
@@ -46,7 +47,16 @@ export type RootStackParamList = {
   OnboardProfile: undefined;
   OnboardActivity: undefined;
   OnboardObjective: undefined;
-  OnboardTargets: undefined;
+  /**
+   * `suggestion` is fetched on the step before, while the button spins, so the
+   * targets screen opens complete rather than filling in under the reader.
+   *
+   * Optional, and the screen asks for itself when it is missing: the prefetch
+   * gives up after a few seconds rather than holding somebody on a screen they
+   * have finished with, and a slow model should cost a spinner in one place,
+   * not a dead end.
+   */
+  OnboardTargets: { suggestion?: SuggestedTargets } | undefined;
 
   /** The tab host. Everything below it is pushed over the tabs. */
   Main: undefined;

@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useApi } from '../../api/client';
 import { Button } from '../../components/Button';
 import { Notice } from '../../components/Feedback';
 import { Icon, type IconName } from '../../components/Icon';
@@ -15,6 +16,16 @@ import type { ScreenProps } from '../../navigation/types';
 const RATES = [0.25, 0.5, 0.75, 1.0];
 
 /**
+ * How long to hold somebody on the button before giving up on the model.
+ *
+ * Long enough for an ordinary call and short enough that a bad minute upstream
+ * is a pause rather than a wall. The circuit breaker in front of the provider
+ * means a sustained outage fails immediately anyway; this is for the slow case,
+ * not the broken one.
+ */
+const SUGGEST_TIMEOUT_MS = 5000;
+
+/**
  * Objective, rate, and the number they add up to.
  *
  * Three tiles across one row rather than three stacked cards: the answers are a
@@ -28,7 +39,9 @@ const RATES = [0.25, 0.5, 0.75, 1.0];
  */
 export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>) {
   const { space } = useTheme();
+  const api = useApi();
   const { draft, patch, toProfile } = useOnboarding();
+  const [asking, setAsking] = useState(false);
 
   const profile = toProfile();
   const goal = useMemo(() => deriveGoal(profile), [profile]);
@@ -37,12 +50,39 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
   const objectives = Object.keys(OBJECTIVE_LABEL) as Objective[];
   const verb = draft.objective === 'gain' ? 'gain' : 'lose';
 
+  /**
+   * Asks the model on the way out, so the next screen opens finished.
+   *
+   * The wait is capped. A suggestion is worth a moment on a button and is not
+   * worth being stuck behind: past the cap this navigates without one and the
+   * targets screen asks again itself, which costs a card filling in late
+   * rather than a screen that never arrives.
+   *
+   * Every failure lands in the same place — no suggestion, carry on. Onboarding
+   * finished without this before the model was ever asked.
+   */
+  const onSeeTargets = async () => {
+    setAsking(true);
+    const suggestion = await Promise.race([
+      api.suggestTargets(profile).catch(() => undefined),
+      new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), SUGGEST_TIMEOUT_MS)),
+    ]);
+    setAsking(false);
+    navigation.navigate('OnboardTargets', suggestion ? { suggestion } : undefined);
+  };
+
   return (
     <OnboardStep
       step={4}
       title="Where should your weight go?"
       footer={
-        <Button label="See my targets" loud onPress={() => navigation.navigate('OnboardTargets')} haptic="select" />
+        <Button
+          label="See my targets"
+          loud
+          loading={asking}
+          onPress={onSeeTargets}
+          haptic="select"
+        />
       }>
       {/* `huge`, not the usual section gap. These are two separate questions —
           which way, and then how fast — and at 24 the second one's label sat

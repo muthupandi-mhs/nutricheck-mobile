@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useApi } from '../../api/client';
 import { Button, IconButton, TextButton } from '../../components/Button';
 import { Card } from '../../components/Card';
@@ -7,7 +7,8 @@ import { Chip } from '../../components/Chip';
 import { Disclaimer } from '../../components/Feedback';
 import { Stepper } from '../../components/Field';
 import { Icon } from '../../components/Icon';
-import { Divider, Gap, Row, Split, Stack } from '../../components/Layout';
+import { Gap, Row, Split, Stack } from '../../components/Layout';
+import { Press } from '../../components/Press';
 import { Txt } from '../../components/Text';
 import { ACTIVITY, deriveGoal, goalReasoning } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -24,7 +25,7 @@ type Key = 'kcal' | 'protein' | 'fiber';
  * Showing the arithmetic is the cheapest way to stop people nudging the
  * numbers — a bare target gets adjusted upward by anyone hoping for a bigger one.
  */
-export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
+export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets'>) {
   const { c, space, radius } = useTheme();
   const { toProfile, draft } = useOnboarding();
   const { saveProfile, setGoalOverride } = useAppState();
@@ -34,7 +35,7 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
   const reasoning = useMemo(() => goalReasoning(derived, profile), [derived, profile]);
 
   const [values, setValues] = useState({ kcal: derived.kcal, protein: derived.proteinG, fiber: derived.fiberG });
-  const suggestion = useSuggestedTargets(profile);
+  const suggestion = useSuggestedTargets(profile, route.params?.suggestion);
   const [editing, setEditing] = useState<Key | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -44,13 +45,6 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
     { key: 'fiber', label: 'Fibre', unit: 'g', step: 1, min: 5, max: 120, base: derived.fiberG },
   ];
 
-  const basis = [
-    `${new Date().getFullYear() - draft.birthYear} years`,
-    `${draft.heightCm} cm`,
-    `${draft.weightKg} kg`,
-    ACTIVITY[draft.activityLevel].short,
-    draft.objective === 'maintain' ? 'Maintain' : `${draft.objective === 'lose' ? 'Lose' : 'Gain'} ${draft.rateKgPerWeek} kg/wk`,
-  ];
 
   const onContinue = async () => {
     setSaving(true);
@@ -76,7 +70,7 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
     <OnboardStep
       step={5}
       title="Your daily targets"
-      subtitle="Where these come from. Change anything that looks wrong."
+      subtitle="Change anything that looks wrong."
       footer={
         <>
           <Disclaimer text="Estimates for general wellness, not medical advice." />
@@ -84,75 +78,20 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
           <Button label="Looks right — continue" loud loading={saving} onPress={onContinue} haptic="commit" />
         </>
       }>
-      <Stack gap={space.xl}>
-        {rows.map((row, i) => {
-          const value = values[row.key];
-          const isEditing = editing === row.key;
-          const overridden = value !== row.base;
+      <Stack gap={space.md}>
+        {rows.map(row => (
+          <TargetCard
+            key={row.key}
+            row={row}
+            value={values[row.key]}
+            editing={editing === row.key}
+            onEdit={() => setEditing(editing === row.key ? null : row.key)}
+            onChange={v => setValues(prev => ({ ...prev, [row.key]: v }))}
+            onReset={() => setValues(prev => ({ ...prev, [row.key]: row.base }))}
+          />
+        ))}
 
-          return (
-            <View key={row.key}>
-              {i > 0 && (
-                <>
-                  <Divider />
-                  <Gap h={space.xl} />
-                </>
-              )}
-
-              {isEditing ? (
-                <Stack gap={space.lg}>
-                  <Stepper
-                    label={row.label}
-                    value={value}
-                    unit={row.unit}
-                    step={row.step}
-                    min={row.min}
-                    max={row.max}
-                    onChange={v => setValues(s => ({ ...s, [row.key]: v }))}
-                  />
-                  <Split>
-                    <TextButton
-                      label={`Reset to ${row.base.toLocaleString('en-US')}`}
-                      tone="secondary"
-                      role="labelSm"
-                      onPress={() => setValues(s => ({ ...s, [row.key]: row.base }))}
-                    />
-                    <Button label="Done" size="sm" full={false} variant="tonal" onPress={() => setEditing(null)} />
-                  </Split>
-                </Stack>
-              ) : (
-                <Row gap={space.lg} align="flex-start">
-                  <Stack gap={5} style={{ flexGrow: 1, flexShrink: 1 }}>
-                    <Row gap={space.sm}>
-                      <Txt role="labelSm" tone="secondary">
-                        {row.label}
-                      </Txt>
-                      {overridden && <Chip label="Yours" variant="success" />}
-                    </Row>
-                    <Row gap={6} align="baseline">
-                      <Txt role="display" numeric style={{ fontSize: 40, lineHeight: 44 }}>
-                        {value.toLocaleString('en-US')}
-                      </Txt>
-                      <Txt role="body" tone="secondary">
-                        {row.unit}
-                      </Txt>
-                    </Row>
-                    <Txt role="bodySm" tone="secondary">
-                      {reasoning[row.key]}
-                    </Txt>
-                  </Stack>
-                  <IconButton
-                    name="edit"
-                    size={18}
-                    variant="tonal"
-                    onPress={() => setEditing(row.key)}
-                    accessibilityLabel={`Edit ${row.label.toLowerCase()} target`}
-                  />
-                </Row>
-              )}
-            </View>
-          );
-        })}
+        <Gap h={space.xs} />
 
         {suggestion ? (
           <SuggestionCard
@@ -175,26 +114,28 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
               })
             }
           />
-        ) : null}
+        ) : (
+          <SuggestionPending />
+        )}
 
-        <StepGroup label="Based on">
-          <Row gap={space.sm} wrap>
-            {basis.map(b => (
-              <View
-                key={b}
-                style={{
-                  backgroundColor: c.surface,
-                  borderRadius: radius.pill,
-                  paddingVertical: 6,
-                  paddingHorizontal: 12,
-                }}>
-                <Txt role="caption" tone="secondary">
-                  {b}
+        {/* Folded away, not deleted. Showing the arithmetic is what stops a
+            target being nudged upward by somebody hoping for a bigger one —
+            but three paragraphs of it was most of the words on the screen, and
+            the question it answers is one people ask once. */}
+        <Disclosure label="Why these numbers?">
+          <Stack gap={space.md}>
+            {rows.map(row => (
+              <Stack key={row.key} gap={2}>
+                <Txt role="labelSm" tone="secondary">
+                  {row.label}
                 </Txt>
-              </View>
+                <Txt role="bodySm" tone="secondary">
+                  {reasoning[row.key]}
+                </Txt>
+              </Stack>
             ))}
-          </Row>
-        </StepGroup>
+          </Stack>
+        </Disclosure>
       </Stack>
     </OnboardStep>
   );
@@ -202,6 +143,10 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
 
 /**
  * Asks the model what it would set, once, when the screen opens.
+ *
+ * Usually there is nothing to ask: the step before fetches it while its button
+ * spins, and hands it over as a route param. This is the fallback for when that
+ * timed out or failed, and for a screen reached any other way.
  *
  * Mount-only on purpose. The profile is settled by the time anybody reaches
  * this screen — the four steps behind it are what produced it — and `toProfile`
@@ -213,12 +158,18 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
  * an error on the screen where somebody is about to finish onboarding. The
  * derived targets are already there and are already complete.
  */
-function useSuggestedTargets(profile: UserProfile): SuggestedTargets | null {
+function useSuggestedTargets(
+  profile: UserProfile,
+  prefetched?: SuggestedTargets,
+): SuggestedTargets | null {
   const api = useApi();
   const asked = useRef(profile);
-  const [suggestion, setSuggestion] = useState<SuggestedTargets | null>(null);
+  const [suggestion, setSuggestion] = useState<SuggestedTargets | null>(prefetched ?? null);
 
   useEffect(() => {
+    // Already answered on the step before, while its button was spinning.
+    if (prefetched) return;
+
     let alive = true;
     api
       .suggestTargets(asked.current)
@@ -227,7 +178,7 @@ function useSuggestedTargets(profile: UserProfile): SuggestedTargets | null {
     return () => {
       alive = false;
     };
-  }, [api]);
+  }, [api, prefetched]);
 
   return suggestion;
 }
@@ -328,5 +279,136 @@ function Suggested({ label, value, unit }: { label: string; value: number; unit:
       </Row>
       <Gap h={space.xs} />
     </Stack>
+  );
+}
+
+/** One target: the number, and the way in to change it. */
+function TargetCard({
+  row,
+  value,
+  editing,
+  onEdit,
+  onChange,
+  onReset,
+}: {
+  row: { key: Key; label: string; unit: string; step: number; min: number; max: number; base: number };
+  value: number;
+  editing: boolean;
+  onEdit: () => void;
+  onChange: (v: number) => void;
+  onReset: () => void;
+}) {
+  const { space } = useTheme();
+  const overridden = value !== row.base;
+
+  return (
+    <Card>
+      {editing ? (
+        <Stack gap={space.lg}>
+          <Stepper
+            label={row.label}
+            value={value}
+            unit={row.unit}
+            step={row.step}
+            min={row.min}
+            max={row.max}
+            onChange={onChange}
+          />
+          <Split>
+            <TextButton
+              label={`Reset to ${row.base.toLocaleString('en-US')}`}
+              tone="secondary"
+              role="labelSm"
+              onPress={onReset}
+            />
+            <Button label="Done" size="sm" full={false} variant="tonal" onPress={onEdit} />
+          </Split>
+        </Stack>
+      ) : (
+        <Row gap={space.lg} align="center">
+          <Stack gap={4} style={{ flexGrow: 1, flexShrink: 1 }}>
+            <Row gap={space.sm} align="center">
+              <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
+                {row.label}
+              </Txt>
+              {overridden && <Chip label="Yours" variant="success" />}
+            </Row>
+            <Row gap={6} align="baseline">
+              <Txt role="display" numeric style={{ fontSize: 36, lineHeight: 40 }}>
+                {value.toLocaleString('en-US')}
+              </Txt>
+              <Txt role="body" tone="secondary">
+                {row.unit}
+              </Txt>
+            </Row>
+          </Stack>
+          <IconButton
+            name="edit"
+            size={18}
+            variant="tonal"
+            onPress={onEdit}
+            accessibilityLabel={`Edit ${row.label.toLowerCase()} target`}
+          />
+        </Row>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The suggestion card's place, while there is not one yet.
+ *
+ * A box the same size as what is coming, rather than a spinner or nothing.
+ * Nothing means the screen grows a card under the reader a second after they
+ * arrive; a spinner in the middle of a finished screen reads as something
+ * being wrong. This just says what is on its way.
+ */
+function SuggestionPending() {
+  const { c, space } = useTheme();
+
+  return (
+    <Card>
+      <Row gap={space.sm} align="center">
+        <ActivityIndicator size="small" color={c.inkTertiary} />
+        <Txt role="labelSm" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
+          Checking these for you
+        </Txt>
+      </Row>
+    </Card>
+  );
+}
+
+/** A heading that opens. Closed by default, because the answer is read once. */
+function Disclosure({ label, children }: { label: string; children: React.ReactNode }) {
+  const { c, space } = useTheme();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Card>
+      <Press
+        onPress={() => setOpen(o => !o)}
+        feedback="none"
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={label}>
+        <Split align="center">
+          <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
+            {label}
+          </Txt>
+          <Icon
+            name={open ? 'chevronDown' : 'chevronRight'}
+            size={16}
+            color={c.inkTertiary}
+            weight={2.2}
+          />
+        </Split>
+      </Press>
+      {open ? (
+        <>
+          <Gap h={space.lg} />
+          {children}
+        </>
+      ) : null}
+    </Card>
   );
 }
