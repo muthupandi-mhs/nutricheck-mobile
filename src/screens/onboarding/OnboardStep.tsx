@@ -74,6 +74,11 @@ export function OnboardStep({
           Continue button sits behind the keypad the moment a value is tapped. */}
       <KeyboardAvoid>
         <ScrollView
+          // Claims the space left over after the footer. Without it the scroll
+          // sizes to its own content and runs on underneath the button, which
+          // only shows once a keyboard shortens the screen — the Continue
+          // button sitting over the card the user is typing into.
+          style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: space.xl }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>

@@ -598,6 +598,9 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
               onSubmitEditing={settle}
               keyboardType="number-pad"
               returnKeyType="done"
+              // Android picks its own highlight otherwise, which is a teal this
+              // app uses nowhere.
+              selectionColor={c.primary}
               // Tap the number and the whole thing is selected, so replacing it
               // is one keystroke rather than six backspaces.
               selectTextOnFocus

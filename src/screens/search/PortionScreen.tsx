@@ -151,6 +151,9 @@ export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
           resize under it. See KeyboardAvoid. */}
       <KeyboardAvoid>
         <ScrollView
+          // Claims the space left over after the Dock, so the scroll does not run
+          // on underneath it once a keyboard shortens the screen.
+          style={{ flex: 1 }}
           contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}
           keyboardShouldPersistTaps="handled">
           <Stack gap={space.lg}>

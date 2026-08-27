@@ -106,6 +106,9 @@ export function EntryDetailScreen({ navigation, route }: ScreenProps<'EntryDetai
           resize under it. See KeyboardAvoid. */}
       <KeyboardAvoid>
         <ScrollView
+          // Claims the space left over after the Dock, so the scroll does not run
+          // on underneath it once a keyboard shortens the screen.
+          style={{ flex: 1 }}
           // Otherwise the first tap on the stepper only dismisses the keypad.
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}>
