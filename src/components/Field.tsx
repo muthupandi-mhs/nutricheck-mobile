@@ -319,11 +319,22 @@ export function Segmented<T extends string>({
 export function OptionRow({
   title,
   detail,
+  leading,
+  showDetail,
   selected,
   onPress,
 }: {
   title: string;
+  /**
+   * The sub-line. Optional, and where it is left off it should still be passed
+   * — it becomes the accessibility hint, which is the one reader that has room
+   * for it whether or not the card shows it.
+   */
   detail?: string;
+  /** A glyph before the label. Sized by the caller, since only it knows what it means. */
+  leading?: React.ReactNode;
+  /** Draws `detail` under the title. Off by default; the hint carries it either way. */
+  showDetail?: boolean;
   selected?: boolean;
   onPress: () => void;
 }) {
@@ -348,16 +359,19 @@ export function OptionRow({
         borderColor: selected ? c.ink : 'transparent',
       }}>
       <Split gap={space.md}>
-        <Stack gap={3} style={{ flexShrink: 1 }}>
-          <Txt role="h3" color={c.ink}>
-            {title}
-          </Txt>
-          {detail ? (
-            <Txt role="bodySm" tone="secondary">
-              {detail}
+        <Row gap={space.lg} style={{ flexShrink: 1 }}>
+          {leading}
+          <Stack gap={3} style={{ flexShrink: 1 }}>
+            <Txt role="h3" color={c.ink}>
+              {title}
             </Txt>
-          ) : null}
-        </Stack>
+            {showDetail && detail ? (
+              <Txt role="bodySm" tone="secondary">
+                {detail}
+              </Txt>
+            ) : null}
+          </Stack>
+        </Row>
         {selected ? <Icon name="check" size={20} color={c.ink} weight={2.4} /> : null}
       </Split>
     </Press>
