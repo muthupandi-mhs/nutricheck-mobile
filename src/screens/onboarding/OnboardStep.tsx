@@ -2,7 +2,8 @@ import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoid } from '../../components/KeyboardAvoid';
-import { Gap, Gutter } from '../../components/Layout';
+import { useKeyboardVisible } from '../../lib/keyboard';
+import { Gap } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -41,62 +42,64 @@ export function OnboardStep({
 }) {
   const { space } = useTheme();
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardVisible();
 
   return (
     <Screen style={{ paddingBottom: 0 }}>
-      {/* The bar is gone; "Step 2 of 6" says the same thing in less room and
-          without a rule across the top of every screen. */}
-      <Gap h={space.lg} />
-
-      <Gutter>
-        {/* Uppercase and letterspaced, matching the field labels in the auth
-            flow — the same voice for the same kind of small structural note. */}
-        <Txt role="caption" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
-          Step {step} of {STEPS}
-        </Txt>
-        <Gap h={space.sm} />
-        <Txt role="h1">{title}</Txt>
-        {subtitle ? (
-          <>
-            <Gap h={space.sm} />
-            <Txt role="bodyLg" tone="secondary">
-              {subtitle}
-            </Txt>
-          </>
-        ) : null}
-      </Gutter>
-
-      <Gap h={space.xl} />
-
-      {/* These steps had no text input until the steppers became typeable, so
-          they had no reason to avoid a keyboard. They do now: the footer is
-          pinned outside the scroll, and on Android the window no longer
-          resizes under it — see KeyboardAvoid for why. Without this the
-          Continue button sits behind the keypad the moment a value is tapped. */}
       <KeyboardAvoid>
         <ScrollView
           // Claims the space left over after the footer. Without it the scroll
-          // sizes to its own content and runs on underneath the button, which
-          // only shows once a keyboard shortens the screen — the Continue
-          // button sitting over the card the user is typing into.
+          // sizes to its own content and runs on underneath the button.
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: space.xl }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
+          {/* The heading scrolls with the content rather than sitting above it.
+              Pinned, it held about a third of the screen while the keypad held
+              another half, and what was left to answer the question in was two
+              cards. It is read once; the controls are used repeatedly. */}
+          <Gap h={space.lg} />
+          {/* Uppercase and letterspaced, matching the field labels in the auth
+              flow — the same voice for the same kind of small structural note. */}
+          <Txt role="caption" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
+            Step {step} of {STEPS}
+          </Txt>
+          <Gap h={space.sm} />
+          <Txt role="h1">{title}</Txt>
+          {subtitle ? (
+            <>
+              <Gap h={space.sm} />
+              <Txt role="bodyLg" tone="secondary">
+                {subtitle}
+              </Txt>
+            </>
+          ) : null}
+
+          <Gap h={space.xl} />
+
           {children}
         </ScrollView>
 
-        {/* No fill of its own. On a sheet it needed one to read as the sheet's
-            bottom edge; on the canvas that fill would be the only thing on the
-            screen pretending to be a bar. */}
-        <View
-          style={{
-            paddingHorizontal: space.gutter,
-            paddingTop: space.sm,
-            paddingBottom: Math.max(insets.bottom, space.lg) + space.xs,
-          }}>
-          {footer}
-        </View>
+        {/* Stands down while the keypad is up.
+
+            It cannot be reached there anyway — the keyboard is over it — so
+            leaving it in the layout only shortens the list being typed into,
+            and on the profile step that was the difference between two cards
+            visible and four. The number pad's own tick closes the keypad and
+            brings it straight back.
+
+            No fill of its own: on the canvas that would be the only thing on
+            the screen pretending to be a bar. */}
+        {keyboard ? null : (
+          <View
+            style={{
+              paddingHorizontal: space.gutter,
+              paddingTop: space.sm,
+              paddingBottom: Math.max(insets.bottom, space.lg) + space.xs,
+            }}>
+            {footer}
+          </View>
+        )}
       </KeyboardAvoid>
     </Screen>
   );
