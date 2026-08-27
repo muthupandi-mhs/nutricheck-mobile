@@ -8,6 +8,7 @@ import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
 import { useTheme } from '../../theme/ThemeProvider';
 import { BrandField } from './BrandField';
+import { LegalNote } from './LegalNote';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
@@ -31,6 +32,10 @@ import type { ScreenProps } from '../../navigation/types';
  * being a brand people arrive already knowing. This one is not, so the first
  * explanation of itself now waits until sign-up. Worth knowing if the drop-off
  * on this screen is ever measured.
+ *
+ * The legal line sits under both buttons rather than under one, because both
+ * of them continue — and it says "continuing" for the same reason, since
+ * signing in is not the moment anything is agreed to for the first time.
  */
 export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
   const { c, space } = useTheme();
@@ -123,6 +128,10 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
               onPress={() => navigation.navigate('SignUp')}
               haptic="select"
             />
+
+            <Gap h={space.xl} />
+
+            <LegalNote />
           </Gutter>
         </Animated.View>
       </View>
