@@ -96,10 +96,12 @@ export const ACTIVITY: Record<
   ActivityLevel,
   { label: string; short: string; detail: string; factor: number }
 > = {
-  sedentary: { label: 'Desk job, little exercise', short: 'Desk job', detail: 'Mostly seated', factor: 1.2 },
-  light: { label: 'Light — 1–2 workouts a week', short: 'Light', detail: 'On your feet some days', factor: 1.375 },
-  moderate: { label: 'Moderate — 3–4 a week', short: 'Moderate', detail: 'Regular training', factor: 1.55 },
-  very_active: { label: 'Very active — physical job', short: 'Very active', detail: 'Or twice-daily training', factor: 1.9 },
+  sedentary: { label: 'Desk job, barely any exercise', short: 'Desk job', detail: 'Sitting most of the day', factor: 1.2 },
+  light: { label: 'A walk or two a week', short: 'Light', detail: 'On your feet some days', factor: 1.375 },
+  moderate: { label: 'Training three or four times a week', short: 'Moderate', detail: 'A regular habit', factor: 1.55 },
+  active: { label: 'Training five or six times a week', short: 'Active', detail: 'Most days, and hard', factor: 1.725 },
+  very_active: { label: 'On your feet all day for work', short: 'On my feet', detail: 'A physical job', factor: 1.9 },
+  athlete: { label: 'A physical job and training on top', short: 'Athlete', detail: 'Or training twice a day', factor: 2.0 },
 };
 
 export const OBJECTIVE_LABEL = {

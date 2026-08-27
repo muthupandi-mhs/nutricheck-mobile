@@ -12,14 +12,14 @@ import type { ActivityLevel } from '../../api/types';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
- * Activity level in plain language. The four options map onto multipliers from
- * 1.2 to 1.9 and the user never sees one — "desk job, little exercise" is
+ * Activity level in plain language. The six options map onto multipliers from
+ * 1.2 to 2.0 and the user never sees one — "desk job, barely any exercise" is
  * answerable about yourself, "1.2x" is a question about an unseen formula.
  *
- * Two tiles per row, two rows, filling whatever height the heading leaves. A
+ * Two tiles per row, three rows, filling whatever height the heading leaves. A
  * list of full-width rows was something to read top to bottom; a grid that
  * fills the screen is a set to look at, which is the shape this question wants
- * — four versions of one thing, all visible at once with nothing to scroll.
+ * — six versions of one thing, all visible at once with nothing to scroll.
  *
  * The tiles flex rather than holding a square aspect: filling the screen and
  * staying square are the same thing only at one screen height, and of the two
@@ -39,12 +39,12 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
       fill
       step={3}
       title="How active are you?"
-      subtitle="Across a normal week, not your best one. Pick low if unsure."
+      subtitle="A normal week, not your best one."
       footer={
         <Button label="Continue" loud onPress={() => navigation.navigate('OnboardObjective')} haptic="select" />
       }>
       <View style={{ flex: 1, gap: space.md }}>
-        {[levels.slice(0, 2), levels.slice(2)].map((row, i) => (
+        {[levels.slice(0, 2), levels.slice(2, 4), levels.slice(4)].map((row, i) => (
           <View key={i} style={{ flex: 1, flexDirection: 'row', gap: space.md }}>
             {row.map(level => (
               <Tile
@@ -103,9 +103,9 @@ function Tile({
         gap: space.md,
         padding: space.md,
       }}>
-      {/* Sized to the tile it is in. At 34 on a card this tall the glyph read
-          as a bullet point beside a label rather than the subject of it. */}
-      <Icon name={ACTIVITY_ICON[level]} size={44} color={selected ? c.ink : c.inkSecondary} />
+      {/* Sized to the tile it is in, which is a third of the grid now rather
+          than half — 44 was drawn for the taller card and crowds this one. */}
+      <Icon name={ACTIVITY_ICON[level]} size={32} color={selected ? c.ink : c.inkSecondary} />
       <Txt
         role="labelSm"
         caps
@@ -118,12 +118,13 @@ function Tile({
 }
 
 /**
- * One subject per level, escalating: sitting, walking, training, burning.
+ * One subject per level, escalating: sitting, walking, training, running,
+ * working, and everything at once.
  *
- * Deliberately four different things rather than four poses of a person. Two
- * figures at this size are the same two sticks, and a set that can only be told
- * apart by studying it is a set nobody reads — whereas a desk, a shoe, a
- * dumbbell and a flame are distinguishable at a glance and still arrive in an
+ * Six different subjects rather than six poses of a person. Two figures at
+ * this size are the same two sticks, and a set that can only be told apart by
+ * studying it is a set nobody reads — a desk, a shoe, a dumbbell, a runner, a
+ * flame and a bolt are distinguishable at a glance and still arrive in an
  * order.
  *
  * They name the kind of week, not the exercise. Nobody at 'moderate' has to
@@ -133,5 +134,7 @@ const ACTIVITY_ICON: Record<ActivityLevel, IconName> = {
   sedentary: 'desk',
   light: 'shoe',
   moderate: 'dumbbell',
+  active: 'run',
   very_active: 'flame',
+  athlete: 'bolt',
 };
