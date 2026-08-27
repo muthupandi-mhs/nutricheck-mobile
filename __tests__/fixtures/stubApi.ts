@@ -211,6 +211,41 @@ export function createStubApi(): NutriCheckApi {
      * mean the skeletons never render, and "the sheet is up before the resolver
      * answers" is precisely what the test exists to prove.
      */
+    /**
+     * The corpus-free path returns one estimated item, and 'ai' as its source.
+     * Deliberately different from the resolve stub above: a screen that renders
+     * these identically to measured foods is a screen with a bug, and a fixture
+     * that made them look the same could never catch it.
+     */
+    interpretMeal: async (phrase: string) => ({
+      draftId: '77777777-7777-4777-8777-777777777777',
+      phrase,
+      summary: 'Five dosai — about 504 kcal.',
+      items: [
+        {
+          food: {
+            id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1',
+            name: 'Dosai, plain',
+            brand: null,
+            kcalPer100g: 168,
+          },
+          spokenAs: 'dosai',
+          quantity: 5,
+          unit: 'dosai',
+          grams: 300,
+          kcal: 504,
+          proteinG: 11.7,
+          carbsG: 82.2,
+          fatG: 16.5,
+          fiberG: 3.6,
+          confidence: 'high' as const,
+        },
+      ],
+      unresolved: [],
+      totals: { kcal: 504, proteinG: 11.7, carbsG: 82.2, fatG: 16.5, fiberG: 3.6 },
+      estimated: true as const,
+    }),
+
     resolve: async (phrase, source, onParsed) => {
       const draft = {
         draftId: '88888888-8888-4888-8888-888888888888',

@@ -119,7 +119,13 @@ export type FoodSource =
   | 'usda_fndds'
   | 'off'
   | 'curated'
-  | 'user';
+  | 'user'
+  /**
+   * A row a model estimated the numbers for, as distinct from 'user', which is
+   * one a person typed them into. Every nutrient on an 'ai' food is imputed,
+   * never known, and the UI must show it as an estimate.
+   */
+  | 'ai';
 
 export type FoodPortion = { label: string; grams: number; isDefault: boolean };
 
@@ -189,6 +195,52 @@ export type ResolveDraft = {
   unresolved: UnresolvedItem[];
   aiRunId: string | null;
   cached: boolean;
+};
+
+// ── ai meal ──────────────────────────────────────────────────────────────────
+
+/**
+ * The corpus-free path: a whole meal read out of one sentence by the model.
+ *
+ * Unlike ResolveDraft, nothing here was matched against a measured row. The
+ * foods are real rows the server created, so they commit through the ordinary
+ * log path, but every nutrient on them is an ESTIMATE and the screen showing
+ * them has to say so. `estimated` is a literal true rather than a boolean for
+ * exactly that reason: it cannot be quietly forgotten.
+ */
+export type AiMealItemDraft = {
+  food: FoodSummary;
+  /** The words this came from, so the user can check we heard them. */
+  spokenAs: string;
+  quantity: number;
+  unit: string;
+  grams: number;
+  /** Totals for the stated quantity, computed on the server from per-100g rates. */
+  kcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  fiberG: number;
+  /** Low when the dish was unfamiliar or the portion had to be assumed. */
+  confidence: 'high' | 'low';
+};
+
+export type AiMealDraft = {
+  draftId: string;
+  phrase: string;
+  /** One or two sentences, for the confirmation screen. */
+  summary: string;
+  items: AiMealItemDraft[];
+  /** Words that sounded like food but produced no item. */
+  unresolved: string[];
+  totals: {
+    kcal: number;
+    proteinG: number;
+    carbsG: number;
+    fatG: number;
+    fiberG: number;
+  };
+  estimated: true;
 };
 
 // ── logs ─────────────────────────────────────────────────────────────────────

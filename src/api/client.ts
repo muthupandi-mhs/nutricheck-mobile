@@ -12,6 +12,7 @@ import type {
   MealInsight,
   MealSlot,
   RegisterRequest,
+  AiMealDraft,
   ResolveDraft,
   ResolveSource,
   SessionUser,
@@ -115,6 +116,25 @@ export interface NutriCheckApi {
     source: ResolveSource,
     onParsed?: (draft: ResolveDraft) => void,
   ): Promise<ResolveDraft>;
+
+  /**
+   * POST /v1/ai-meal. The corpus-free path.
+   *
+   * Where `resolve` matches a phrase against measured rows, this hands the whole
+   * sentence to the model and takes back foods it estimated. It exists for the
+   * sentences the corpus cannot serve -- "rendu muttai and 5 dosai and chutney"
+   * has almost no chance of matching, because the corpus holds 25 Tamil aliases
+   * across 8,000 foods.
+   *
+   * Prefer `resolve` whenever it can find the food: its numbers were measured
+   * and these were guessed. The returned foods are real rows, so the draft
+   * commits through `commit` unchanged, but every one of them is an estimate
+   * and the screen must say so.
+   *
+   * Rejects with a 503 problem when the server has no AI key, and 429 when the
+   * daily call or spend ceiling is reached.
+   */
+  interpretMeal(phrase: string): Promise<AiMealDraft>;
 
   // committing ──────────────────────────────────────────────────────────────
   /** POST /v1/logs — idempotent on clientId, so a replayed queue is safe. */

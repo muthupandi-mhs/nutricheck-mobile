@@ -27,6 +27,10 @@ const SOURCE_LABEL: Record<FoodDetail['source'], string> = {
   off: 'Open Food Facts',
   curated: 'Curated dish',
   user: 'Your own food',
+  // Says estimate, not a source name. The others name where a measurement came
+  // from; this one has no measurement behind it, and calling it "AI" would read
+  // as a provenance rather than a warning.
+  ai: 'Estimated by AI',
 };
 
 /**

@@ -18,6 +18,7 @@ import {
   type MealInsight,
   type MealSlot,
   type RegisterRequest,
+  type AiMealDraft,
   type ResolveDraft,
   type ResolveSource,
   type SessionUser,
@@ -256,6 +257,17 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
     },
 
     // ── the AI route ─────────────────────────────────────────────────────────
+
+    interpretMeal(phrase: string) {
+      // A plain POST, not SSE. The resolver streams because its parse lands
+      // well before its database match does and the sheet can fill skeletons
+      // meanwhile; here there is one model call and nothing to show until it
+      // returns, so a stream would only add a protocol.
+      return transport.request<AiMealDraft>('/v1/ai-meal', {
+        method: 'POST',
+        body: { phrase },
+      });
+    },
 
     /**
      * `POST /v1/resolve`, streamed.
