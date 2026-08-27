@@ -6,6 +6,7 @@
     "android": "npm run tunnel && react-native run-android --active-arch-only",
     "ios": "react-native run-ios",
     "start": "npm run tunnel && react-native start",
+    "start:fresh": "npm run tunnel && react-native start --reset-cache",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest",

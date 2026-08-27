@@ -80,6 +80,20 @@ function LevelMeter({ level, selected }: { level: number; selected: boolean }) {
   const { c } = useTheme();
   const Meter = METERS[level - 1]!;
 
+  // An .svg resolves to a component when Metro runs it through the transformer
+  // and to a NUMBER — an asset registry id — when it does not. React's own
+  // message for that is "expected a string or a class/function but got:
+  // number", which says nothing about svg, Metro, or the cache that actually
+  // caused it. A dev server started before the transformer was configured
+  // keeps serving the old answer until it is restarted with --reset-cache.
+  if (__DEV__ && typeof Meter !== 'function') {
+    throw new Error(
+      'SVG imports are resolving as assets, not components. Metro is serving a ' +
+        'cache from before react-native-svg-transformer was configured — restart ' +
+        'it with: npm run start:fresh',
+    );
+  }
+
   // Every bar in the file is currentColor — solid for the ones this level has
   // reached, faded for the rest — so one prop colours the whole glyph.
   return <Meter width={26} height={26} color={selected ? c.ink : c.inkSecondary} />;
