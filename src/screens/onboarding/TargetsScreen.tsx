@@ -35,7 +35,7 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
   const reasoning = useMemo(() => goalReasoning(derived, profile), [derived, profile]);
 
   const [values, setValues] = useState({ kcal: derived.kcal, protein: derived.proteinG, fiber: derived.fiberG });
-  const suggestion = useSuggestedTargets(profile, route.params?.suggestion);
+  const asked = useSuggestedTargets(profile, route.params?.suggestion);
   const [editing, setEditing] = useState<Key | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -93,30 +93,29 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
 
         <Gap h={space.xs} />
 
-        {suggestion ? (
+        {asked.state === 'asking' ? <SuggestionPending /> : null}
+        {asked.state === 'ready' ? (
           <SuggestionCard
-            suggestion={suggestion}
+            suggestion={asked.suggestion}
             applied={
-              values.kcal === suggestion.kcal &&
-              values.protein === suggestion.proteinG &&
-              values.fiber === suggestion.fiberG
+              values.kcal === asked.suggestion.kcal &&
+              values.protein === asked.suggestion.proteinG &&
+              values.fiber === asked.suggestion.fiberG
             }
             differs={
-              suggestion.kcal !== derived.kcal ||
-              suggestion.proteinG !== derived.proteinG ||
-              suggestion.fiberG !== derived.fiberG
+              asked.suggestion.kcal !== derived.kcal ||
+              asked.suggestion.proteinG !== derived.proteinG ||
+              asked.suggestion.fiberG !== derived.fiberG
             }
             onApply={() =>
               setValues({
-                kcal: suggestion.kcal,
-                protein: suggestion.proteinG,
-                fiber: suggestion.fiberG,
+                kcal: asked.suggestion.kcal,
+                protein: asked.suggestion.proteinG,
+                fiber: asked.suggestion.fiberG,
               })
             }
           />
-        ) : (
-          <SuggestionPending />
-        )}
+        ) : null}
 
         {/* Folded away, not deleted. Showing the arithmetic is what stops a
             target being nudged upward by somebody hoping for a bigger one —
@@ -153,18 +152,29 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
  * builds a fresh object every render, so a dependency on it would ask again on
  * every keystroke of a target being edited.
  *
- * Any failure is null. No model configured, no network, a refusal, a malformed
- * answer: all of them mean there is no suggestion, and none of them are worth
- * an error on the screen where somebody is about to finish onboarding. The
- * derived targets are already there and are already complete.
+ * Three states, not two, and that distinction is the whole reason this is a
+ * type rather than a nullable value. "Asking" and "there is none" both used to
+ * be null, and the screen drew its loading card for both — so a missing
+ * endpoint, an unconfigured model or a refusal all showed "checking these for
+ * you" forever, on the last screen of onboarding, with no way out but to guess
+ * that the button below still worked.
+ *
+ * Every failure is `none`. No model configured, no network, a refusal, a
+ * malformed answer: none of them are worth an error on the screen where
+ * somebody is about to finish, because the derived targets are already there
+ * and are already complete. But none of them are loading either.
  */
-function useSuggestedTargets(
-  profile: UserProfile,
-  prefetched?: SuggestedTargets,
-): SuggestedTargets | null {
+type Asked =
+  | { state: 'asking' }
+  | { state: 'none' }
+  | { state: 'ready'; suggestion: SuggestedTargets };
+
+function useSuggestedTargets(profile: UserProfile, prefetched?: SuggestedTargets): Asked {
   const api = useApi();
   const asked = useRef(profile);
-  const [suggestion, setSuggestion] = useState<SuggestedTargets | null>(prefetched ?? null);
+  const [result, setResult] = useState<Asked>(
+    prefetched ? { state: 'ready', suggestion: prefetched } : { state: 'asking' },
+  );
 
   useEffect(() => {
     // Already answered on the step before, while its button was spinning.
@@ -173,14 +183,14 @@ function useSuggestedTargets(
     let alive = true;
     api
       .suggestTargets(asked.current)
-      .then((s: SuggestedTargets) => alive && setSuggestion(s))
-      .catch(() => undefined);
+      .then((s: SuggestedTargets) => alive && setResult({ state: 'ready', suggestion: s }))
+      .catch(() => alive && setResult({ state: 'none' }));
     return () => {
       alive = false;
     };
   }, [api, prefetched]);
 
-  return suggestion;
+  return result;
 }
 
 /**
