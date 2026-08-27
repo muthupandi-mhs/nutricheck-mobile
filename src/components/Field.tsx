@@ -39,8 +39,17 @@ export type FieldProps = {
 };
 
 /**
- * A text field. Filled rather than outlined, so stacked forms stay quiet. Focus
- * raises it to `surface` and draws a 2pt primary ring.
+ * A text field: sunk below the surface it sits on, and outlined at rest.
+ *
+ * The outline is what tells you where to tap before you have tapped. It used to
+ * be transparent until focus, which worked when a field's fill was the lightest
+ * thing on a light screen — on this palette a field is DARKER than everything
+ * around it, and an unoutlined dark rectangle on a dark page is a hole rather
+ * than a control.
+ *
+ * The width stays 2 in every state and only the colour changes. Growing a
+ * border on focus reflows the row by a pixel, which is small enough to look
+ * like a rendering fault and large enough to see.
  */
 export function Field({
   label,
@@ -69,7 +78,7 @@ export function Field({
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
-  const ring = problem ? c.attention : focused ? c.primary : 'transparent';
+  const ring = problem ? c.attention : focused ? c.primary : c.borderStrong;
 
   return (
     <Stack gap={8}>
