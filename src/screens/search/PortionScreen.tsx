@@ -9,6 +9,7 @@ import { Disclaimer, TotalsRow } from '../../components/Feedback';
 import { Field, Segmented } from '../../components/Field';
 import { FoodGlyph } from '../../components/FoodGlyph';
 import { Gap, Gutter, Row, Split, Stack } from '../../components/Layout';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Dock, Screen } from '../../components/Screen';
 import { Shimmer } from '../../components/Skeleton';
 import { SectionLabel, Txt } from '../../components/Text';
@@ -145,114 +146,119 @@ export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
         </Split>
       </Gutter>
 
-      <ScrollView
-        contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}
-        keyboardShouldPersistTaps="handled">
-        <Stack gap={space.lg}>
-          <Card>
-            <Stack gap={space.md}>
-              <SectionLabel>How much?</SectionLabel>
-              <Row gap={space.sm} wrap>
-                {food.portions.map(p => (
+      {/* The gram stepper is typeable, so this screen raises a keypad now, and
+          the Dock is pinned outside the scroll — on Android the window does not
+          resize under it. See KeyboardAvoid. */}
+      <KeyboardAvoid>
+        <ScrollView
+          contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}
+          keyboardShouldPersistTaps="handled">
+          <Stack gap={space.lg}>
+            <Card>
+              <Stack gap={space.md}>
+                <SectionLabel>How much?</SectionLabel>
+                <Row gap={space.sm} wrap>
+                  {food.portions.map(p => (
+                    <Chip
+                      key={p.label}
+                      label={p.label}
+                      variant={!custom && chosen === p.label ? 'selected' : 'default'}
+                      onPress={() => {
+                        setCustom(false);
+                        setChosen(p.label);
+                        setGramsValue(p.grams);
+                      }}
+                      accessibilityLabel={`${p.label}, ${grams(p.grams)} grams`}
+                    />
+                  ))}
                   <Chip
-                    key={p.label}
-                    label={p.label}
-                    variant={!custom && chosen === p.label ? 'selected' : 'default'}
+                    label="Exact grams"
+                    variant={custom ? 'selected' : 'default'}
                     onPress={() => {
-                      setCustom(false);
-                      setChosen(p.label);
-                      setGramsValue(p.grams);
+                      setCustom(true);
+                      setCustomText(String(Math.round(gramsValue ?? 100)));
+                      setCustomProblem(null);
                     }}
-                    accessibilityLabel={`${p.label}, ${grams(p.grams)} grams`}
                   />
-                ))}
-                <Chip
-                  label="Exact grams"
-                  variant={custom ? 'selected' : 'default'}
-                  onPress={() => {
-                    setCustom(true);
-                    setCustomText(String(Math.round(gramsValue ?? 100)));
-                    setCustomProblem(null);
-                  }}
-                />
-              </Row>
+                </Row>
 
-              {custom ? (
-                <Field
-                  label="Amount"
-                  value={customText}
-                  onChangeText={t => {
-                    // One field, so no form — but the rule for what counts as
-                    // an amount is the same rule, read from the same schema as
-                    // the custom-food screen rather than rewritten here.
-                    const amount = portionGramsField.safeParse(t);
-                    setCustomText(t.replace(/[^0-9.]/g, ''));
-                    setGramsValue(amount.success ? amount.data : null);
-                    setCustomProblem(amount.success ? null : amount.error.issues[0].message);
-                  }}
-                  keyboardType="numeric"
-                  suffix="g"
-                  autoFocus
-                  problem={customProblem}
-                />
-              ) : (
-                <Txt role="caption" tone="tertiary">
-                  {chosen} · {grams(gramsValue ?? 0)} g
-                </Txt>
+                {custom ? (
+                  <Field
+                    label="Amount"
+                    value={customText}
+                    onChangeText={t => {
+                      // One field, so no form — but the rule for what counts as
+                      // an amount is the same rule, read from the same schema as
+                      // the custom-food screen rather than rewritten here.
+                      const amount = portionGramsField.safeParse(t);
+                      setCustomText(t.replace(/[^0-9.]/g, ''));
+                      setGramsValue(amount.success ? amount.data : null);
+                      setCustomProblem(amount.success ? null : amount.error.issues[0].message);
+                    }}
+                    keyboardType="numeric"
+                    suffix="g"
+                    autoFocus
+                    problem={customProblem}
+                  />
+                ) : (
+                  <Txt role="caption" tone="tertiary">
+                    {chosen} · {grams(gramsValue ?? 0)} g
+                  </Txt>
+                )}
+              </Stack>
+            </Card>
+
+            <Card>
+              <TotalsRow
+                kcal={nutrients ? kcal(nutrients.kcal) : DASH}
+                protein={nutrients ? grams(nutrients.proteinG) : DASH}
+                carbs={nutrients ? gramsOrDash(nutrients.carbsG) : DASH}
+                fat={nutrients ? gramsOrDash(nutrients.fatG) : DASH}
+                fibre={nutrients ? gramsOrDash(nutrients.fiberG) : DASH}
+                fibreUnknown={fibreUnknown ? 1 : 0}
+              />
+              {fibreUnknown && (
+                <>
+                  <Gap h={space.lg} />
+                  <Disclaimer text="This source carries no fibre figure. It is left out of today's fibre total rather than counted as zero, and the day's denominator says so." />
+                </>
               )}
-            </Stack>
-          </Card>
+            </Card>
 
-          <Card>
-            <TotalsRow
-              kcal={nutrients ? kcal(nutrients.kcal) : DASH}
-              protein={nutrients ? grams(nutrients.proteinG) : DASH}
-              carbs={nutrients ? gramsOrDash(nutrients.carbsG) : DASH}
-              fat={nutrients ? gramsOrDash(nutrients.fatG) : DASH}
-              fibre={nutrients ? gramsOrDash(nutrients.fiberG) : DASH}
-              fibreUnknown={fibreUnknown ? 1 : 0}
-            />
-            {fibreUnknown && (
-              <>
-                <Gap h={space.lg} />
-                <Disclaimer text="This source carries no fibre figure. It is left out of today's fibre total rather than counted as zero, and the day's denominator says so." />
-              </>
-            )}
-          </Card>
+            <Card>
+              <Segmented
+                label="Meal"
+                value={meal}
+                onChange={setMeal}
+                options={[
+                  { value: 'breakfast', label: 'Brkfst' },
+                  { value: 'lunch', label: 'Lunch' },
+                  { value: 'dinner', label: 'Dinner' },
+                  { value: 'snack', label: 'Snack' },
+                ]}
+              />
+            </Card>
+          </Stack>
+        </ScrollView>
 
-          <Card>
-            <Segmented
-              label="Meal"
-              value={meal}
-              onChange={setMeal}
-              options={[
-                { value: 'breakfast', label: 'Brkfst' },
-                { value: 'lunch', label: 'Lunch' },
-                { value: 'dinner', label: 'Dinner' },
-                { value: 'snack', label: 'Snack' },
-              ]}
-            />
-          </Card>
-        </Stack>
-      </ScrollView>
-
-      <Dock>
-        <Button
-          label={route.params.firstLog ? 'Log it — that is onboarding done' : 'Add to today'}
-          disabled={!gramsValue}
-          loading={saving}
-          onPress={onCommit}
-          haptic="commit"
-        />
-        <Gap h={space.sm} />
-        <View style={{ alignItems: 'center' }}>
-          <Txt role="caption" tone="tertiary" numeric>
-            {nutrients
-              ? `${kcal(nutrients.kcal)} kcal · P ${grams(nutrients.proteinG)} g`
-              : 'no amount yet'}
-          </Txt>
-        </View>
-      </Dock>
+        <Dock>
+          <Button
+            label={route.params.firstLog ? 'Log it — that is onboarding done' : 'Add to today'}
+            disabled={!gramsValue}
+            loading={saving}
+            onPress={onCommit}
+            haptic="commit"
+          />
+          <Gap h={space.sm} />
+          <View style={{ alignItems: 'center' }}>
+            <Txt role="caption" tone="tertiary" numeric>
+              {nutrients
+                ? `${kcal(nutrients.kcal)} kcal · P ${grams(nutrients.proteinG)} g`
+                : 'no amount yet'}
+            </Txt>
+          </View>
+        </Dock>
+      </KeyboardAvoid>
     </Screen>
   );
 }

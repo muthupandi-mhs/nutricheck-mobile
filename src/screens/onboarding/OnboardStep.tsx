@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StepBar } from '../../components/Field';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Gap, Gutter } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
@@ -66,7 +67,12 @@ export function OnboardStep({
 
       <Gap h={space.xl} />
 
-      <View style={{ flex: 1 }}>
+      {/* These steps had no text input until the steppers became typeable, so
+          they had no reason to avoid a keyboard. They do now: the footer is
+          pinned outside the scroll, and on Android the window no longer
+          resizes under it — see KeyboardAvoid for why. Without this the
+          Continue button sits behind the keypad the moment a value is tapped. */}
+      <KeyboardAvoid>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: space.xl }}
           keyboardShouldPersistTaps="handled"
@@ -85,7 +91,7 @@ export function OnboardStep({
           }}>
           {footer}
         </View>
-      </View>
+      </KeyboardAvoid>
     </Screen>
   );
 }

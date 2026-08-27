@@ -255,9 +255,13 @@ export function Segmented<T extends string>({
               top: SEGMENT_PAD,
               left: SEGMENT_PAD,
               width: segment,
-              height: 46,
+              height: 48,
               borderRadius: radius.pill,
-              backgroundColor: c.surface,
+              // The brand tint, which is what `primarySoft` is for — the token
+              // lists selected chips by name. A neutral thumb was a step of
+              // eight points off the track it sits in, so the control worked
+              // and never looked chosen; this one is unmistakably picked.
+              backgroundColor: c.primarySoft,
               transform: [{ translateX: x }],
               ...elevation.e1,
             }}
@@ -278,11 +282,18 @@ export function Segmented<T extends string>({
               style={{
                 flexGrow: 1,
                 flexBasis: 0,
-                height: 46,
+                height: 48,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-              <Txt role="label" tone={active ? 'ink' : 'secondary'}>
+              {/* Uppercase and letterspaced, the voice the rest of the flow
+                  uses for a label. The colour moves with the thumb rather than
+                  after it — both are driven by the same `active`. */}
+              <Txt
+                role="labelSm"
+                caps
+                color={active ? c.primarySoftInk : c.inkSecondary}
+                style={{ letterSpacing: 1.1 }}>
                 {o.label}
               </Txt>
             </Press>
@@ -436,7 +447,7 @@ export type StepperProps = {
  * distance does not become a test of patience.
  */
 export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint, framed }: StepperProps) {
-  const { c, space, radius } = useTheme();
+  const { c, space, radius, text, tabular } = useTheme();
 
   // The live value, so a repeat reads its own last result rather than the one
   // captured when the finger went down.
@@ -444,6 +455,16 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
   latest.current = value;
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * What is in the box while it is being typed in, or null when it is not.
+   *
+   * Typing needs its own state because the field passes through values the
+   * parent must not be told about: reaching 85 from empty goes through 8, and
+   * 8 is below every minimum on this screen. Committing that would clamp them
+   * to 30 mid-word and make the number impossible to type.
+   */
+  const [typing, setTyping] = useState<string | null>(null);
 
   const stop = () => {
     if (timer.current) clearTimeout(timer.current);
@@ -464,8 +485,37 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
     const next = clamp(latest.current + dir * step);
     if (next === latest.current) return false;
     latest.current = next;
+    // A step abandons whatever was half-typed: the buttons move the real
+    // value, and leaving stale text over it would show two different numbers.
+    setTyping(null);
     onChange(next);
     return true;
+  };
+
+  const type = (raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, '').slice(0, 6);
+    setTyping(digits);
+
+    // Committed as soon as it is a number that is allowed to exist, so the
+    // value is right even if they never blur — tapping Continue straight from
+    // the keyboard is the common way out of this screen.
+    const n = Number(digits);
+    if (digits === '' || !Number.isFinite(n)) return;
+    if (n !== clamp(n)) return;
+    latest.current = n;
+    onChange(n);
+  };
+
+  /** Out of the box: clamp whatever is left, and go back to showing the value. */
+  const settle = () => {
+    if (typing !== null && typing !== '') {
+      const n = clamp(Number(typing));
+      if (Number.isFinite(n) && n !== latest.current) {
+        latest.current = n;
+        onChange(n);
+      }
+    }
+    setTyping(null);
   };
 
   /**
@@ -528,11 +578,37 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
             {label}
           </Txt>
           <Row gap={6} align="baseline">
-            {/* Tabular, so a digit rolling over does not shift the unit beside
-                it — the number is being held on while it changes. */}
-            <Txt role="h1" numeric style={framed ? { fontSize: 34, lineHeight: 39 } : undefined}>
-              {value.toLocaleString('en-US')}
-            </Txt>
+            {/* Typed as well as stepped. A value somebody already knows should
+                not have to be walked to — and the ± stay because the other
+                half of the time this is a nudge, not a number.
+
+                Tabular, so a digit rolling over under a held button does not
+                shift the unit beside it. */}
+            <TextInput
+              value={typing ?? value.toLocaleString('en-US')}
+              onChangeText={type}
+              onBlur={settle}
+              onSubmitEditing={settle}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              // Tap the number and the whole thing is selected, so replacing it
+              // is one keystroke rather than six backspaces.
+              selectTextOnFocus
+              accessibilityLabel={`${label}, ${value} ${unit}`}
+              style={[
+                text.h1,
+                tabular,
+                framed ? { fontSize: 34, lineHeight: 39 } : null,
+                {
+                  color: c.ink,
+                  padding: 0,
+                  // Android gives a TextInput its own vertical slack, which
+                  // puts the baseline off the unit sitting next to it.
+                  margin: 0,
+                  minWidth: 40,
+                },
+              ]}
+            />
             <Txt role="body" tone="secondary">
               {unit}
             </Txt>
