@@ -78,6 +78,13 @@ export function Press({
    * They have to MOVE rather than be copied: `flexBasis: 0` on the inner view
    * is a basis on the cross axis of the row it was written for — a height of
    * zero — which is its own quiet bug.
+   *
+   * One consequence worth knowing, because it is invisible until it is not: the
+   * inner view does NOT inherit any of this. A pressable stretched by its
+   * parent is the right size while the thing drawn inside it is still only as
+   * big as its contents, which reads as a small card floating in a large gap.
+   * A caller that wants the fill to be visible has to say so — `height: '100%'`
+   * stays on the inner view, because height is not one of the five.
    */
   const { flex, flexGrow, flexShrink, flexBasis, alignSelf, aspectRatio, ...inner } =
     (StyleSheet.flatten(style) ?? {}) as ViewStyle;

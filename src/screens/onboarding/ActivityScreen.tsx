@@ -86,7 +86,14 @@ function Tile({
       accessibilityLabel={ACTIVITY[level].label}
       accessibilityHint={ACTIVITY[level].detail}
       style={{
+        // Two of these, splitting the row's width.
         flex: 1,
+        // And filling its height. `flex` is hoisted onto the touchable itself
+        // (see Press), which stretches to the row — but the view carrying this
+        // background is inside it and sizes to its own contents, so without
+        // this the card is icon-and-label tall, sitting at the top of a
+        // full-height target with the rest of the band empty under it.
+        height: '100%',
         backgroundColor: c.surface,
         borderRadius: radius.lg,
         borderWidth: 2,
