@@ -37,7 +37,6 @@ export function AuthPasswordScreen({ navigation, route }: ScreenProps<'AuthPassw
 
   return (
     <AuthStep
-      hero
       title={registered ? 'Welcome back' : 'Set up a password'}
       subtitle={
         <Txt role="bodyLg" tone="secondary">

@@ -65,7 +65,6 @@ export function AuthEmailScreen({ navigation }: ScreenProps<'AuthEmail'>) {
 
   return (
     <AuthStep
-      hero
       title="What's your email?"
       subtitle="So your day is saved, and still here on a new phone."
       error={error}
