@@ -14,7 +14,7 @@ import { ACTIVITY, deriveGoal, goalReasoning } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAppState } from '../../state/AppState';
 import { useOnboarding } from '../../state/Onboarding';
-import { OnboardStep, StepGroup } from './OnboardStep';
+import { OnboardStep } from './OnboardStep';
 import type { SuggestedTargets, UserProfile } from '../../api/types';
 import type { ScreenProps } from '../../navigation/types';
 
