@@ -26,16 +26,11 @@ import type { ScreenProps } from '../../navigation/types';
  * way into. Auth still decides the destination after either: onboarding if the
  * account has no profile yet, the app itself if it has.
  *
- * The line under the buttons is the only thing on the screen that says what the
- * app does, and it is deliberately last. Somebody deciding whether to bother is
- * asking what this is for, not how it works: "you tell it a meal, it works out
- * the nutrition, it keeps the day's total." It promises no figure — every value
- * in this build carries a "~", so a first screen claiming to *count* anything
- * is a promise the second screen walks back.
- *
- * It never says "AI". Not because the app hides it, but because it is not a
- * differentiator: everything says AI, and almost nothing understands
- * "rendu dosai".
+ * Nothing here says what the app does. The mark, the name and the two doors
+ * are the whole screen, as they are in the reference — which can afford it,
+ * being a brand people arrive already knowing. This one is not, so the first
+ * explanation of itself now waits until sign-up. Worth knowing if the drop-off
+ * on this screen is ever measured.
  */
 export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
   const { c, space } = useTheme();
@@ -128,12 +123,6 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
               onPress={() => navigation.navigate('SignUp')}
               haptic="select"
             />
-
-            <Gap h={space.xl} />
-
-            <Txt role="bodySm" tone="tertiary" style={{ textAlign: 'center' }}>
-              Tell us what you ate. We'll work out what's in it, and keep the day's total.
-            </Txt>
           </Gutter>
         </Animated.View>
       </View>
