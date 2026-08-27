@@ -257,11 +257,11 @@ export function Segmented<T extends string>({
               width: segment,
               height: 48,
               borderRadius: radius.pill,
-              // The brand tint, which is what `primarySoft` is for — the token
-              // lists selected chips by name. A neutral thumb was a step of
-              // eight points off the track it sits in, so the control worked
-              // and never looked chosen; this one is unmistakably picked.
-              backgroundColor: c.primarySoft,
+              // Ink, the same fill a button gets. There is no check here and no
+              // second cue — the thumb IS the answer to "which one is picked",
+              // so it has to be the loudest thing the palette makes rather than
+              // a tint a few points off the track it sits in.
+              backgroundColor: c.ink,
               transform: [{ translateX: x }],
               ...elevation.e1,
             }}
@@ -292,7 +292,7 @@ export function Segmented<T extends string>({
               <Txt
                 role="labelSm"
                 caps
-                color={active ? c.primarySoftInk : c.inkSecondary}
+                color={active ? c.canvas : c.inkSecondary}
                 style={{ letterSpacing: 1.1 }}>
                 {o.label}
               </Txt>
@@ -335,7 +335,11 @@ export function OptionRow({
         justifyContent: 'center',
         paddingVertical: space.lg,
         paddingHorizontal: space.xl,
-        backgroundColor: selected ? c.primarySoft : 'transparent',
+        // Sunken rather than a tint: pressed in, on the card it sits in. It is
+        // the quieter half of the cue here — unlike the segmented thumb, this
+        // row also carries a check, so the fill only has to help the eye find
+        // the answer it has already been given.
+        backgroundColor: selected ? c.sunken : 'transparent',
         borderTopLeftRadius: first ? radius.lg : 0,
         borderTopRightRadius: first ? radius.lg : 0,
         borderBottomLeftRadius: last ? radius.lg : 0,
@@ -343,7 +347,7 @@ export function OptionRow({
       }}>
       <Split gap={space.md}>
         <Stack gap={3} style={{ flexShrink: 1 }}>
-          <Txt role="h3" color={selected ? c.primarySoftInk : c.ink}>
+          <Txt role="h3" color={c.ink}>
             {title}
           </Txt>
           {detail ? (
@@ -352,7 +356,7 @@ export function OptionRow({
             </Txt>
           ) : null}
         </Stack>
-        {selected ? <Icon name="check" size={20} color={c.primary} weight={2.4} /> : null}
+        {selected ? <Icon name="check" size={20} color={c.ink} weight={2.4} /> : null}
       </Split>
     </Press>
   );
