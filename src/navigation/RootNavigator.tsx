@@ -27,9 +27,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 /**
- * Two tabs and a raised centre action. The centre button is not a tab — it
- * pushes the composer onto the parent stack, so logging happens over whatever
- * you were doing. A third tab would leave a half-written meal in the background.
+ * Two tabs in a floating pill, and the log action as its own circle beside it.
+ * That button is not a tab — it pushes the composer onto the parent stack, so
+ * logging happens over whatever you were doing. Making it a tab would leave a
+ * half-written meal in the background.
  */
 function MainTabs() {
   const navigation = useNavigation<import('@react-navigation/native-stack').NativeStackNavigationProp<RootStackParamList>>();

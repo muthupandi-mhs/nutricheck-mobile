@@ -118,6 +118,32 @@ const dark: Palette = {
 
 export const palettes = { light, dark };
 
+/**
+ * The floating tab bar, which is dark in both schemes.
+ *
+ * Deliberately outside `Palette`, because it does not follow the scheme and a
+ * reader who finds it in there would reasonably assume it does. A bar that
+ * floats over the page rather than sitting in it reads as a separate surface —
+ * the same reason a map's controls stay dark over a light map — and holding it
+ * still means the one control that is always on screen never restyles under
+ * you at sunset.
+ *
+ * The values are neutral rather than warm: this is the one surface that is not
+ * part of the page, so matching the page's warmth would half-attach it.
+ */
+export const navBar = {
+  /** The pill. Opaque — content stops above it, so there is nothing to blur. */
+  surface: '#23262A',
+  /** A hairline lift, since the pill has no shadow to read against in dark mode. */
+  border: 'rgba(255,255,255,0.08)',
+  /** The selected destination. */
+  active: '#FFFFFF',
+  /** The rest. Contrast against `surface` is 4.7:1 — a label, not a whisper. */
+  inactive: '#8C949C',
+  /** Behind a pressed tab. */
+  pressed: 'rgba(255,255,255,0.07)',
+} as const;
+
 /** A 4pt scale. `gutter` is the page margin and is not negotiable per screen. */
 export const space = {
   xs: 4,
