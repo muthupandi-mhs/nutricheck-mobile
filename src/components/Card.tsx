@@ -7,9 +7,10 @@ type Level = 'flat' | 'raised' | 'floating';
 type Fill = 'surface' | 'sunken' | 'primarySoft' | 'attentionSoft';
 
 /**
- * Depth is elevation plus a hairline, never elevation alone. A pure shadow is
- * nearly invisible on the warm light canvas and fully invisible on dark, so the
- * border does the structural work. Drop either and cards vanish on one scheme.
+ * Depth is elevation plus a hairline, never elevation alone. On a near-black
+ * page a shadow has almost nothing left to darken, so the border does the
+ * structural work and the shadow only stops the card looking pasted on. Drop
+ * the border and cards dissolve into the page.
  */
 export function Card({
   children,

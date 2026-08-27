@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useMemo } from 'react';
-import { useColorScheme } from 'react-native';
-import { elevation, HIT, motion, Palette, palettes, radius, space } from './tokens';
+import { elevation, HIT, motion, palette, Palette, radius, space } from './tokens';
 import { tabular, text } from './typography';
 
 export type Theme = {
-  scheme: 'light' | 'dark';
   c: Palette;
   space: typeof space;
   radius: typeof radius;
@@ -19,22 +17,18 @@ export type Theme = {
 
 const ThemeContext = createContext<Theme | null>(null);
 
-export function ThemeProvider({
-  children,
-  force,
-}: {
-  children: React.ReactNode;
-  /** Test and screenshot hook; production follows the system. */
-  force?: 'light' | 'dark';
-}) {
-  const system = useColorScheme();
-  const scheme = force ?? (system === 'dark' ? 'dark' : 'light');
-
-  const value = useMemo<Theme>(() => {
-    const c = palettes[scheme];
-    return {
-      scheme,
-      c,
+/**
+ * One theme, so this holds no state and never changes identity.
+ *
+ * It used to read the system colour scheme and pick between two palettes. The
+ * app is dark-only now, so there is nothing to read and nothing to switch —
+ * which also means no screen can flicker through a scheme change mid-render,
+ * and the `force` prop the tests used to pass has nothing left to force.
+ */
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const value = useMemo<Theme>(
+    () => ({
+      c: palette,
       space,
       radius,
       elevation,
@@ -49,10 +43,11 @@ export function ThemeProvider({
         let h = 0;
         /* eslint-disable-next-line no-bitwise -- 32-bit string hash; the arithmetic form overflows */
         for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-        return c.glyph[h % c.glyph.length];
+        return palette.glyph[h % palette.glyph.length];
       },
-    };
-  }, [scheme]);
+    }),
+    [],
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

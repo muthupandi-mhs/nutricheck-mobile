@@ -26,8 +26,9 @@ const BAR_HEIGHT = 62;
  * Two things follow from floating rather than sitting in the page. It stays in
  * normal layout flow, so the bar's own height reserves the strip and nothing is
  * occluded — an absolutely-positioned bar would need every scroll view to know
- * its height. And it is dark in both schemes (see `navBar`), because a surface
- * that hovers over the page reads as separate from it.
+ * its height. And it carries its own tokens (see `navBar`) rather than the
+ * palette's, because it hovers over the page instead of holding it and is a
+ * step lighter than a card to say so.
  *
  * The action is a circle outside the pill, not a tab: it pushes the composer
  * onto the parent stack rather than switching destination. Splitting it out of

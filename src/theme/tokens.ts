@@ -11,7 +11,7 @@ import { Platform, ViewStyle } from 'react-native';
  */
 
 export type Palette = {
-  /** The page. Warm off-white, not #FFF — screen-white reads clinical. */
+  /** The page. Near-black, not #000 — pure black crushes every shadow flat. */
   canvas: string;
   /** Cards and sheets, the layer above the canvas. */
   surface: string;
@@ -54,87 +54,68 @@ export type Palette = {
   wash: [string, string];
 };
 
-const light: Palette = {
-  canvas: '#FBFAF7',
-  surface: '#FFFFFF',
-  sunken: '#F3F1EC',
-  border: '#ECE8E0',
-  borderStrong: '#DFDAD0',
+/**
+ * The palette. There is one, and it is dark.
+ *
+ * Cool rather than warm: the greys lean blue, which is what makes a screen of
+ * numbers read as an instrument. The app used to run a warm off-white scheme
+ * alongside this one; carrying two meant every token had to be proved twice,
+ * and half of them only ever got looked at in one.
+ */
+const palette: Palette = {
+  canvas: '#0B0C0E',
+  surface: '#16191C',
+  sunken: '#101315',
+  border: '#23282C',
+  borderStrong: '#31373D',
 
-  ink: '#1A1917',
-  inkSecondary: '#6B6659',
-  inkTertiary: '#9C968A',
-  onPrimary: '#FFFFFF',
+  ink: '#F2F5F7',
+  inkSecondary: '#A2ABB4',
+  // 4.9:1 on `surface`. Tertiary is still text, so it clears AA rather than
+  // sitting at the edge of legible the way a true disabled grey would.
+  inkTertiary: '#828B94',
+  onPrimary: '#0A1020',
 
-  primary: '#0F7A5A',
-  primaryPressed: '#0B6249',
-  primarySoft: '#E4F1EB',
-  primarySoftInk: '#0B5C44',
-  ringFrom: '#3ACF95',
-  ringTo: '#0F7A5A',
+  primary: '#5B8DEF',
+  primaryPressed: '#4A76C9',
+  primarySoft: '#161F33',
+  primarySoftInk: '#9BBBF7',
+  ringFrom: '#6FA8FF',
+  ringTo: '#7B5BEF',
 
-  attention: '#A9670C',
-  attentionSoft: '#FBF0DF',
-  attentionInk: '#8A530A',
-
-  danger: '#BE3A31',
-  dangerSoft: '#FBEAE8',
-
-  scrim: 'rgba(26,25,23,0.42)',
-  glyph: ['#EDF3EE', '#F5EFE6', '#EDF0F5', '#F4EDF1', '#EFF2E9', '#F6EEE9'],
-  wash: ['#FBFAF7', '#E9F3EC'],
-};
-
-const dark: Palette = {
-  canvas: '#111110',
-  surface: '#1B1A18',
-  sunken: '#161514',
-  border: '#2B2926',
-  borderStrong: '#3A3733',
-
-  ink: '#F6F3ED',
-  inkSecondary: '#A9A296',
-  inkTertiary: '#736D63',
-  onPrimary: '#08221A',
-
-  primary: '#3ECF9A',
-  primaryPressed: '#33B486',
-  primarySoft: '#12301F',
-  primarySoftInk: '#6FE0B7',
-  ringFrom: '#5BE8B0',
-  ringTo: '#25A87A',
-
+  // Unchanged, and deliberately. Amber is the app's one claim of ignorance,
+  // and it has to stay as far from the accent as it was when the accent was
+  // green — a blue page makes amber MORE distinct, not less.
   attention: '#E0A458',
-  attentionSoft: '#2E2314',
+  attentionSoft: '#2A2114',
   attentionInk: '#F0BE7E',
 
   danger: '#E4736A',
-  dangerSoft: '#331B19',
+  dangerSoft: '#301A19',
 
-  scrim: 'rgba(0,0,0,0.62)',
-  glyph: ['#1E2621', '#26221C', '#1E2128', '#251E23', '#212519', '#26201C'],
-  wash: ['#111110', '#16211B'],
+  scrim: 'rgba(0,0,0,0.66)',
+  glyph: ['#161C24', '#1A1B26', '#131E22', '#1E1A24', '#141F1E', '#1C1D20'],
+  wash: ['#0B0C0E', '#121A28'],
 };
 
-export const palettes = { light, dark };
+export { palette };
 
 /**
- * The floating tab bar, which is dark in both schemes.
+ * The floating tab bar.
  *
- * Deliberately outside `Palette`, because it does not follow the scheme and a
- * reader who finds it in there would reasonably assume it does. A bar that
- * floats over the page rather than sitting in it reads as a separate surface —
- * the same reason a map's controls stay dark over a light map — and holding it
- * still means the one control that is always on screen never restyles under
- * you at sunset.
+ * Its own tokens rather than palette entries, because it is the one surface
+ * that is not part of the page: it hovers over the content instead of holding
+ * it, and it is a step lighter than `surface` so that reads at a glance. Given
+ * to `Palette` it would be indistinguishable from a card, and the next person
+ * to restyle cards would take the bar with them.
  *
- * The values are neutral rather than warm: this is the one surface that is not
- * part of the page, so matching the page's warmth would half-attach it.
+ * Pure white on the selected tab, where `ink` would be too soft — this is the
+ * only place in the app that has to answer "where am I" without being read.
  */
 export const navBar = {
   /** The pill. Opaque — content stops above it, so there is nothing to blur. */
   surface: '#23262A',
-  /** A hairline lift, since the pill has no shadow to read against in dark mode. */
+  /** A hairline lift, since a shadow has almost nothing to darken against here. */
   border: 'rgba(255,255,255,0.08)',
   /** The selected destination. */
   active: '#FFFFFF',
@@ -168,16 +149,20 @@ export const radius = {
 } as const;
 
 /**
- * Warm-tinted shadows, not black — a neutral shadow over a warm canvas turns
- * grey and makes the screen look dirty. Android gets `elevation` because it
- * ignores shadow offsets entirely.
+ * Black shadows, and deeper than they were.
+ *
+ * On a dark page a shadow does most of its work by being darker than a canvas
+ * that is already nearly black, which it cannot be — so height reads mainly
+ * through a surface being LIGHTER than what it sits on. The shadow is what
+ * stops that lighter patch looking painted on, and it needs real opacity to do
+ * even that. Android gets `elevation` because it ignores shadow offsets.
  */
 type Elevation = ViewStyle;
 
 const shadow = (y: number, blur: number, opacity: number, elevation: number): Elevation =>
   Platform.select({
     ios: {
-      shadowColor: '#2A2318',
+      shadowColor: '#000000',
       shadowOffset: { width: 0, height: y },
       shadowRadius: blur,
       shadowOpacity: opacity,
@@ -187,11 +172,11 @@ const shadow = (y: number, blur: number, opacity: number, elevation: number): El
 
 export const elevation = {
   /** Resting card. */
-  e1: shadow(2, 8, 0.06, 2),
+  e1: shadow(2, 8, 0.24, 2),
   /** Raised card, floating bar. */
-  e2: shadow(6, 18, 0.1, 6),
+  e2: shadow(6, 18, 0.38, 6),
   /** Sheets, FAB, anything that must read as above the page. */
-  e3: shadow(12, 32, 0.16, 12),
+  e3: shadow(12, 32, 0.52, 12),
   none: {} as Elevation,
 } as const;
 

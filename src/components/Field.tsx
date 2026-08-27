@@ -180,7 +180,7 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   label?: string;
 }) {
-  const { c, radius, space } = useTheme();
+  const { c, radius, space, elevation } = useTheme();
 
   return (
     <Stack gap={8}>
@@ -215,7 +215,7 @@ export function Segmented<T extends string>({
                 backgroundColor: active ? c.surface : 'transparent',
                 alignItems: 'center',
                 justifyContent: 'center',
-                ...(active ? { shadowColor: '#2A2318', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 } : {}),
+                ...(active ? elevation.e1 : {}),
               }}>
               <Txt role="labelSm" tone={active ? 'ink' : 'secondary'}>
                 {o.label}

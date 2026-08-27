@@ -19,9 +19,9 @@ import type {
  * call with the same shapes. Screens under test need *an* implementation of the
  * seam, not a second backend.
  *
- * What it is for: proving every screen renders past its loading state, in both
- * colour schemes, with plausible data in it — the cheapest guard there is
- * against a null day or a token that only exists in light mode.
+ * What it is for: proving every screen renders past its loading state with
+ * plausible data in it — the cheapest guard there is against a null day or a
+ * token renamed under a screen nobody had open.
  *
  * What it is NOT for: asserting behaviour. Behaviour lives in `httpApi.test.ts`
  * against a stubbed `fetch`, which is the only place that can prove anything

@@ -187,7 +187,7 @@ export function useSheetStyle(): ViewStyle {
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     // borderStrong, not border. This edge is the only thing separating two
-    // dark surfaces on the dark scheme, where the shadow contributes nothing.
+    // dark surfaces, and the shadow behind it contributes almost nothing.
     borderTopWidth: 1,
     borderColor: c.borderStrong,
     ...elevation.e3,

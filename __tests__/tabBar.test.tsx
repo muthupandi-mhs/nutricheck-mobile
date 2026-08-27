@@ -2,7 +2,7 @@ import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { TabBar } from '../src/components/TabBar';
-import { navBar } from '../src/theme/tokens';
+import { navBar, palette } from '../src/theme/tokens';
 import { ThemeProvider } from '../src/theme/ThemeProvider';
 
 /**
@@ -33,11 +33,11 @@ function props(index: number) {
   };
 }
 
-async function render(index: number, scheme: 'light' | 'dark', p = props(index), onLogPress = jest.fn()) {
+async function render(index: number, p = props(index), onLogPress = jest.fn()) {
   let tree: ReactTestRenderer.ReactTestRenderer | undefined;
   await ReactTestRenderer.act(async () => {
     tree = ReactTestRenderer.create(
-      <ThemeProvider force={scheme}>
+      <ThemeProvider>
         <TabBar
           {...({ state: p.state, navigation: p.navigation } as unknown as BottomTabBarProps)}
           onLogPress={onLogPress}
@@ -56,8 +56,8 @@ function byLabel(tree: ReactTestRenderer.ReactTestRenderer, label: string) {
 }
 
 describe('the floating tab bar', () => {
-  it.each(['light', 'dark'] as const)('renders both destinations and the action in %s', async scheme => {
-    const { tree } = await render(0, scheme);
+  it('renders both destinations and the action', async () => {
+    const { tree } = await render(0);
 
     expect(byLabel(tree, 'Today').length).toBeGreaterThan(0);
     expect(byLabel(tree, 'Insights').length).toBeGreaterThan(0);
@@ -66,29 +66,28 @@ describe('the floating tab bar', () => {
     await ReactTestRenderer.act(async () => tree.unmount());
   });
 
-  it('stays dark in light mode, since it floats over the page rather than sitting in it', async () => {
-    const light = await render(0, 'light');
-    const dark = await render(0, 'dark');
+  it('paints the pill its own colour, not a card colour and not the page colour', async () => {
+    const { tree } = await render(0);
 
-    const pill = (t: ReactTestRenderer.ReactTestRenderer) =>
-      t.root.findAll(
-        node =>
-          typeof node.type === 'string' &&
-          // `style` arrives as an array from Row's own composition.
-          [node.props?.style].flat(2).some(s => s?.backgroundColor === navBar.surface),
-      );
+    const backgrounds = tree.root
+      .findAll(node => typeof node.type === 'string')
+      // `style` arrives as an array from Row's own composition.
+      .flatMap(node => [node.props?.style].flat(2))
+      .map(s => s?.backgroundColor)
+      .filter(Boolean);
 
-    // The point of the assertion: the same colour in both schemes. A bar that
-    // followed the theme would paint `c.surface` here and differ.
-    expect(pill(light.tree).length).toBeGreaterThan(0);
-    expect(pill(dark.tree).length).toBeGreaterThan(0);
+    // The bar hovers over the page rather than holding it, and says so by
+    // being a step lighter than either. Painted `surface` it would read as a
+    // card that happens to be at the bottom; painted `canvas`, as nothing.
+    expect(backgrounds).toContain(navBar.surface);
+    expect(backgrounds).not.toContain(palette.canvas);
+    expect(backgrounds).not.toContain(palette.surface);
 
-    await ReactTestRenderer.act(async () => light.tree.unmount());
-    await ReactTestRenderer.act(async () => dark.tree.unmount());
+    await ReactTestRenderer.act(async () => tree.unmount());
   });
 
   it('marks the focused destination selected, so the reader is not left to infer it from colour', async () => {
-    const { tree } = await render(1, 'dark');
+    const { tree } = await render(1);
 
     const selected = (label: string) =>
       tree.root.findAll(
@@ -103,7 +102,7 @@ describe('the floating tab bar', () => {
 
   it('navigates on a tap of the destination that is not current', async () => {
     const p = props(0);
-    const { tree } = await render(0, 'dark', p);
+    const { tree } = await render(0, p);
 
     await ReactTestRenderer.act(async () => {
       byLabel(tree, 'Insights')[0]!.props.onClick?.();
@@ -116,7 +115,7 @@ describe('the floating tab bar', () => {
 
   it('does not re-navigate to the destination already showing', async () => {
     const p = props(0);
-    const { tree } = await render(0, 'dark', p);
+    const { tree } = await render(0, p);
 
     await ReactTestRenderer.act(async () => {
       byLabel(tree, 'Today')[0]!.props.onClick?.();
@@ -137,7 +136,7 @@ describe('the floating tab bar', () => {
   it('opens the composer from the action, rather than switching destination', async () => {
     const p = props(0);
     const onLogPress = jest.fn();
-    const { tree } = await render(0, 'dark', p, onLogPress);
+    const { tree } = await render(0, p, onLogPress);
 
     await ReactTestRenderer.act(async () => {
       byLabel(tree, 'Say what you ate')[0]!.props.onClick?.();

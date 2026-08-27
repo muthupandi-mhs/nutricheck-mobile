@@ -27,11 +27,14 @@ import { GoalEditorScreen } from '../src/screens/settings/GoalEditorScreen';
 import { YouScreen } from '../src/screens/settings/YouScreen';
 
 /**
- * Every screen, rendered past its loading state, in both colour schemes.
+ * Every screen, rendered past its loading state.
  *
  * This is the cheapest guard there is against the class of bug that only shows
  * up on the one screen nobody opened this week: a null day, a missing portion,
- * a token that exists in light and not in dark.
+ * a token that was renamed under a screen no one had open.
+ *
+ * It used to run each screen twice, once per colour scheme. There is one
+ * palette now, so the second pass proved nothing the first did not.
  */
 
 // `useFocusEffect` is the only navigation hook a screen calls; the rest of the
@@ -60,11 +63,11 @@ const settle = () =>
     });
   });
 
-async function renderScreen(node: React.ReactElement, scheme: 'light' | 'dark') {
+async function renderScreen(node: React.ReactElement) {
   let tree: ReactTestRenderer.ReactTestRenderer | undefined;
   await ReactTestRenderer.act(async () => {
     tree = ReactTestRenderer.create(
-      <ThemeProvider force={scheme}>
+      <ThemeProvider>
         <ApiProvider api={createStubApi()}>
           <OnboardingProvider>
             <AppStateProvider>{node}</AppStateProvider>
@@ -107,11 +110,9 @@ const screens: Array<[string, React.ReactElement]> = [
   ['GoalEditor', <GoalEditorScreen navigation={navigation} route={{ key: 'k', name: 'GoalEditor' } as never} />],
 ];
 
-describe.each(['light', 'dark'] as const)('%s scheme', scheme => {
-  it.each(screens)('renders %s', async (_name, node) => {
-    const json = await renderScreen(node, scheme);
-    expect(json).toBeTruthy();
-  });
+it.each(screens)('renders %s', async (_name, node) => {
+  const json = await renderScreen(node);
+  expect(json).toBeTruthy();
 });
 
 /**
@@ -198,7 +199,7 @@ describe('confirm sheet', () => {
   it('waits, then shows the meal as estimates rather than measurements', async () => {
     let tree: ReactTestRenderer.ReactTestRenderer | undefined;
     const node = (
-      <ThemeProvider force="light">
+      <ThemeProvider>
         <ApiProvider api={stagedAiMealApi()}>
           <OnboardingProvider>
             <AppStateProvider>
@@ -267,7 +268,7 @@ describe('recording overlay', () => {
 
     await ReactTestRenderer.act(async () => {
       tree = ReactTestRenderer.create(
-        <ThemeProvider force="light">
+        <ThemeProvider>
           <RecordingOverlay transcribing={false} onDone={onDone} onCancel={() => {}} />
         </ThemeProvider>,
       );
@@ -295,7 +296,7 @@ describe('recording overlay', () => {
 
     await ReactTestRenderer.act(async () => {
       tree = ReactTestRenderer.create(
-        <ThemeProvider force="light">
+        <ThemeProvider>
           <RecordingOverlay transcribing onDone={() => {}} onCancel={() => {}} />
         </ThemeProvider>,
       );
@@ -315,7 +316,6 @@ describe('entry detail', () => {
   it('degrades to a recoverable message when the entry is gone', async () => {
     const json = await renderScreen(
       <EntryDetailScreen navigation={navigation} route={{ key: 'k', name: 'EntryDetail', params: { entryId: 'does-not-exist' } } as never} />,
-      'light',
     );
     expect(JSON.stringify(json)).toContain('That entry is gone');
   });

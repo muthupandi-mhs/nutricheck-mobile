@@ -50,13 +50,13 @@ function MainTabs() {
 }
 
 export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackParamList }) {
-  const { c, scheme } = useTheme();
+  const { c } = useTheme();
 
   // Navigation's theme only has to agree with ours on what it paints itself —
   // the transition card and the container background.
   const navTheme: Theme = {
     ...DefaultTheme,
-    dark: scheme === 'dark',
+    dark: true,
     colors: {
       ...DefaultTheme.colors,
       background: c.canvas,

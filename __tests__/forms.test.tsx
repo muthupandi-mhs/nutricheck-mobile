@@ -211,7 +211,7 @@ async function renderCreateFood(api: NutriCheckApi) {
   let tree: ReactTestRenderer.ReactTestRenderer;
   await ReactTestRenderer.act(async () => {
     tree = ReactTestRenderer.create(
-      <ThemeProvider force="light">
+      <ThemeProvider>
         <ApiProvider api={api}>
           <AppStateProvider>
             <CreateFoodScreen

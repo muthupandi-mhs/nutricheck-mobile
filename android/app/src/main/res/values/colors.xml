@@ -1,0 +1,9 @@
+<resources>
+    <!--
+      Kept in step with `canvas` in src/theme/tokens.ts by hand — the native
+      side cannot read the TS tokens, and this is the colour the window shows
+      for the moment between the process starting and React mounting. Wrong,
+      and every cold start opens with a flash of another colour.
+    -->
+    <color name="canvas">#0B0C0E</color>
+</resources>

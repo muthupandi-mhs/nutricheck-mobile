@@ -21,7 +21,7 @@ export function Screen({
   /** Set when the screen's own content scrolls under a dock or tab bar. */
   scrollable?: boolean;
 }) {
-  const { c, scheme } = useTheme();
+  const { c } = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
@@ -31,7 +31,8 @@ export function Screen({
         !scrollable && { paddingBottom: Math.max(insets.bottom, 12) },
         style,
       ]}>
-      <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
+      {/* One palette, and it is dark: the bar is always light-on-dark. */}
+      <StatusBar barStyle="light-content" />
       {children}
     </View>
   );
