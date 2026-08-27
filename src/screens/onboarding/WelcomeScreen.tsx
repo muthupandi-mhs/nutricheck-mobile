@@ -115,7 +115,7 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
                 rather than "the button we want you to press". */}
             <Button
               label="Sign in"
-              variant="inverse"
+             
               loud
               onPress={() => navigation.navigate('AuthEmail')}
               haptic="select"

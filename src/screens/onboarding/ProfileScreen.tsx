@@ -29,7 +29,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
       title="About you"
       subtitle="Four numbers. They set your resting burn, and you can change any of them later."
       footer={
-        <Button label="Continue" variant="inverse" loud onPress={() => navigation.navigate('OnboardActivity')} haptic="select" />
+        <Button label="Continue" loud onPress={() => navigation.navigate('OnboardActivity')} haptic="select" />
       }>
       {/* One card per question. On a screen that is nothing but five inputs,
           the frames are what stop it reading as a wall of controls — each one

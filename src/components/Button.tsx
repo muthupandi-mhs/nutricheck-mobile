@@ -6,7 +6,7 @@ import { Row } from './Layout';
 import { Press } from './Press';
 import { Txt } from './Text';
 
-type Variant = 'primary' | 'inverse' | 'tonal' | 'outline' | 'ghost' | 'danger';
+type Variant = 'primary' | 'tonal' | 'outline' | 'ghost' | 'danger';
 type Size = 'lg' | 'md' | 'sm';
 
 const HEIGHTS: Record<Size, number> = { lg: 56, md: 48, sm: 38 };
@@ -57,14 +57,23 @@ export function Button({
   const { c, radius, space, elevation } = useTheme();
   const inert = Boolean(disabled || loading);
 
+  /**
+   * No button is the accent colour.
+   *
+   * Ink on canvas is the loudest thing this palette can make, and spending the
+   * accent on "the control we would like you to press" is what stops it meaning
+   * anything where it is load-bearing — a ring that is filled, a value that was
+   * measured, a segment that is selected. A screen where the button and the
+   * progress ring are the same blue is a screen where the blue says nothing.
+   *
+   * Danger keeps its red. That is not decoration, it is the one thing a button
+   * can say about itself that the user needs before pressing it.
+   */
   const skin: Record<Variant, { bg: string; fg: string; border: string; raise: boolean }> = {
-    primary: { bg: c.primary, fg: c.onPrimary, border: 'transparent', raise: true },
-    // Ink on canvas, inverted. The loudest control the palette can make without
-    // spending the accent, for a screen whose whole job is one decision.
-    inverse: { bg: c.ink, fg: c.canvas, border: 'transparent', raise: true },
-    tonal: { bg: c.primarySoft, fg: c.primarySoftInk, border: 'transparent', raise: false },
+    primary: { bg: c.ink, fg: c.canvas, border: 'transparent', raise: true },
+    tonal: { bg: c.surface, fg: c.ink, border: 'transparent', raise: false },
     outline: { bg: 'transparent', fg: c.ink, border: c.borderStrong, raise: false },
-    ghost: { bg: 'transparent', fg: c.primary, border: 'transparent', raise: false },
+    ghost: { bg: 'transparent', fg: c.ink, border: 'transparent', raise: false },
     danger: { bg: c.dangerSoft, fg: c.danger, border: 'transparent', raise: false },
   };
 
@@ -137,9 +146,8 @@ export function IconButton({
 }) {
   const { c, hit, radius } = useTheme();
 
-  const bg =
-    variant === 'surface' ? c.surface : variant === 'tonal' ? c.primarySoft : 'transparent';
-  const fg = color ?? (variant === 'tonal' ? c.primarySoftInk : c.ink);
+  const bg = variant === 'surface' ? c.surface : variant === 'tonal' ? c.sunken : 'transparent';
+  const fg = color ?? c.ink;
 
   return (
     <Press

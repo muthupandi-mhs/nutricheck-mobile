@@ -392,12 +392,15 @@ function Nudge({
         width: 48,
         height: 48,
         borderRadius: radius.pill,
-        backgroundColor: disabled ? c.sunken : c.primarySoft,
+        // Sunken, not the accent. These are buttons, and buttons in this app
+        // are not the accent colour — see Button. Sunken reads against both
+        // surfaces a stepper sits on: a card, and the canvas.
+        backgroundColor: c.sunken,
         alignItems: 'center',
         justifyContent: 'center',
       }}>
       {dir > 0 ? (
-        <Icon name="plus" size={20} color={disabled ? c.inkTertiary : c.primarySoftInk} weight={2.4} />
+        <Icon name="plus" size={20} color={disabled ? c.inkTertiary : c.ink} weight={2.4} />
       ) : (
         // A minus glyph would be the only 1px-tall icon in the set.
         <View
@@ -405,7 +408,7 @@ function Nudge({
             width: 16,
             height: 2.4,
             borderRadius: 2,
-            backgroundColor: disabled ? c.inkTertiary : c.primarySoftInk,
+            backgroundColor: disabled ? c.inkTertiary : c.ink,
           }}
         />
       )}

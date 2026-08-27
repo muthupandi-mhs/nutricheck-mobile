@@ -76,7 +76,7 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
         <>
           <Disclaimer text="Estimates for general wellness, not medical advice." />
           <Gap h={space.md} />
-          <Button label="Looks right — continue" variant="inverse" loud loading={saving} onPress={onContinue} haptic="commit" />
+          <Button label="Looks right — continue" loud loading={saving} onPress={onContinue} haptic="commit" />
         </>
       }>
       <Stack gap={space.xl}>
