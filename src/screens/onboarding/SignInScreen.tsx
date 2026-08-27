@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EMAIL_MAX, PASSWORD_MAX } from '../../api/types';
 import { Button, IconButton, TextButton } from '../../components/Button';
 import { Notice } from '../../components/Feedback';
-import { Gap, Gutter, Stack } from '../../components/Layout';
+import { Gap, Gutter, Split, Stack } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
 import { FormField } from '../../forms/fields';
@@ -16,7 +16,7 @@ import type { ScreenProps } from '../../navigation/types';
 
 /**
  * Sign in — the first stop after Welcome, for everyone. A returning user
- * finishes here; a new one leaves through "I need an account".
+ * finishes here; a new one leaves through "Create new" in the corner.
  *
  * No step counter and no password rules: the minimum length applies to a
  * password being created, not to one that already exists, and enforcing it
@@ -62,7 +62,25 @@ export function SignInScreen({ navigation }: ScreenProps<'SignIn'>) {
               },
             ]}>
             <Gutter>
-              <Txt role="h1">Sign in</Txt>
+              {/* Sign-up sits in the corner rather than under the Sign in
+                  button. Down there it was a second thing to read at the moment
+                  of committing to the first, and the two actions look alike at
+                  a glance -- a returning user tapping the wrong one lands on a
+                  form asking them to invent a password they already have. Up
+                  here it is out of the way of the primary path and still the
+                  first thing a new user sees, because it sits beside the title
+                  that told them they are on the wrong screen. */}
+              <Split align="center">
+                <Txt role="h1">Sign in</Txt>
+                <TextButton
+                  label="Create new"
+                  role="labelSm"
+                  // Pushed, not replaced. Sign-up has no link back here -- the
+                  // header's Back button is the return trip, and that only works
+                  // if this screen is still underneath it.
+                  onPress={() => navigation.navigate('SignUp')}
+                />
+              </Split>
               <Gap h={space.sm} />
               <Txt role="bodyLg" tone="secondary">
                 Use the email and password you signed up with.
@@ -112,9 +130,6 @@ export function SignInScreen({ navigation }: ScreenProps<'SignIn'>) {
                   onSubmitEditing={f.submit}
                 />
 
-                <View style={{ alignSelf: 'flex-start' }}>
-                  <TextButton label="I forgot my password" onPress={() => {}} role="labelSm" />
-                </View>
               </Stack>
             </Gutter>
 
@@ -139,14 +154,15 @@ export function SignInScreen({ navigation }: ScreenProps<'SignIn'>) {
               haptic="select"
             />
             <Gap h={space.sm} />
+            {/* Under the button, not above it. A password you cannot remember is
+                only discovered by trying, so the recovery route belongs after
+                the attempt rather than beside the field -- where it was one
+                mis-tap from the password box and read as an instruction. */}
             <View style={{ alignItems: 'center' }}>
               <TextButton
-                label="I need an account"
+                label="I forgot my password"
                 tone="secondary"
-                // Pushed, not replaced. Sign-up has no link back here — the
-                // header's Back button is the return trip, and that only works
-                // if this screen is still underneath it.
-                onPress={() => navigation.navigate('SignUp')}
+                onPress={() => {}}
               />
             </View>
           </Gutter>
