@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
@@ -11,8 +11,8 @@ import { BrandField } from './BrandField';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
- * Welcome: a hero that runs off every edge, dissolving into the page, with the
- * wordmark and both doors stacked over the bottom of it.
+ * Welcome: a hero that runs off every edge and dissolves into the page, with
+ * the wordmark and both doors stacked below it.
  *
  * No sheet. The sheet was what separated the brand zone from the controls, and
  * the point of this composition is that they are not separated — the hero has
@@ -40,12 +40,6 @@ import type { ScreenProps } from '../../navigation/types';
 export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
   const { c, space } = useTheme();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-
-  // Roughly the proportion the reference gives its photograph. Tied to the
-  // window rather than a flex weight so the copy below always starts at the
-  // same place on a given device, regardless of how tall the buttons render.
-  const hero = Math.round(height * 0.56);
 
   const enter = useRef(new Animated.Value(0)).current;
   const [reduced, setReduced] = useState(false);
@@ -77,10 +71,15 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
 
   return (
     <Screen style={{ paddingTop: 0, paddingBottom: 0 }}>
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: hero }}>
+      {/* Takes whatever the copy below does not, rather than a fixed slice of
+          the window, so the mark sits in the middle of the space that is
+          actually empty. Pinned to a proportion it centred inside its own box
+          and left a dead band between itself and the wordmark — centred, but
+          not where the eye reads the middle to be. */}
+      <View style={{ flex: 1 }}>
         {/* The wordmark is drawn below instead, at the size the composition
             wants, so the field contributes the mark and the halo only. */}
-        <BrandField wordmark={false} minHeight={hero} />
+        <BrandField wordmark={false} minHeight={0} style={{ flex: 1 }} />
 
         {/* Fades the hero out rather than cutting it off. Eight-digit hex on
             the canvas colour, not `transparent` — a literal transparent fades
@@ -88,11 +87,11 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
         <LinearGradient
           colors={[`${c.canvas}00`, c.canvas]}
           pointerEvents="none"
-          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(hero * 0.45) }}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 160 }}
         />
       </View>
 
-      <View style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: Math.max(insets.bottom, space.lg) + space.lg }}>
+      <View style={{ paddingBottom: Math.max(insets.bottom, space.lg) + space.lg }}>
         <Animated.View
           style={{
             opacity: enter,
