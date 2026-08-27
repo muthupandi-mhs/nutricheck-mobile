@@ -14,6 +14,12 @@ export type Draft = {
   activityLevel: ActivityLevel;
   objective: Objective;
   rateKgPerWeek: number;
+  /**
+   * Fixed at metric — the toggle that set it is gone. Kept because the stored
+   * profile carries it, so dropping it here would be a contract change rather
+   * than a screen one, and because it is what an imperial option would come
+   * back through if one is ever wanted.
+   */
   units: 'metric' | 'imperial';
 };
 
@@ -69,16 +75,3 @@ export function useOnboarding(): Ctx {
   return c;
 }
 
-/** Display helpers for the metric/imperial toggle. Stored value stays metric. */
-export const toImperial = {
-  height: (cm: number) => {
-    const inches = Math.round(cm / 2.54);
-    return { ft: Math.floor(inches / 12), in: inches % 12 };
-  },
-  weight: (kg: number) => Math.round(kg * 2.20462),
-};
-
-export const fromImperial = {
-  height: (ft: number, inch: number) => Math.round((ft * 12 + inch) * 2.54),
-  weight: (lb: number) => Math.round(lb / 2.20462),
-};

@@ -41,8 +41,8 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
 
   const basis = [
     `${new Date().getFullYear() - draft.birthYear} years`,
-    draft.units === 'metric' ? `${draft.heightCm} cm` : `${Math.round(draft.heightCm / 2.54)} in`,
-    draft.units === 'metric' ? `${draft.weightKg} kg` : `${Math.round(draft.weightKg * 2.20462)} lb`,
+    `${draft.heightCm} cm`,
+    `${draft.weightKg} kg`,
     ACTIVITY[draft.activityLevel].label.split('—')[0].trim(),
     draft.objective === 'maintain' ? 'Maintain' : `${draft.objective === 'lose' ? 'Lose' : 'Gain'} ${draft.rateKgPerWeek} kg/wk`,
   ];
