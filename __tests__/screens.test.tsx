@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import { ApiProvider, type NutriCheckApi } from '../src/api/client';
-import type { ResolveDraft } from '../src/api/types';
+import type { AiMealDraft } from '../src/api/types';
 import { createStubApi } from './fixtures/stubApi';
 import { AppStateProvider } from '../src/state/AppState';
 import { OnboardingProvider } from '../src/state/Onboarding';
@@ -128,77 +128,77 @@ describe.each(['light', 'dark'] as const)('%s scheme', scheme => {
  * wholesale. That ordering is why the sheet can show a portion chip before it
  * knows what the food is.
  */
-function stagedResolveApi(): NutriCheckApi {
-  const q = (raw: string, grams: number | null) => ({
-    type: 'count' as const,
-    raw,
-    grams,
-    source: (grams === null ? 'unknown' : 'food_portion') as 'unknown' | 'food_portion',
-    range: null,
-  });
-
-  const full: ResolveDraft = {
+function stagedAiMealApi(): NutriCheckApi {
+  const draft: AiMealDraft = {
     draftId: '77777777-7777-4777-8777-777777777777',
-    phrase: 'two rotis, dal and a bowl of curd',
-    source: 'text',
+    phrase: 'rendu muttai and 5 dosai and chutney',
+    summary: 'Two eggs, five dosai and coconut chutney — about 716 kcal.',
     items: [
       {
-        itemId: '11111111-1111-4111-8111-111111111111',
-        matchedText: 'two rotis',
-        quantity: q('two rotis', 80),
-        food: { id: 'f-roti', name: 'Roti, plain', brand: null, kcalPer100g: 297 },
-        candidates: [],
+        food: { id: 'f-egg', name: 'Egg, boiled', brand: null, kcalPer100g: 155 },
+        spokenAs: 'muttai',
+        quantity: 2,
+        unit: 'egg',
+        grams: 100,
+        kcal: 155,
+        proteinG: 12.6,
+        carbsG: 1.1,
+        fatG: 10.6,
+        fiberG: 0,
         confidence: 'high',
-        nutrients: { kcal: 238, proteinG: 8.8, carbsG: 20, carbsState: 'known', fatG: 5, fatState: 'known', fiberG: 3.9, fiberState: 'known' },
       },
       {
-        // Ambiguous AND unquantified: the row is flagged "Which dal?" and its
-        // portion chip is an empty question rather than an invented 100 g.
-        itemId: '22222222-2222-4222-8222-222222222222',
-        matchedText: 'dal',
-        quantity: q('dal', null),
-        food: { id: 'f-dal', name: 'Dal, cooked', brand: null, kcalPer100g: 116 },
-        candidates: [
-          { id: 'f-dal-toor', name: 'Toor dal, cooked', brand: null, kcalPer100g: 121 },
-          { id: 'f-dal-moong', name: 'Moong dal, cooked', brand: null, kcalPer100g: 105 },
-        ],
+        food: { id: 'f-dosai', name: 'Dosai, plain', brand: null, kcalPer100g: 168 },
+        spokenAs: 'dosai',
+        quantity: 5,
+        unit: 'dosai',
+        grams: 300,
+        kcal: 504,
+        proteinG: 11.7,
+        carbsG: 82.2,
+        fatG: 16.5,
+        fiberG: 3.6,
+        confidence: 'high',
+      },
+      {
+        food: { id: 'f-chutney', name: 'Coconut chutney', brand: null, kcalPer100g: 190 },
+        spokenAs: 'chutney',
+        quantity: 1,
+        unit: 'serving',
+        grams: 30,
+        kcal: 57,
+        proteinG: 0.9,
+        carbsG: 1.8,
+        fatG: 5.1,
+        fiberG: 0.9,
+        // No amount was stated, so the portion was assumed.
         confidence: 'low',
-        nutrients: null,
       },
     ],
     unresolved: [],
-    aiRunId: null,
-    cached: false,
+    totals: { kcal: 716, proteinG: 25.2, carbsG: 85.1, fatG: 32.2, fiberG: 4.5 },
+    estimated: true,
   };
 
   return {
     ...createStubApi(),
-    resolve: async (_phrase, _source, onParsed) => {
+    interpretMeal: async () => {
       // Long enough that the initial render commits with `lines === null`,
-      // which is the state the skeletons are keyed off.
-      await new Promise<void>(r => setTimeout(r, 80));
-      onParsed?.({
-        ...full,
-        items: full.items.map(item => ({
-          ...item,
-          food: null,
-          candidates: [],
-          confidence: 'low' as const,
-          nutrients: null,
-        })),
-      });
-      await new Promise<void>(r => setTimeout(r, 220));
-      return full;
+      // which is the state the loading affordance is keyed off. One POST, so
+      // there is no half-answer to stage -- unlike the resolver, which streamed
+      // a parse before its database match landed.
+      await new Promise<void>(r => setTimeout(r, 300));
+      return draft;
     },
   };
 }
 
 describe('confirm sheet', () => {
-  it('opens on skeletons and fills in with the parse', async () => {
+  it('waits, then shows the meal as estimates rather than measurements', async () => {
     let tree: ReactTestRenderer.ReactTestRenderer | undefined;
     const node = (
       <ThemeProvider force="light">
-        <ApiProvider api={stagedResolveApi()}>
+        <ApiProvider api={stagedAiMealApi()}>
           <OnboardingProvider>
             <AppStateProvider>
               <ConfirmSheetScreen
@@ -207,7 +207,7 @@ describe('confirm sheet', () => {
                   {
                     key: 'k',
                     name: 'Confirm',
-                    params: { phrase: 'two rotis, dal and a bowl of curd', source: 'text' },
+                    params: { phrase: 'rendu muttai and 5 dosai and chutney', source: 'voice' },
                   } as never
                 }
               />
@@ -221,8 +221,14 @@ describe('confirm sheet', () => {
       tree = ReactTestRenderer.create(node);
     });
 
-    // The sheet is up and interactive before the resolver has answered.
-    expect(JSON.stringify(tree!.toJSON())).toContain('Reading your meal');
+    // The sheet is up and the phrase echoed back before the model has answered.
+    const waiting = JSON.stringify(tree!.toJSON());
+    expect(waiting).toContain('Reading your meal');
+    expect(waiting).toContain('rendu muttai and 5 dosai and chutney');
+    // The old caption claimed a corpus search. Nothing is searched now, and a
+    // caption describing work that is not happening is the sentence someone
+    // quotes back when the numbers turn out to be estimates.
+    expect(waiting).not.toContain('matching against');
 
     await ReactTestRenderer.act(async () => {
       await new Promise<void>(resolve => {
@@ -231,12 +237,15 @@ describe('confirm sheet', () => {
     });
 
     const filled = JSON.stringify(tree!.toJSON());
-    expect(filled).toContain('Roti, plain');
-    // "dal" is ambiguous, so its row is flagged and expanded with runners-up.
-    expect(filled).toContain('Which dal?');
-    // "dal" carries no amount of its own in this phrase, so its portion chip is
-    // an empty, focused question rather than a silently invented 100 g.
-    expect(filled).toContain('How much?');
+    expect(filled).toContain('Dosai, plain');
+    expect(filled).toContain('Egg, boiled');
+    expect(filled).toContain('Coconut chutney');
+
+    // What we understood, in a sentence, above the numbers.
+    expect(filled).toContain('Two eggs, five dosai');
+
+    // And the part that must never be quietly dropped: these were guessed.
+    expect(filled).toContain('Estimated by AI');
 
     await ReactTestRenderer.act(async () => tree!.unmount());
   }, 20000);

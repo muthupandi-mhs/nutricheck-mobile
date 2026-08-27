@@ -6,7 +6,8 @@ import {
   OfflineError,
   type FoodSummary,
   type MealSlot,
-  type ResolveDraft,
+  type AiMealDraft,
+  type AiMealItemDraft,
   type UnresolvedItem,
 } from '../../api/types';
 import { Button, TextButton } from '../../components/Button';
@@ -50,27 +51,59 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
   const [committing, setCommitting] = useState(false);
   const [visible, setVisible] = useState(true);
 
-  /** Hydrate a resolver draft into editable lines, pulling portions per food. */
+  const [summary, setSummary] = useState<string | null>(null);
+
+  /**
+   * Hydrate an AI draft into editable lines, pulling portions per food.
+   *
+   * The server already created a real row for every item, so getFood gives the
+   * portion chips exactly as it does on the resolve path -- the difference is
+   * that these rows are estimates. Every nutrient state is 'imputed', which the
+   * existing formatting already renders with a '~', so the numbers arrive
+   * marked without this screen doing anything special to them.
+   */
   const hydrate = useCallback(
-    async (draft: ResolveDraft) => {
+    async (draft: AiMealDraft) => {
       const details = await Promise.all(
-        draft.items.map(i => (i.food ? api.getFood(i.food.id).catch(() => null) : Promise.resolve(null))),
+        draft.items.map((i: AiMealItemDraft) => api.getFood(i.food.id).catch(() => null)),
       );
       setLines(
-        draft.items.map((item, i) => ({
-          itemId: item.itemId,
-          matchedText: item.matchedText,
+        draft.items.map((item: AiMealItemDraft, i: number) => ({
+          // The AI draft has no per-item id -- it never addressed a corpus row,
+          // so there was nothing to key on. One is minted here because the
+          // editing below is keyed by it.
+          itemId: uuid(),
+          matchedText: item.spokenAs,
           food: item.food,
           detail: details[i],
-          candidates: item.candidates,
+          // No alternatives to offer: the model named one food, it did not
+          // choose between rows we hold. An empty list is the honest answer.
+          candidates: [],
           confidence: item.confidence,
-          quantity: item.quantity,
-          grams: item.quantity.grams,
-          nutrients: item.nutrients,
+          quantity: {
+            type: 'count' as const,
+            raw: `${item.quantity} ${item.unit}`,
+            grams: item.grams,
+            source: 'stated' as const,
+            range: null,
+          },
+          grams: item.grams,
+          nutrients: {
+            kcal: item.kcal,
+            proteinG: item.proteinG,
+            // imputed, never known. Nothing here was measured.
+            carbsG: item.carbsG,
+            carbsState: 'imputed' as const,
+            fatG: item.fatG,
+            fatState: 'imputed' as const,
+            fiberG: item.fiberG,
+            fiberState: 'imputed' as const,
+          },
           learnedUnitLabel: null,
         })),
       );
-      setUnresolved(draft.unresolved);
+      setUnresolved(draft.unresolved.map((text: string) => ({ text })));
+      setSummary(draft.summary);
       setDraftId(draft.draftId);
     },
     [api],
@@ -79,26 +112,12 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
   useEffect(() => {
     let alive = true;
 
+    // One POST, not SSE. The resolver streamed because its parse landed well
+    // before its database match and the skeletons could fill early; there is no
+    // such half-answer here, so the wait is honest and the phrase is echoed
+    // back while it runs rather than pretending to progress.
     api
-      .resolve(phrase, source, parsed => {
-        // Frame one: quantities known, foods not. Real rows replace skeletons
-        // the moment there is anything true to put in them.
-        if (!alive) return;
-        setLines(
-          parsed.items.map(item => ({
-            itemId: item.itemId,
-            matchedText: item.matchedText,
-            food: null,
-            detail: null,
-            candidates: [],
-            confidence: 'high',
-            quantity: item.quantity,
-            grams: item.quantity.grams,
-            nutrients: null,
-            learnedUnitLabel: null,
-          })),
-        );
-      })
+      .interpretMeal(phrase)
       .then(draft => {
         if (alive) return hydrate(draft);
       })
@@ -119,7 +138,7 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
     return () => {
       alive = false;
     };
-  }, [api, hydrate, navigation, phrase, source]);
+  }, [api, hydrate, navigation, phrase]);
 
   const setLine = (itemId: string, patch: (l: Line) => Line) =>
     setLines(ls => (ls ? ls.map(l => (l.itemId === itemId ? patch(l) : l)) : ls));
@@ -224,13 +243,46 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
                 <SkeletonRow key={i} index={i} widths={i === 1 ? ['46%', '40%'] : ['60%', '34%']} />
               ))}
               <View style={{ alignItems: 'center', paddingTop: space.xxl }}>
+                {/* Said "matching against 8,412 foods" until this screen stopped
+                    searching the corpus. A caption describing work that is not
+                    happening is worse than none: it is the sentence someone
+                    quotes back when the numbers turn out to be estimates. */}
                 <Txt role="caption" tone="tertiary">
-                  matching against 8,412 foods
+                  estimating portions and nutrition
                 </Txt>
               </View>
             </>
           ) : (
             <Stack gap={space.md}>
+              {/*
+                Two things the user is owed before they tap Add, and neither is
+                a number: what we understood them to have eaten, and the fact
+                that none of it was measured.
+
+                The banner appears once rather than on every row. A warning
+                repeated per line stops being read by the third one, and the
+                '~' already carried on each figure is the per-row reminder.
+              */}
+              {summary ? (
+                <Txt role="body" tone="secondary">
+                  {summary}
+                </Txt>
+              ) : null}
+
+              <Row
+                gap={space.sm}
+                style={{
+                  backgroundColor: c.sunken,
+                  borderRadius: 10,
+                  paddingVertical: space.sm,
+                  paddingHorizontal: space.md,
+                }}>
+                <Icon name="sparkle" size={14} color={c.inkTertiary} weight={2} />
+                <Txt role="caption" tone="tertiary" style={{ flexShrink: 1 }}>
+                  Estimated by AI, not measured. Check the amounts before adding.
+                </Txt>
+              </Row>
+
               {lines.map(line => (
                 <ConfirmRow
                   key={line.itemId}
