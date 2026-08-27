@@ -88,9 +88,12 @@ export function MicPrimer({ onAllow, onDecline }: { onAllow: () => void; onDecli
  */
 export function RecordingOverlay({
   transcribing,
+  onDone,
   onCancel,
 }: {
   transcribing: boolean;
+  /** End the turn now and keep what was heard. */
+  onDone: () => void;
   onCancel: () => void;
 }) {
   const { c, space } = useTheme();
@@ -143,7 +146,7 @@ export function RecordingOverlay({
 
         <Card fill="sunken" style={{ minHeight: 84 }}>
           <Txt role="bodyLg" tone="tertiary">
-            {transcribing ? 'a few seconds…' : 'say what you ate — just stop when you are done'}
+            {transcribing ? 'a few seconds…' : 'say what you ate, then tap Done'}
           </Txt>
         </Card>
 
@@ -156,10 +159,27 @@ export function RecordingOverlay({
         </Txt>
 
         <Gap h={space.xl} />
-        {/* No Done button: the pause at the end of a sentence is the signal, so
-            asking for a tap as well would be asking twice. Cancel stays — it
-            means something different, and it is the only way out of a recording
-            somebody did not intend to start. */}
+        {/*
+          Done exists because the end-of-speech detector is a guess, and it is
+          wrong most often on exactly the speech this app is for: a pause
+          mid-sentence while somebody reaches for the English word for a dish,
+          or a kitchen with a television on. When it guesses wrong the only way
+          out was Cancel, which throws away what was already said -- so the
+          person who was speaking clearly enough was the one punished.
+
+          It is the primary action rather than a secondary one because it is the
+          normal way a turn ends. Cancel stays a text button underneath: it
+          means something different, and confusing the two loses a sentence.
+
+          Hidden while transcribing. The microphone is already closed by then
+          and there is nothing left to stop.
+        */}
+        {transcribing ? null : (
+          <>
+            <Button label="Done" onPress={onDone} accessibilityHint="Stop listening and use what you said" />
+            <Gap h={space.sm} />
+          </>
+        )}
         <View style={{ alignItems: 'center' }}>
           <TextButton label="Cancel" tone="secondary" onPress={onCancel} />
         </View>

@@ -9,6 +9,7 @@ import { ThemeProvider } from '../src/theme/ThemeProvider';
 
 import { ComposerScreen } from '../src/screens/composer/ComposerScreen';
 import { ConfirmSheetScreen } from '../src/screens/confirm/ConfirmSheetScreen';
+import { RecordingOverlay } from '../src/screens/composer/DictationOverlay';
 import { EntryDetailScreen } from '../src/screens/entry/EntryDetailScreen';
 import { HomeScreen } from '../src/screens/home/HomeScreen';
 import { InsightsScreen } from '../src/screens/insights/InsightsScreen';
@@ -249,6 +250,65 @@ describe('confirm sheet', () => {
 
     await ReactTestRenderer.act(async () => tree!.unmount());
   }, 20000);
+});
+
+
+describe('recording overlay', () => {
+  /**
+   * The end-of-speech detector is a guess, and it guesses worst on the speech
+   * this app exists for: a pause while somebody reaches for the English word
+   * for a dish, or a kitchen with a television on. Before Done, the only way
+   * out of a turn the detector would not end was Cancel, which discards -- so
+   * the sentence somebody had just said correctly was the thing they lost.
+   */
+  it('offers Done while listening, and calls stop when it is pressed', async () => {
+    const onDone = jest.fn();
+    let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(
+        <ThemeProvider force="light">
+          <RecordingOverlay transcribing={false} onDone={onDone} onCancel={() => {}} />
+        </ThemeProvider>,
+      );
+    });
+
+    const rendered = JSON.stringify(tree!.toJSON());
+    expect(rendered).toContain('Done');
+    expect(rendered).toContain('Cancel');
+
+    const done = tree!.root
+      .findAll(n => typeof n.props.accessibilityHint === 'string')
+      .find(n => n.props.accessibilityHint.includes('Stop listening'));
+    expect(done).toBeTruthy();
+
+    await ReactTestRenderer.act(async () => {
+      done!.props.onPress();
+    });
+    expect(onDone).toHaveBeenCalledTimes(1);
+
+    await ReactTestRenderer.act(async () => tree!.unmount());
+  });
+
+  it('hides Done once the microphone has closed', async () => {
+    let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(
+        <ThemeProvider force="light">
+          <RecordingOverlay transcribing onDone={() => {}} onCancel={() => {}} />
+        </ThemeProvider>,
+      );
+    });
+
+    // Nothing left to stop: the clip is already recorded and on its way.
+    // Offering Done here would suggest the upload can be called back.
+    const rendered = JSON.stringify(tree!.toJSON());
+    expect(rendered).not.toContain('Done');
+    expect(rendered).toContain('Cancel');
+
+    await ReactTestRenderer.act(async () => tree!.unmount());
+  });
 });
 
 describe('entry detail', () => {

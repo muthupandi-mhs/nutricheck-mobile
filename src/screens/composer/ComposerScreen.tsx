@@ -108,9 +108,13 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
   //
   // Both existed because the on-device recogniser ended the turn by itself at
   // the first pause it believed, and the overlay had to follow it down. The
-  // recorder has no opinion about pauses: it runs until Done. The whole race
-  // that made the mic open and shut in one frame is gone with the recogniser
-  // that caused it.
+  // whole race that made the mic open and shut in one frame went with it.
+  //
+  // This said "it runs until Done" while the overlay said "No Done button", and
+  // both were shipped. What actually ran was an amplitude detector guessing at
+  // the end of the sentence, with no way to overrule it except Cancel -- which
+  // discards. There is a Done button now, and the detector is the shortcut
+  // rather than the only exit.
 
   const startRecording = async () => {
     setMicState('recording');
@@ -345,6 +349,11 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
       {micState === 'recording' && (
         <RecordingOverlay
           transcribing={speech.state === 'transcribing'}
+          // stop() resolves with the transcript AND fires the heard callback,
+          // and it already guards against the detector and a manual tap racing:
+          // whichever arrives first wins and the other returns empty. So this
+          // needs nothing beyond calling it.
+          onDone={() => void speech.stop()}
           onCancel={cancelRecording}
         />
       )}
