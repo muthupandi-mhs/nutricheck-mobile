@@ -77,8 +77,9 @@ export const emailField = z
  * A password being created. Length is the only rule — `contracts/auth.ts` cites
  * NIST SP 800-63B, and composition rules push people to `Password1!`.
  *
- * The count is in the message because "at least 10" is not actionable on a
- * field showing ten dots.
+ * The count is in the message because a bare minimum is not actionable on a
+ * field showing dots — you cannot see how many you typed. Both numbers come
+ * from PASSWORD_MIN, so the message follows the rule when the rule moves.
  */
 export const newPasswordField = z
   .string()

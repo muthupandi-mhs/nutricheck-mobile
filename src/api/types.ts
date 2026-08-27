@@ -13,8 +13,17 @@ export type LoginRequest = { email: string; password: string };
  * Length is the only rule. Composition rules reduce entropy in practice (NIST
  * SP 800-63B advises against them); the upper bound stops Argon2id being asked
  * to hash a megabyte.
+ *
+ * The minimum is 6, mirroring `Password` in the contract — below the 8 that
+ * SP 800-63B sets for a user-chosen password, deliberately; the reasoning is
+ * beside the rule in `nutricheck-api/packages/contracts/src/auth.ts`.
+ *
+ * This drives the placeholder and the client-side check only — the server
+ * validates independently. Drift either way is a bug the user sees: too high
+ * and the form refuses a password the API would take, too low and it invites
+ * one the API then rejects.
  */
-export const PASSWORD_MIN = 10;
+export const PASSWORD_MIN = 6;
 export const PASSWORD_MAX = 200;
 export const EMAIL_MAX = 254;
 

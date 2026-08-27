@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import { ApiProvider, type NutriCheckApi } from '../src/api/client';
-import type { CreateCustomFood, FoodDetail } from '../src/api/types';
+import { PASSWORD_MIN, type CreateCustomFood, type FoodDetail } from '../src/api/types';
 import {
   customFoodSchema,
   emailField,
@@ -52,7 +52,12 @@ describe('email', () => {
 
 describe('password', () => {
   it('counts the characters back, since the field shows dots', () => {
-    expect(problem(newPasswordField, 'short')).toBe('10 characters minimum — that one has 5.');
+    // Built from PASSWORD_MIN rather than restating it. The minimum has moved
+    // once already, and a test that hardcodes it fails for the number rather
+    // than for the behaviour — which is that the count is counted back.
+    expect(problem(newPasswordField, 'short')).toBe(
+      `${PASSWORD_MIN} characters minimum — that one has 5.`,
+    );
   });
 
   it('does not apply the minimum to a password that already exists', () => {
