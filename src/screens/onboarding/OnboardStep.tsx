@@ -102,18 +102,15 @@ export function OnboardStep({
   );
 }
 
-/** A titled group of controls on the sheet. Replaces the cards these screens used. */
+/** A titled group of controls. Just a label and what it labels. */
 export function StepGroup({
   label,
   children,
-  divided,
 }: {
   label?: string;
   children: React.ReactNode;
-  /** Wraps the run in a card — for option lists, which need an edge. */
-  divided?: boolean;
 }) {
-  const { c, space, radius } = useTheme();
+  const { space } = useTheme();
 
   return (
     <View>
@@ -125,22 +122,7 @@ export function StepGroup({
           <Gap h={space.md} />
         </>
       ) : null}
-      {divided ? (
-        /* `surface` and no border, like every other card. It used to be a
-           sunken well with a hairline, and sunken clears this canvas by about
-           five points — so the fill did nothing and the hairline was the whole
-           edge, which is the arrangement cards were just taken off. */
-        <View
-          style={{
-            backgroundColor: c.surface,
-            borderRadius: radius.lg,
-            overflow: 'hidden',
-          }}>
-          {children}
-        </View>
-      ) : (
-        children
-      )}
+      {children}
     </View>
   );
 }

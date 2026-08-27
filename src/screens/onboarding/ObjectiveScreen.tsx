@@ -40,8 +40,8 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
         <Button label="See my targets" loud onPress={() => navigation.navigate('OnboardTargets')} haptic="select" />
       }>
       <Stack gap={space.xxl}>
-        <StepGroup divided>
-          {objectives.map((o, i) => (
+        <Stack gap={space.md}>
+          {objectives.map(o => (
             <OptionRow
               key={o}
               title={OBJECTIVE_LABEL[o]}
@@ -49,11 +49,9 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
               onPress={() =>
                 patch({ objective: o, rateKgPerWeek: o === 'maintain' ? 0 : draft.rateKgPerWeek || 0.5 })
               }
-              first={i === 0}
-              last={i === objectives.length - 1}
             />
           ))}
-        </StepGroup>
+        </Stack>
 
         {draft.objective !== 'maintain' && (
           <StepGroup label="How fast">

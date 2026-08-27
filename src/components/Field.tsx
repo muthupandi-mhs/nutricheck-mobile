@@ -304,21 +304,28 @@ export function Segmented<T extends string>({
   );
 }
 
-/** A full-width choice row inside a card. Check mark, never a radio circle. */
+/**
+ * One answer to a single-choice question, as its own card.
+ *
+ * It used to be a row in a shared well, with `first`/`last` rounding the ends
+ * of the group. Separate cards say the same thing with less furniture: a run of
+ * them reads as a set of things you pick between rather than a list you scroll,
+ * and it matches how the step before frames each question.
+ *
+ * Selected is an ink outline plus a check. The border is 2 in both states and
+ * only its colour moves — growing one on selection would shift the row by two
+ * points and nudge everything under it.
+ */
 export function OptionRow({
   title,
   detail,
   selected,
   onPress,
-  first,
-  last,
 }: {
   title: string;
   detail?: string;
   selected?: boolean;
   onPress: () => void;
-  first?: boolean;
-  last?: boolean;
 }) {
   const { c, space, radius } = useTheme();
   return (
@@ -335,15 +342,10 @@ export function OptionRow({
         justifyContent: 'center',
         paddingVertical: space.lg,
         paddingHorizontal: space.xl,
-        // Sunken rather than a tint: pressed in, on the card it sits in. It is
-        // the quieter half of the cue here — unlike the segmented thumb, this
-        // row also carries a check, so the fill only has to help the eye find
-        // the answer it has already been given.
-        backgroundColor: selected ? c.sunken : 'transparent',
-        borderTopLeftRadius: first ? radius.lg : 0,
-        borderTopRightRadius: first ? radius.lg : 0,
-        borderBottomLeftRadius: last ? radius.lg : 0,
-        borderBottomRightRadius: last ? radius.lg : 0,
+        backgroundColor: c.surface,
+        borderRadius: radius.lg,
+        borderWidth: 2,
+        borderColor: selected ? c.ink : 'transparent',
       }}>
       <Split gap={space.md}>
         <Stack gap={3} style={{ flexShrink: 1 }}>
