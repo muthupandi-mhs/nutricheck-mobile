@@ -20,6 +20,16 @@ import type { ScreenProps } from '../../navigation/types';
  * there — the header's Back button already is that link, and offering both
  * would be two controls for one destination.
  *
+ * One verb across the whole route. Sign-in's corner says "Create new", this
+ * title says "Create an account", the button says "Create account". It read
+ * "Make an account" until the corner button existed, and three words for one
+ * action is how somebody starts wondering whether they are two different
+ * things.
+ *
+ * "Your day is saved" rather than "your log". Welcome promises to keep the
+ * day's total; this is the same noun, and the reason to hand over an email is
+ * that the promise survives losing the phone.
+ *
  * Email and password is the whole of registration in this build. Apple and
  * Google are not in v1; the `auth_provider` enum carries them so adding one
  * later is a new row, not an ALTER TYPE on a hot enum. Password rules follow
@@ -64,10 +74,10 @@ export function SignUpScreen({ navigation }: ScreenProps<'SignUp'>) {
               },
             ]}>
             <Gutter>
-              <Txt role="h1">Make an account</Txt>
+              <Txt role="h1">Create an account</Txt>
               <Gap h={space.sm} />
               <Txt role="bodyLg" tone="secondary">
-                So your log is still here on your next phone.
+                So your day is saved, and still here on a new phone.
               </Txt>
             </Gutter>
 
