@@ -71,7 +71,7 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
     <OnboardStep
       step={5}
       title="Your daily targets"
-      subtitle="Here is where these come from. Change anything that does not look right — you can always adjust later."
+      subtitle="Where these come from. Change anything that looks wrong."
       footer={
         <>
           <Disclaimer text="Estimates for general wellness, not medical advice." />

@@ -27,7 +27,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
     <OnboardStep
       step={2}
       title="About you"
-      subtitle="Four numbers. They set your resting burn, and you can change any of them later."
+      subtitle="These set your resting burn. Change them any time."
       footer={
         <Button label="Continue" loud onPress={() => navigation.navigate('OnboardActivity')} haptic="select" />
       }>

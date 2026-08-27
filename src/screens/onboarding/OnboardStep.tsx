@@ -1,7 +1,6 @@
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StepBar } from '../../components/Field';
 import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Gap, Gutter } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
@@ -45,7 +44,9 @@ export function OnboardStep({
 
   return (
     <Screen style={{ paddingBottom: 0 }}>
-      <StepBar step={step} of={STEPS} />
+      {/* The bar is gone; "Step 2 of 6" says the same thing in less room and
+          without a rule across the top of every screen. */}
+      <Gap h={space.lg} />
 
       <Gutter>
         {/* Uppercase and letterspaced, matching the field labels in the auth

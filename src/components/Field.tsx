@@ -638,30 +638,3 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
   );
 }
 
-/** Onboarding progress. A single rounded track with a filled portion. */
-export function StepBar({ step, of }: { step: number; of: number }) {
-  const { c, radius, space } = useTheme();
-  return (
-    <Row
-      gap={6}
-      accessibilityLabel={`Step ${step} of ${of}`}
-      style={{ paddingHorizontal: space.gutter, paddingTop: space.sm, paddingBottom: space.xl }}>
-      {Array.from({ length: of }, (_, i) => (
-        <View
-          key={i}
-          style={{
-            height: 4,
-            flexGrow: 1,
-            borderRadius: radius.pill,
-            // borderStrong, not sunken. Sunken clears the canvas by about five
-            // points — enough to read as a well inside a card, nowhere near
-            // enough for a 4pt bar drawn on the page itself, which left the
-            // steps still to come invisible and the bar looking like a stray
-            // accent rule.
-            backgroundColor: i < step ? c.primary : c.borderStrong,
-          }}
-        />
-      ))}
-    </Row>
-  );
-}
