@@ -92,7 +92,7 @@ export function YouScreen({ navigation }: ScreenProps<'You'>) {
         <Gutter>
           <Stack gap={space.xl}>
             {/* identity */}
-            <Card level="raised">
+            <Card>
               <Row gap={space.lg}>
                 <FoodGlyph name="you" seed="account" size={56} icon="user" />
                 <Stack gap={4} style={{ flexShrink: 1 }}>
@@ -115,7 +115,7 @@ export function YouScreen({ navigation }: ScreenProps<'You'>) {
             {/* targets */}
             <Stack gap={space.md}>
               <SectionLabel>Targets</SectionLabel>
-              <Card level="raised" padded={false}>
+              <Card padded={false}>
                 <SettingRow
                   icon="flame"
                   title="Daily calories"
@@ -146,7 +146,7 @@ export function YouScreen({ navigation }: ScreenProps<'You'>) {
                 Each is asked at the moment it first becomes useful, never up front. None is required to log
                 a meal.
               </Txt>
-              <Card level="raised" padded={false}>
+              <Card padded={false}>
                 <SettingRow icon="mic" title="Microphone" value="Not asked" first />
                 <SettingRow icon="clock" title="Meal reminders" value="Not asked" />
                 <SettingRow icon="scale" title="Health data" value="Not asked" last />
@@ -156,7 +156,7 @@ export function YouScreen({ navigation }: ScreenProps<'You'>) {
             {/* data */}
             <Stack gap={space.md}>
               <SectionLabel>Your data</SectionLabel>
-              <Card level="raised" padded={false}>
+              <Card padded={false}>
                 <SettingRow icon="bookmark" title="Export everything" value="JSON" onPress={() => {}} first />
                 <SettingRow icon="info" title="Privacy and what we store" onPress={() => {}} />
                 <SettingRow icon="settings" title="Change password" onPress={() => {}} />

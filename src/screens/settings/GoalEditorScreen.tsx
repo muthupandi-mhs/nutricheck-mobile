@@ -83,7 +83,7 @@ export function GoalEditorScreen({ navigation }: ScreenProps<'GoalEditor'>) {
 
       <ScrollView contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}>
         <Stack gap={space.lg}>
-          <Card level="raised">
+          <Card>
             <FormStepper
               control={control}
               name="kcal"
@@ -94,7 +94,7 @@ export function GoalEditorScreen({ navigation }: ScreenProps<'GoalEditor'>) {
             />
           </Card>
 
-          <Card level="raised">
+          <Card>
             <FormStepper
               control={control}
               name="proteinG"
@@ -110,7 +110,7 @@ export function GoalEditorScreen({ navigation }: ScreenProps<'GoalEditor'>) {
               by the calorie target — but an override is taken literally rather
               than silently rebalanced: a target the user set and the app then
               changed is worse than one that does not quite add up. */}
-          <Card level="raised">
+          <Card>
             <FormStepper
               control={control}
               name="carbsG"
@@ -121,7 +121,7 @@ export function GoalEditorScreen({ navigation }: ScreenProps<'GoalEditor'>) {
             />
           </Card>
 
-          <Card level="raised">
+          <Card>
             <FormStepper
               control={control}
               name="fatG"
@@ -132,7 +132,7 @@ export function GoalEditorScreen({ navigation }: ScreenProps<'GoalEditor'>) {
             />
           </Card>
 
-          <Card level="raised">
+          <Card>
             <FormStepper
               control={control}
               name="fiberG"
@@ -154,7 +154,7 @@ export function GoalEditorScreen({ navigation }: ScreenProps<'GoalEditor'>) {
           )}
 
           {overridden && (
-            <Card level="raised" fill="attentionSoft">
+            <Card fill="attentionSoft">
               <Stack gap={space.sm}>
                 <SectionLabel tone="attention">These are now yours, not ours</SectionLabel>
                 <Txt role="bodySm" tone="secondary">

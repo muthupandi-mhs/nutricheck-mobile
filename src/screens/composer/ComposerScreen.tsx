@@ -284,7 +284,7 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
 
           <Gutter>
             {phrases.length > 0 ? (
-              <Card level="raised" padded={false}>
+              <Card padded={false}>
                 {phrases.map((p, i) => (
                   <View key={p.id}>
                     {i > 0 && <Divider inset={space.xl + 40 + space.md} />}

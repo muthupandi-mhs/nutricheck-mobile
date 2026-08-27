@@ -89,7 +89,7 @@ export function CreateFoodScreen({ navigation, route }: ScreenProps<'CreateFood'
           <Gap h={space.xl} />
 
           <Stack gap={space.lg}>
-            <Card level="raised">
+            <Card>
               <Stack gap={space.lg}>
                 <FormField
                   control={control}
@@ -109,7 +109,7 @@ export function CreateFoodScreen({ navigation, route }: ScreenProps<'CreateFood'
               </Stack>
             </Card>
 
-            <Card level="raised">
+            <Card>
               <Stack gap={space.lg}>
                 <Row gap={space.sm} align="baseline">
                   <SectionLabel>Per 100 g</SectionLabel>
@@ -162,7 +162,7 @@ export function CreateFoodScreen({ navigation, route }: ScreenProps<'CreateFood'
               </Stack>
             </Card>
 
-            <Card level="raised">
+            <Card>
               <Stack gap={space.md}>
                 <FormField
                   control={control}

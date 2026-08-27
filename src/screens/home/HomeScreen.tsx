@@ -126,7 +126,7 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
           <SkeletonCard height={330} />
         ) : (
           <Gutter>
-            <Card level="raised" style={{ paddingVertical: space.xxl }}>
+            <Card style={{ paddingVertical: space.xxl }}>
               <Stack align="center" gap={space.lg}>
                 <Ring consumed={totals?.kcal ?? 0} goal={target?.kcal ?? 2000}>
                   <Gap h={6} />

@@ -104,7 +104,7 @@ export function EntryDetailScreen({ navigation, route }: ScreenProps<'EntryDetai
         contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}>
         <Stack gap={space.lg}>
           {entry.phrase && (
-            <Card level="raised" fill="sunken">
+            <Card fill="sunken">
               <Stack gap={space.md}>
                 <SectionLabel>From your words</SectionLabel>
                 <Txt role="h3" tone="secondary" style={{ fontStyle: 'italic' }}>
@@ -122,7 +122,7 @@ export function EntryDetailScreen({ navigation, route }: ScreenProps<'EntryDetai
             </Card>
           )}
 
-          <Card level="raised" padded={false}>
+          <Card padded={false}>
             {entry.items.map((item, i) => {
               const isEditing = editing === item.id;
               const fibreUnknown = item.nutrients.fiberState === 'unknown';
@@ -201,7 +201,7 @@ export function EntryDetailScreen({ navigation, route }: ScreenProps<'EntryDetai
             })}
           </Card>
 
-          <Card level="raised">
+          <Card>
             <TotalsRow
               kcal={kcal(totals.kcal)}
               protein={grams(totals.proteinG)}

@@ -42,7 +42,7 @@ export function MealCard({
   const rows = entries.flatMap(entry => entry.items.map(item => ({ entry, item })));
 
   return (
-    <Card padded={false} level="raised">
+    <Card padded={false}>
       <Split style={{ paddingHorizontal: space.xl, paddingTop: space.lg, paddingBottom: space.md }}>
         <Txt role="h3">{TITLES[meal]}</Txt>
         <Row gap={3} align="baseline">

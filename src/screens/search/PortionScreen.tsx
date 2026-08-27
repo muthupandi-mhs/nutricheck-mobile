@@ -149,7 +149,7 @@ export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
         contentContainerStyle={{ padding: space.gutter, paddingTop: space.xl, paddingBottom: space.xl }}
         keyboardShouldPersistTaps="handled">
         <Stack gap={space.lg}>
-          <Card level="raised">
+          <Card>
             <Stack gap={space.md}>
               <SectionLabel>How much?</SectionLabel>
               <Row gap={space.sm} wrap>
@@ -203,7 +203,7 @@ export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
             </Stack>
           </Card>
 
-          <Card level="raised">
+          <Card>
             <TotalsRow
               kcal={nutrients ? kcal(nutrients.kcal) : DASH}
               protein={nutrients ? grams(nutrients.proteinG) : DASH}
@@ -220,7 +220,7 @@ export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
             )}
           </Card>
 
-          <Card level="raised">
+          <Card>
             <Segmented
               label="Meal"
               value={meal}

@@ -89,7 +89,7 @@ export function InsightsScreen({ navigation }: TabScreenProps<'Insights'>) {
         ) : (
           <Gutter>
             <Stack gap={space.lg}>
-              <Card level="raised">
+              <Card>
                 <Split align="flex-start">
                   {[
                     { label: 'Calories', value: kcal(week.averages.kcal), unit: '', d: delta(week.averages.kcal, week.goal.kcal, 'kcal') },
@@ -126,7 +126,7 @@ export function InsightsScreen({ navigation }: TabScreenProps<'Insights'>) {
                 </Txt>
               </Card>
 
-              <Card level="raised">
+              <Card>
                 <Stack gap={space.xl}>
                   <ChartLegend />
                   <WeekChart
@@ -152,7 +152,7 @@ export function InsightsScreen({ navigation }: TabScreenProps<'Insights'>) {
                 </Stack>
               </Card>
 
-              <Card level="raised" fill="primarySoft">
+              <Card fill="primarySoft">
                 <Split align="center">
                   <Stack gap={4} style={{ flexShrink: 1 }}>
                     <SectionLabel tone="primary">Streak</SectionLabel>

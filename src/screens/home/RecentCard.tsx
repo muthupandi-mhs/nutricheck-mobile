@@ -49,7 +49,7 @@ function RecentCard({
   onLog: (t: RecentTile) => void;
   onAdjust: (t: RecentTile) => void;
 }) {
-  const { c, radius, space, elevation } = useTheme();
+  const { c, radius, space } = useTheme();
 
   const isMeal = tile.kind === 'meal';
   const name = isMeal ? tile.name : tile.food.name;
@@ -65,13 +65,13 @@ function RecentCard({
       accessibilityHint="Logs immediately at your usual portion. Long press to change it."
       style={{
         width: 152,
+        // Matches `Card`: a fill and a radius, no hairline and no shadow. Kept
+        // inline rather than moved onto Card because of the fixed width and the
+        // tighter padding a horizontal strip needs.
         backgroundColor: c.surface,
         borderRadius: radius.lg,
-        borderWidth: 1,
-        borderColor: c.border,
         padding: space.lg,
         gap: space.md,
-        ...elevation.e1,
       }}>
       <Split align="flex-start">
         <FoodGlyph name={name} seed={tile.id} size={40} icon={isMeal ? 'bookmark' : undefined} />

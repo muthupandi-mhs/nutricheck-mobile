@@ -31,7 +31,7 @@ function ResultRows({
   const { space } = useTheme();
 
   return (
-    <Card level="raised" padded={false}>
+    <Card padded={false}>
       {rows.map((row, i) => {
         const portion = row.defaultPortion;
         const factor = (portion?.grams ?? 100) / 100;
@@ -212,7 +212,7 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: space.huge }}>
         {params.firstLog && !q && (
           <Gutter>
-            <Card level="raised" fill="primarySoft">
+            <Card fill="primarySoft">
               <Stack gap={6}>
                 <SectionLabel tone="primary">Step 6 of 6</SectionLabel>
                 <Txt role="h2">Log one thing you ate today</Txt>

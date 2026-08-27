@@ -3,18 +3,25 @@ import { StyleProp, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { Press } from './Press';
 
-type Level = 'flat' | 'raised' | 'floating';
 type Fill = 'surface' | 'sunken' | 'primarySoft' | 'attentionSoft';
 
 /**
- * Depth is elevation plus a hairline, never elevation alone. On a near-black
- * page a shadow has almost nothing left to darken, so the border does the
- * structural work and the shadow only stops the card looking pasted on. Drop
- * the border and cards dissolve into the page.
+ * A card is a filled rectangle and nothing else: no hairline, no shadow.
+ *
+ * Its edge is the step in lightness between its fill and whatever it sits on,
+ * which on a dark page is the only depth cue that carries anyway — a shadow has
+ * almost nothing left to darken against near-black, and a hairline on top of a
+ * fill that already reads draws the eye to the boundary instead of the content.
+ *
+ * This is what makes the step sizes in the palette load-bearing rather than
+ * decorative: `sunken` under `surface` under `navBar`, each a visible move.
+ * Flatten two of them together and the cards between them disappear.
+ *
+ * There is no elevation prop. Nothing in the app is a card that floats —
+ * sheets are `useSheetStyle`, and the tab bar carries its own tokens.
  */
 export function Card({
   children,
-  level = 'flat',
   fill = 'surface',
   padded = true,
   onPress,
@@ -25,7 +32,6 @@ export function Card({
   style,
 }: {
   children: React.ReactNode;
-  level?: Level;
   fill?: Fill;
   /** Set false when the card holds full-bleed rows that pad themselves. */
   padded?: boolean;
@@ -36,7 +42,7 @@ export function Card({
   haptic?: React.ComponentProps<typeof Press>['haptic'];
   style?: StyleProp<ViewStyle>;
 }) {
-  const { c, radius, space, elevation } = useTheme();
+  const { c, radius, space } = useTheme();
 
   const fills: Record<Fill, string> = {
     surface: c.surface,
@@ -45,21 +51,11 @@ export function Card({
     attentionSoft: c.attentionSoft,
   };
 
-  const borders: Record<Fill, string> = {
-    surface: c.border,
-    sunken: c.border,
-    primarySoft: 'transparent',
-    attentionSoft: 'transparent',
-  };
-
   const box: ViewStyle = {
     backgroundColor: fills[fill],
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: borders[fill],
     padding: padded ? space.xl : 0,
     overflow: 'hidden',
-    ...(level === 'raised' ? elevation.e1 : level === 'floating' ? elevation.e2 : {}),
   };
 
   if (!onPress && !onLongPress) return <View style={[box, style]}>{children}</View>;

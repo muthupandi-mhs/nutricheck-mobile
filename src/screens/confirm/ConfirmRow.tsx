@@ -117,10 +117,10 @@ export function ConfirmRow({
   return (
     <View
       style={{
+        // Matches `Card`. The amber fill on an unsure row is the whole point
+        // of the row, and it carried no border even before cards lost theirs.
         backgroundColor: unsure ? c.attentionSoft : c.surface,
         borderRadius: radius.lg,
-        borderWidth: 1,
-        borderColor: unsure ? 'transparent' : c.border,
         padding: space.lg,
         gap: space.md,
       }}>

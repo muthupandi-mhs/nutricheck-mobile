@@ -17,7 +17,7 @@ export type Palette = {
   surface: string;
   /** Pressed cards, inputs, and wells — the layer below it. */
   sunken: string;
-  /** Hairlines. Structure comes from elevation instead. */
+  /** Hairlines. For dividers inside a surface — cards no longer draw one. */
   border: string;
   /** A stronger divider for section breaks. */
   borderStrong: string;
@@ -64,7 +64,9 @@ export type Palette = {
  */
 const palette: Palette = {
   canvas: '#0B0C0E',
-  surface: '#16191C',
+  // Lifted a touch when cards lost their hairline: the step from canvas to
+  // surface is now the entire edge of a card, so it has to carry on its own.
+  surface: '#191D21',
   sunken: '#101315',
   border: '#23282C',
   borderStrong: '#31373D',
