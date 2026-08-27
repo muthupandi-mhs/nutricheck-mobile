@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { KeyboardTypeOptions, TextInput, TextInputProps, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, KeyboardTypeOptions, TextInput, TextInputProps, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { Icon, IconName } from './Icon';
 import { Row, Split, Stack } from './Layout';
@@ -177,7 +177,22 @@ export function Field({
   );
 }
 
-/** A segmented control. The indicator slides rather than cross-fades, so it shows direction. */
+const SEGMENT_PAD = 4;
+const SEGMENT_GAP = 4;
+
+/**
+ * A segmented control whose indicator actually slides.
+ *
+ * It claimed to for a long time and did not: the thumb was a background colour
+ * on whichever option was selected, so it blinked from one to the other. A
+ * slide is worth the measuring pass because it shows DIRECTION — the eye
+ * follows the box to where the selection went, rather than being told after
+ * the fact that it is somewhere else now.
+ *
+ * The width has to be measured because the track is fluid; until it is, the
+ * thumb is placed without animating, so the first paint does not slide in from
+ * the left on a screen the user has only just opened.
+ */
 export function Segmented<T extends string>({
   options,
   value,
@@ -189,22 +204,66 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   label?: string;
 }) {
-  const { c, radius, space, elevation } = useTheme();
+  const { c, radius, motion, elevation } = useTheme();
+  const [width, setWidth] = useState(0);
+
+  const index = Math.max(0, options.findIndex(o => o.value === value));
+  const segment =
+    width > 0
+      ? (width - SEGMENT_PAD * 2 - SEGMENT_GAP * (options.length - 1)) / options.length
+      : 0;
+
+  const x = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
+
+  useEffect(() => {
+    if (segment <= 0) return;
+    const to = index * (segment + SEGMENT_GAP);
+
+    if (!placed.current) {
+      // First measurement. Jump, do not travel.
+      placed.current = true;
+      x.setValue(to);
+      return;
+    }
+    Animated.spring(x, { toValue: to, ...motion.spring.press, useNativeDriver: true }).start();
+  }, [index, segment, x, motion]);
 
   return (
-    <Stack gap={8}>
+    <Stack gap={10}>
       {label ? (
-        <Txt role="labelSm" tone="secondary">
+        <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
           {label}
         </Txt>
       ) : null}
-      <Row
+      <View
+        onLayout={e => setWidth(e.nativeEvent.layout.width)}
         style={{
+          flexDirection: 'row',
           backgroundColor: c.sunken,
           borderRadius: radius.pill,
-          padding: 4,
-          gap: 4,
+          padding: SEGMENT_PAD,
+          gap: SEGMENT_GAP,
         }}>
+        {/* One thumb that moves, behind the labels — not a fill on each option.
+            Absolute so the row's own layout is untouched by it. */}
+        {segment > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: SEGMENT_PAD,
+              left: SEGMENT_PAD,
+              width: segment,
+              height: 46,
+              borderRadius: radius.pill,
+              backgroundColor: c.surface,
+              transform: [{ translateX: x }],
+              ...elevation.e1,
+            }}
+          />
+        ) : null}
+
         {options.map(o => {
           const active = o.value === value;
           return (
@@ -219,21 +278,17 @@ export function Segmented<T extends string>({
               style={{
                 flexGrow: 1,
                 flexBasis: 0,
-                height: 42,
-                borderRadius: radius.pill,
-                backgroundColor: active ? c.surface : 'transparent',
+                height: 46,
                 alignItems: 'center',
                 justifyContent: 'center',
-                ...(active ? elevation.e1 : {}),
               }}>
-              <Txt role="labelSm" tone={active ? 'ink' : 'secondary'}>
+              <Txt role="label" tone={active ? 'ink' : 'secondary'}>
                 {o.label}
               </Txt>
             </Press>
           );
         })}
-      </Row>
-      <View style={{ height: space.xs / 2 }} />
+      </View>
     </Stack>
   );
 }
@@ -298,19 +353,30 @@ function Nudge({
   label,
   disabled,
   onPress,
+  onHold,
+  onRelease,
 }: {
   dir: -1 | 1;
   label: string;
   disabled: boolean;
   onPress: () => void;
+  /** Press-down. Steps once and starts the repeat. */
+  onHold: () => void;
+  onRelease: () => void;
 }) {
   const { c, radius } = useTheme();
   return (
     <Press
       onPress={onPress}
+      onPressIn={onHold}
+      // Both, and deliberately: a lift cancels the repeat, and a finger that
+      // slides off the button lands here too. Missing either leaves a control
+      // counting on its own.
+      onPressOut={onRelease}
       disabled={disabled}
       haptic="select"
       accessibilityLabel={`${dir > 0 ? 'Increase' : 'Decrease'} ${label}`}
+      accessibilityHint="Hold to keep changing it."
       style={{
         width: 48,
         height: 48,
@@ -345,31 +411,126 @@ export type StepperProps = {
   max?: number;
   onChange: (v: number) => void;
   hint?: string;
+  /**
+   * Draws its own card and enlarges the value.
+   *
+   * Off by default because three of the four callers already sit inside a
+   * card, and a card in a card is two edges describing one object. On by
+   * default it would have quietly nested them.
+   */
+  framed?: boolean;
 };
 
-/** A numeric stepper. The ± targets exist because a one-kilo nudge via keyboard is four taps. */
-export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint }: StepperProps) {
-  const { space } = useTheme();
+/**
+ * A numeric stepper: the value large enough to be the subject, and ± targets
+ * that repeat while held.
+ *
+ * The repeat is the whole point on a screen of these. Every value here is one
+ * somebody arrives knowing — a weight is 78, not "a few more than the default"
+ * — so the distance from 70 to 85 is not exploration, it is transcription, and
+ * at one tap per kilo it is fifteen taps of it. Held, the same move is a
+ * second and a half.
+ *
+ * It accelerates rather than running flat: slow enough at the start that a
+ * deliberate single step is still a single step, then quick enough that a long
+ * distance does not become a test of patience.
+ */
+export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint, framed }: StepperProps) {
+  const { c, space, radius } = useTheme();
+
+  // The live value, so a repeat reads its own last result rather than the one
+  // captured when the finger went down.
+  const latest = useRef(value);
+  latest.current = value;
+
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stop = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+
+  // Every path out of this component clears the timer. A repeat that outlived
+  // its screen would keep calling a setter on an unmounted form.
+  useEffect(() => stop, []);
+
+  const clamp = (n: number) => {
+    if (min !== undefined && n < min) return min;
+    if (max !== undefined && n > max) return max;
+    return n;
+  };
 
   const nudge = (dir: -1 | 1) => {
-    const next = value + dir * step;
-    if (min !== undefined && next < min) return;
-    if (max !== undefined && next > max) return;
+    const next = clamp(latest.current + dir * step);
+    if (next === latest.current) return false;
+    latest.current = next;
     onChange(next);
+    return true;
+  };
+
+  /**
+   * True once a touch has been handled on the way DOWN, so the press that ends
+   * it does not count twice.
+   *
+   * The stepping happens on press-in, which is what makes it feel like a
+   * physical button and is the only order-independent place to put it: RN has
+   * moved which of `onPress` and `onPressOut` fires first between versions, so
+   * anything that subtracts one from the other is a coin toss.
+   *
+   * `onPress` still steps when this is false, and that is the accessibility
+   * path — a screen reader activating the button raises `onPress` alone, with
+   * no press-in before it, and would otherwise do nothing at all.
+   */
+  const handled = useRef(false);
+
+  /** Press-down: one step now, a pause, then an accelerating run flooring at 40ms. */
+  const hold = (dir: -1 | 1) => {
+    handled.current = true;
+    nudge(dir);
+
+    let delay = 380;
+    const tick = () => {
+      if (!nudge(dir)) return stop();
+      delay = Math.max(40, delay * 0.82);
+      timer.current = setTimeout(tick, delay);
+    };
+    timer.current = setTimeout(tick, delay);
+  };
+
+  const activate = (dir: -1 | 1) => {
+    if (handled.current) {
+      handled.current = false;
+      return;
+    }
+    nudge(dir);
   };
 
   const atMin = min !== undefined && value - step < min;
   const atMax = max !== undefined && value + step > max;
 
   return (
-    <Stack gap={10}>
+    <View
+      style={
+        framed
+          ? {
+              backgroundColor: c.surface,
+              borderRadius: radius.lg,
+              // Card's own padding, so a framed stepper and a Card in the same
+              // column are the same object at the same inset.
+              padding: space.xl,
+              gap: 10,
+            }
+          : { gap: 10 }
+      }>
       <Split align="center">
-        <Stack gap={2} style={{ flexShrink: 1 }}>
-          <Txt role="labelSm" tone="secondary">
+        <Stack gap={3} style={{ flexShrink: 1 }}>
+          <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
             {label}
           </Txt>
           <Row gap={6} align="baseline">
-            <Txt role="h1" numeric>
+            {/* Tabular, so a digit rolling over does not shift the unit beside
+                it — the number is being held on while it changes. */}
+            <Txt role="h1" numeric style={framed ? { fontSize: 34, lineHeight: 39 } : undefined}>
               {value.toLocaleString('en-US')}
             </Txt>
             <Txt role="body" tone="secondary">
@@ -378,8 +539,8 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
           </Row>
         </Stack>
         <Row gap={space.md}>
-          <Nudge dir={-1} label={label} disabled={atMin} onPress={() => nudge(-1)} />
-          <Nudge dir={1} label={label} disabled={atMax} onPress={() => nudge(1)} />
+          <Nudge dir={-1} label={label} disabled={atMin} onPress={() => activate(-1)} onHold={() => hold(-1)} onRelease={stop} />
+          <Nudge dir={1} label={label} disabled={atMax} onPress={() => activate(1)} onHold={() => hold(1)} onRelease={stop} />
         </Row>
       </Split>
       {hint ? (
@@ -387,7 +548,7 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
           {hint}
         </Txt>
       ) : null}
-    </Stack>
+    </View>
   );
 }
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { Button } from '../../components/Button';
+import { Card } from '../../components/Card';
 import { Segmented, Stepper } from '../../components/Field';
-import { Divider, Gap, Stack } from '../../components/Layout';
+import { Gap, Stack } from '../../components/Layout';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fromImperial, toImperial, useOnboarding } from '../../state/Onboarding';
 import { OnboardStep } from './OnboardStep';
@@ -30,29 +31,35 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
       footer={
         <Button label="Continue" variant="inverse" loud onPress={() => navigation.navigate('OnboardActivity')} haptic="select" />
       }>
-      <Stack gap={space.xl}>
-        <Segmented
-          label="Units"
-          value={draft.units}
-          onChange={units => patch({ units })}
-          options={[
-            { value: 'metric', label: 'Metric' },
-            { value: 'imperial', label: 'Imperial' },
-          ]}
-        />
-        <Segmented
-          label="Sex"
-          value={draft.sex}
-          onChange={sex => patch({ sex })}
-          options={[
-            { value: 'female', label: 'Female' },
-            { value: 'male', label: 'Male' },
-          ]}
-        />
-
-        <Divider />
+      {/* One card per question. On a screen that is nothing but five inputs,
+          the frames are what stop it reading as a wall of controls — each one
+          becomes a thing you answer rather than a row in a list. */}
+      <Stack gap={space.md}>
+        <Card>
+          <Segmented
+            label="Units"
+            value={draft.units}
+            onChange={units => patch({ units })}
+            options={[
+              { value: 'metric', label: 'Metric' },
+              { value: 'imperial', label: 'Imperial' },
+            ]}
+          />
+        </Card>
+        <Card>
+          <Segmented
+            label="Sex"
+            value={draft.sex}
+            onChange={sex => patch({ sex })}
+            options={[
+              { value: 'female', label: 'Female' },
+              { value: 'male', label: 'Male' },
+            ]}
+          />
+        </Card>
 
         <Stepper
+          framed
           label="Age"
           value={age}
           unit="years"
@@ -63,6 +70,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
 
         {imperial ? (
           <Stepper
+            framed
             label="Height"
             value={height.ft * 12 + height.in}
             unit={`in · ${height.ft}′ ${height.in}″`}
@@ -72,6 +80,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
           />
         ) : (
           <Stepper
+            framed
             label="Height"
             value={draft.heightCm}
             unit="cm"
@@ -83,6 +92,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
 
         {imperial ? (
           <Stepper
+            framed
             label="Current weight"
             value={toImperial.weight(draft.weightKg)}
             unit="lb"
@@ -92,6 +102,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
           />
         ) : (
           <Stepper
+            framed
             label="Current weight"
             value={draft.weightKg}
             unit="kg"

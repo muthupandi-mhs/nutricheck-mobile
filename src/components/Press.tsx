@@ -16,6 +16,13 @@ export type PressProps = {
   children: React.ReactNode;
   onPress?: () => void;
   onLongPress?: () => void;
+  /**
+   * The raw press lifecycle, for a control that repeats while held rather than
+   * acting once on release. Both still fire when `onPress` is set — they are
+   * the press beginning and ending, not an alternative to it.
+   */
+  onPressIn?: () => void;
+  onPressOut?: () => void;
   disabled?: boolean;
   /** How the surface reacts. Cards scale; text and icons fade. */
   feedback?: Feedback;
@@ -41,6 +48,8 @@ export function Press({
   children,
   onPress,
   onLongPress,
+  onPressIn,
+  onPressOut,
   disabled,
   feedback = 'scale',
   haptic = null,
@@ -82,8 +91,14 @@ export function Press({
       hitSlop={hitSlop}
       disabled={disabled}
       delayLongPress={delayLongPress}
-      onPressIn={() => feedback !== 'none' && animate(1)}
-      onPressOut={() => feedback !== 'none' && animate(0)}
+      onPressIn={() => {
+        if (feedback !== 'none') animate(1);
+        onPressIn?.();
+      }}
+      onPressOut={() => {
+        if (feedback !== 'none') animate(0);
+        onPressOut?.();
+      }}
       onLongPress={onLongPress}
       onPress={
         onPress
