@@ -32,6 +32,7 @@ export function OnboardStep({
   subtitle,
   children,
   footer,
+  fill,
 }: {
   step: number;
   title: string;
@@ -39,14 +40,58 @@ export function OnboardStep({
   children: React.ReactNode;
   /** Pinned to the bottom of the sheet, on its own fill. */
   footer: React.ReactNode;
+  /**
+   * Hands the children every point between the heading and the button, instead
+   * of letting them size to their contents and scroll.
+   *
+   * For a step whose content is a fixed set that should be seen at once. It
+   * replaces the scroll rather than adding `flex` inside one, because `flex: 1`
+   * within a ScrollView resolves against a content box that is only as tall as
+   * what is already in it — it collapses to the content height and gives back
+   * nothing, quietly, which looks like a layout that simply ignored you.
+   */
+  fill?: boolean;
 }) {
   const { space } = useTheme();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardVisible();
 
+  const heading = (
+    <>
+      {/* The heading scrolls with the content rather than sitting above it.
+          Pinned, it held about a third of the screen while the keypad held
+          another half, and what was left to answer the question in was two
+          cards. It is read once; the controls are used repeatedly. */}
+      <Gap h={space.lg} />
+      {/* Uppercase and letterspaced, matching the field labels in the auth
+          flow — the same voice for the same kind of small structural note. */}
+      <Txt role="caption" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
+        Step {step} of {STEPS}
+      </Txt>
+      <Gap h={space.sm} />
+      <Txt role="h1">{title}</Txt>
+      {subtitle ? (
+        <>
+          <Gap h={space.sm} />
+          <Txt role="bodyLg" tone="secondary">
+            {subtitle}
+          </Txt>
+        </>
+      ) : null}
+
+      <Gap h={space.xl} />
+    </>
+  );
+
   return (
     <Screen style={{ paddingBottom: 0 }}>
       <KeyboardAvoid>
+        {fill ? (
+          <View style={{ flex: 1, paddingHorizontal: space.gutter, paddingBottom: space.xl }}>
+            {heading}
+            <View style={{ flex: 1 }}>{children}</View>
+          </View>
+        ) : (
         <ScrollView
           // Claims the space left over after the footer. Without it the scroll
           // sizes to its own content and runs on underneath the button.
@@ -62,31 +107,10 @@ export function OnboardStep({
           }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          {/* The heading scrolls with the content rather than sitting above it.
-              Pinned, it held about a third of the screen while the keypad held
-              another half, and what was left to answer the question in was two
-              cards. It is read once; the controls are used repeatedly. */}
-          <Gap h={space.lg} />
-          {/* Uppercase and letterspaced, matching the field labels in the auth
-              flow — the same voice for the same kind of small structural note. */}
-          <Txt role="caption" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
-            Step {step} of {STEPS}
-          </Txt>
-          <Gap h={space.sm} />
-          <Txt role="h1">{title}</Txt>
-          {subtitle ? (
-            <>
-              <Gap h={space.sm} />
-              <Txt role="bodyLg" tone="secondary">
-                {subtitle}
-              </Txt>
-            </>
-          ) : null}
-
-          <Gap h={space.xl} />
-
+          {heading}
           {children}
         </ScrollView>
+        )}
 
         {/* Stands down while the keypad is up.
 

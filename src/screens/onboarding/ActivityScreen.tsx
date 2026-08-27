@@ -23,7 +23,11 @@ import type { ScreenProps } from '../../navigation/types';
  *
  * The tiles flex rather than holding a square aspect: filling the screen and
  * staying square are the same thing only at one screen height, and of the two
- * it is filling that was asked for.
+ * it is filling that matters here.
+ *
+ * `fill` on the step is what makes that real. Left inside the scroll, the
+ * grid's `flex: 1` resolves against a content box no taller than its own
+ * contents, so it collapses back to icon-plus-label and gives the space back.
  */
 export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
   const { space } = useTheme();
@@ -32,6 +36,7 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
 
   return (
     <OnboardStep
+      fill
       step={3}
       title="How active are you?"
       subtitle="Across a normal week, not your best one. Pick low if unsure."
@@ -91,7 +96,9 @@ function Tile({
         gap: space.md,
         padding: space.md,
       }}>
-      <Icon name={ACTIVITY_ICON[level]} size={34} color={selected ? c.ink : c.inkSecondary} />
+      {/* Sized to the tile it is in. At 34 on a card this tall the glyph read
+          as a bullet point beside a label rather than the subject of it. */}
+      <Icon name={ACTIVITY_ICON[level]} size={44} color={selected ? c.ink : c.inkSecondary} />
       <Txt
         role="labelSm"
         caps
