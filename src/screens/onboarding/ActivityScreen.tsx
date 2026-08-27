@@ -1,4 +1,5 @@
 import React from 'react';
+import Svg, { Rect } from 'react-native-svg';
 import { Button } from '../../components/Button';
 import { OptionRow } from '../../components/Field';
 import { Stack } from '../../components/Layout';
@@ -6,11 +7,6 @@ import { ACTIVITY } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useOnboarding } from '../../state/Onboarding';
 import { OnboardStep } from './OnboardStep';
-import Activity1 from '../../assets/icons/activity-1.svg';
-import Activity2 from '../../assets/icons/activity-2.svg';
-import Activity3 from '../../assets/icons/activity-3.svg';
-import Activity4 from '../../assets/icons/activity-4.svg';
-import Activity5 from '../../assets/icons/activity-5.svg';
 import type { ActivityLevel } from '../../api/types';
 import type { ScreenProps } from '../../navigation/types';
 
@@ -54,15 +50,8 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
   );
 }
 
-/**
- * One file per level, in order, so the index of an option picks its glyph.
- *
- * Listed rather than built from a template string: Metro resolves an import at
- * build time, not a path at run time, so `activity-${n}.svg` would resolve to
- * nothing. Five names is also the only form in which a missing file is a
- * compile error rather than a blank space on a card.
- */
-const METERS = [Activity1, Activity2, Activity3, Activity4, Activity5];
+/** Bar heights, bottom-aligned on a 24 grid. Five bars, five levels. */
+const BARS = [7, 10.5, 14, 17.5, 21];
 
 /**
  * How much of the scale this option is, as a rising meter.
@@ -75,26 +64,33 @@ const METERS = [Activity1, Activity2, Activity3, Activity4, Activity5];
  *
  * Which also does the job the sub-line used to: the label says "3–4 a week"
  * and the meter says where that sits between the two ends.
+ *
+ * Drawn here rather than loaded from five .svg files. Importing an svg needs a
+ * Metro transformer, which is a build-config dependency and a stale-cache
+ * failure mode, and buys nothing for a glyph that is five rectangles derived
+ * from a number — there is no artwork here for a designer to hand back. A file
+ * would earn its keep for a drawing; this is a chart.
  */
 function LevelMeter({ level, selected }: { level: number; selected: boolean }) {
   const { c } = useTheme();
-  const Meter = METERS[level - 1]!;
+  const on = selected ? c.ink : c.inkSecondary;
 
-  // An .svg resolves to a component when Metro runs it through the transformer
-  // and to a NUMBER — an asset registry id — when it does not. React's own
-  // message for that is "expected a string or a class/function but got:
-  // number", which says nothing about svg, Metro, or the cache that actually
-  // caused it. A dev server started before the transformer was configured
-  // keeps serving the old answer until it is restarted with --reset-cache.
-  if (__DEV__ && typeof Meter !== 'function') {
-    throw new Error(
-      'SVG imports are resolving as assets, not components. Metro is serving a ' +
-        'cache from before react-native-svg-transformer was configured — restart ' +
-        'it with: npm run start:fresh',
-    );
-  }
-
-  // Every bar in the file is currentColor — solid for the ones this level has
-  // reached, faded for the rest — so one prop colours the whole glyph.
-  return <Meter width={26} height={26} color={selected ? c.ink : c.inkSecondary} />;
+  return (
+    <Svg width={26} height={26} viewBox="0 0 24 24">
+      {BARS.map((h, i) => (
+        <Rect
+          key={h}
+          x={1.5 + i * 4.5}
+          y={22 - h}
+          width={3}
+          height={h}
+          rx={1.5}
+          // The bars still to come are the same colour at a fraction of it, not
+          // a second grey — one value to change if the pair ever needs tuning.
+          fill={on}
+          opacity={i < level ? 1 : 0.22}
+        />
+      ))}
+    </Svg>
+  );
 }
