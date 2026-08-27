@@ -1,5 +1,4 @@
 import React from 'react';
-import Svg, { Rect } from 'react-native-svg';
 import { Button } from '../../components/Button';
 import { OptionRow } from '../../components/Field';
 import { Stack } from '../../components/Layout';
@@ -7,6 +6,11 @@ import { ACTIVITY } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useOnboarding } from '../../state/Onboarding';
 import { OnboardStep } from './OnboardStep';
+import Activity1 from '../../assets/icons/activity-1.svg';
+import Activity2 from '../../assets/icons/activity-2.svg';
+import Activity3 from '../../assets/icons/activity-3.svg';
+import Activity4 from '../../assets/icons/activity-4.svg';
+import Activity5 from '../../assets/icons/activity-5.svg';
 import type { ActivityLevel } from '../../api/types';
 import type { ScreenProps } from '../../navigation/types';
 
@@ -50,38 +54,33 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
   );
 }
 
-/** Bar heights, bottom-aligned on a 24 grid. Five bars, five levels. */
-const BARS = [7, 10.5, 14, 17.5, 21];
+/**
+ * One file per level, in order, so the index of an option picks its glyph.
+ *
+ * Listed rather than built from a template string: Metro resolves an import at
+ * build time, not a path at run time, so `activity-${n}.svg` would resolve to
+ * nothing. Five names is also the only form in which a missing file is a
+ * compile error rather than a blank space on a card.
+ */
+const METERS = [Activity1, Activity2, Activity3, Activity4, Activity5];
 
 /**
  * How much of the scale this option is, as a rising meter.
  *
  * Five figures — a desk, a walk, a jog, a run — is the obvious choice and the
  * wrong one: at this size a jog and a run are the same two sticks, and the set
- * would be five drawings the eye has to read one at a time. These options are
- * not five different things, they are one thing in five amounts, and a meter
- * says that at a glance and in the right order.
+ * becomes five drawings the eye reads one at a time. These options are not five
+ * different things, they are one thing in five amounts, and a meter says that
+ * at a glance and in the right order.
  *
  * Which also does the job the sub-line used to: the label says "3–4 a week"
  * and the meter says where that sits between the two ends.
  */
 function LevelMeter({ level, selected }: { level: number; selected: boolean }) {
   const { c } = useTheme();
-  const on = selected ? c.ink : c.inkSecondary;
+  const Meter = METERS[level - 1]!;
 
-  return (
-    <Svg width={26} height={26} viewBox="0 0 24 24">
-      {BARS.map((h, i) => (
-        <Rect
-          key={h}
-          x={1.5 + i * 4.5}
-          y={22 - h}
-          width={3}
-          height={h}
-          rx={1.5}
-          fill={i < level ? on : c.borderStrong}
-        />
-      ))}
-    </Svg>
-  );
+  // Every bar in the file is currentColor — solid for the ones this level has
+  // reached, faded for the rest — so one prop colours the whole glyph.
+  return <Meter width={26} height={26} color={selected ? c.ink : c.inkSecondary} />;
 }
