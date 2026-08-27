@@ -115,32 +115,6 @@ export function BrandField({
       </Svg>
 
       <Animated.View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          opacity: fade(0, 0.7),
-          transform: [
-            { scale: enter.interpolate({ inputRange: [0, 0.7], outputRange: [0.88, 1], extrapolate: 'clamp' }) },
-          ],
-        }}>
-        <Svg width={box} height={box} viewBox={`0 0 ${box} ${box}`}>
-          {radii.map((r, i) => (
-            <Circle
-              key={r}
-              cx={box / 2}
-              cy={box / 2}
-              r={r}
-              stroke={c.primary}
-              strokeWidth={1.5}
-              // Farther out, fainter — one shape fading into the field, not three hoops.
-              strokeOpacity={0.07 + i * 0.05}
-              fill="none"
-            />
-          ))}
-        </Svg>
-      </Animated.View>
-
-      <Animated.View
         style={{
           alignItems: 'center',
           opacity: fade(0.15, 0.8),
@@ -154,17 +128,63 @@ export function BrandField({
             },
           ],
         }}>
-        <View
-          style={{
-            width: markSize,
-            height: markSize,
-            borderRadius: radius.xl,
-            backgroundColor: c.primary,
-            alignItems: 'center',
-            justifyContent: 'center',
-            ...elevation.e2,
-          }}>
-          <Icon name="leaf" size={Math.round(markSize / 2)} color={c.onPrimary} weight={1.9} />
+        {/* A plain box the size of the mark, holding both. The rings hang off
+            it rather than off the field, offset by exactly half the difference
+            in their sizes, so they are concentric with the mark by
+            construction rather than by both happening to be centred.
+
+            They used to be siblings of the mark and drifted apart two ways:
+            the field's `paddingTop` shrinks the box the mark is centred in but
+            not the one an absolute child resolves against, and with the
+            wordmark showing the mark sits above the centre of its own block
+            while the rings stayed on the field's. Either way the mark sat low
+            in its own halo.
+
+            The anchor carries no elevation on purpose — an elevated parent
+            clips its children to its bounds on Android, which would take the
+            rings with it. */}
+        <View style={{ width: markSize, height: markSize }}>
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              top: (markSize - box) / 2,
+              left: (markSize - box) / 2,
+              opacity: fade(0, 0.7),
+              transform: [
+                { scale: enter.interpolate({ inputRange: [0, 0.7], outputRange: [0.88, 1], extrapolate: 'clamp' }) },
+              ],
+            }}>
+            <Svg width={box} height={box} viewBox={`0 0 ${box} ${box}`}>
+              {radii.map((r, i) => (
+                <Circle
+                  key={r}
+                  cx={box / 2}
+                  cy={box / 2}
+                  r={r}
+                  stroke={c.primary}
+                  strokeWidth={1.5}
+                  // Farther out, fainter — one shape fading into the field, not three hoops.
+                  strokeOpacity={0.07 + i * 0.05}
+                  fill="none"
+                />
+              ))}
+            </Svg>
+          </Animated.View>
+
+          {/* Painted after the rings, so it sits over them. */}
+          <View
+            style={{
+              width: markSize,
+              height: markSize,
+              borderRadius: radius.xl,
+              backgroundColor: c.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+              ...elevation.e2,
+            }}>
+            <Icon name="leaf" size={Math.round(markSize / 2)} color={c.onPrimary} weight={1.9} />
+          </View>
         </View>
         {wordmark && (
           <>
