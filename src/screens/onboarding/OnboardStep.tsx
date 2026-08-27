@@ -6,22 +6,24 @@ import { Gap, Gutter } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
 import { useTheme } from '../../theme/ThemeProvider';
-import { useSheetStyle } from './BrandField';
 
 export const STEPS = 6;
 
 /**
  * The scaffold every onboarding step is built on.
  *
- * It borrows the shape the auth screens set: a canvas header on top, and a
- * surface sheet with rounded top corners holding everything the user acts on.
+ * One surface, not two. It used to put the controls on a `surface` sheet with
+ * rounded top corners over the canvas, which is how the app drew a "the part
+ * you act on" boundary before cards were flattened — and it now reads as the
+ * one place left where a panel is pinned over the page for decoration.
+ *
+ * So the header, the controls and the button all sit on the canvas, and the
+ * only things that lift off it are the cards that hold grouped options. The
+ * boundary that used to be a sheet edge is the scroll itself.
+ *
  * The brand field is deliberately absent — a mark above a form is decoration
  * where the header has a job to do, and these screens are already asking for
  * the user's height.
- *
- * Controls sit directly on the sheet rather than in cards. A raised card is a
- * `surface` fill, and the sheet is already `surface`, so nesting them makes two
- * layers that read as one badly drawn one.
  */
 export function OnboardStep({
   step,
@@ -37,16 +39,17 @@ export function OnboardStep({
   /** Pinned to the bottom of the sheet, on its own fill. */
   footer: React.ReactNode;
 }) {
-  const { c, space } = useTheme();
+  const { space } = useTheme();
   const insets = useSafeAreaInsets();
-  const sheet = useSheetStyle();
 
   return (
     <Screen style={{ paddingBottom: 0 }}>
       <StepBar step={step} of={STEPS} />
 
       <Gutter>
-        <Txt role="caption" tone="tertiary">
+        {/* Uppercase and letterspaced, matching the field labels in the auth
+            flow — the same voice for the same kind of small structural note. */}
+        <Txt role="caption" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
           Step {step} of {STEPS}
         </Txt>
         <Gap h={space.sm} />
@@ -63,17 +66,19 @@ export function OnboardStep({
 
       <Gap h={space.xl} />
 
-      <View style={[sheet, { flex: 1 }]}>
+      <View style={{ flex: 1 }}>
         <ScrollView
-          contentContainerStyle={{ padding: space.gutter, paddingTop: space.xxl, paddingBottom: space.xl }}
+          contentContainerStyle={{ paddingHorizontal: space.gutter, paddingBottom: space.xl }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           {children}
         </ScrollView>
 
+        {/* No fill of its own. On a sheet it needed one to read as the sheet's
+            bottom edge; on the canvas that fill would be the only thing on the
+            screen pretending to be a bar. */}
         <View
           style={{
-            backgroundColor: c.surface,
             paddingHorizontal: space.gutter,
             paddingTop: space.sm,
             paddingBottom: Math.max(insets.bottom, space.lg) + space.xs,
@@ -93,7 +98,7 @@ export function StepGroup({
 }: {
   label?: string;
   children: React.ReactNode;
-  /** Wraps the run in a sunken well — for option lists, which need an edge. */
+  /** Wraps the run in a card — for option lists, which need an edge. */
   divided?: boolean;
 }) {
   const { c, space, radius } = useTheme();
@@ -102,19 +107,21 @@ export function StepGroup({
     <View>
       {label ? (
         <>
-          <Txt role="labelSm" tone="secondary">
+          <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
             {label}
           </Txt>
           <Gap h={space.md} />
         </>
       ) : null}
       {divided ? (
+        /* `surface` and no border, like every other card. It used to be a
+           sunken well with a hairline, and sunken clears this canvas by about
+           five points — so the fill did nothing and the hairline was the whole
+           edge, which is the arrangement cards were just taken off. */
         <View
           style={{
-            backgroundColor: c.sunken,
+            backgroundColor: c.surface,
             borderRadius: radius.lg,
-            borderWidth: 1,
-            borderColor: c.border,
             overflow: 'hidden',
           }}>
           {children}

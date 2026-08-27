@@ -37,7 +37,7 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
       step={4}
       title="What are you after?"
       footer={
-        <Button label="See my targets" onPress={() => navigation.navigate('OnboardTargets')} haptic="select" />
+        <Button label="See my targets" variant="inverse" loud onPress={() => navigation.navigate('OnboardTargets')} haptic="select" />
       }>
       <Stack gap={space.xxl}>
         <StepGroup divided>

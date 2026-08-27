@@ -76,7 +76,7 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
         <>
           <Disclaimer text="Estimates for general wellness, not medical advice." />
           <Gap h={space.md} />
-          <Button label="Looks right — continue" loading={saving} onPress={onContinue} haptic="commit" />
+          <Button label="Looks right — continue" variant="inverse" loud loading={saving} onPress={onContinue} haptic="commit" />
         </>
       }>
       <Stack gap={space.xl}>
@@ -155,10 +155,8 @@ export function TargetsScreen({ navigation }: ScreenProps<'OnboardTargets'>) {
               <View
                 key={b}
                 style={{
-                  backgroundColor: c.sunken,
+                  backgroundColor: c.surface,
                   borderRadius: radius.pill,
-                  borderWidth: 1,
-                  borderColor: c.border,
                   paddingVertical: 6,
                   paddingHorizontal: 12,
                 }}>

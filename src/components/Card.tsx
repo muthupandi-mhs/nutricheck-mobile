@@ -17,8 +17,9 @@ type Fill = 'surface' | 'sunken' | 'primarySoft' | 'attentionSoft';
  * decorative: `sunken` under `surface` under `navBar`, each a visible move.
  * Flatten two of them together and the cards between them disappear.
  *
- * There is no elevation prop. Nothing in the app is a card that floats —
- * sheets are `useSheetStyle`, and the tab bar carries its own tokens.
+ * There is no elevation prop. Nothing in the app is a card that floats: the
+ * tab bar carries its own tokens, and the sheet chrome this used to point at
+ * went with the last screen that pinned a panel over the page.
  */
 export function Card({
   children,

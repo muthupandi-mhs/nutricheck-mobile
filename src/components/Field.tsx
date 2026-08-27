@@ -406,7 +406,12 @@ export function StepBar({ step, of }: { step: number; of: number }) {
             height: 4,
             flexGrow: 1,
             borderRadius: radius.pill,
-            backgroundColor: i < step ? c.primary : c.sunken,
+            // borderStrong, not sunken. Sunken clears the canvas by about five
+            // points — enough to read as a well inside a card, nowhere near
+            // enough for a 4pt bar drawn on the page itself, which left the
+            // steps still to come invisible and the bar looking like a stray
+            // accent rule.
+            backgroundColor: i < step ? c.primary : c.borderStrong,
           }}
         />
       ))}

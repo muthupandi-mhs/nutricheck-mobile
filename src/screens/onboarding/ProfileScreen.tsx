@@ -28,7 +28,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
       title="About you"
       subtitle="Four numbers. They set your resting burn, and you can change any of them later."
       footer={
-        <Button label="Continue" onPress={() => navigation.navigate('OnboardActivity')} haptic="select" />
+        <Button label="Continue" variant="inverse" loud onPress={() => navigation.navigate('OnboardActivity')} haptic="select" />
       }>
       <Stack gap={space.xl}>
         <Segmented

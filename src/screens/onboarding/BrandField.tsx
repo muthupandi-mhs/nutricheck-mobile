@@ -16,32 +16,25 @@ import { useTheme } from '../../theme/ThemeProvider';
 let instances = 0;
 
 /**
- * The brand zone shared by Welcome, Sign in and Sign up.
+ * The brand zone. Welcome is the only screen that carries it now.
  *
- * It exists as a component rather than three copies so the three screens cannot
- * drift apart — the halo geometry, the ring opacities and the mark's corner
- * radius are decided once. Everything scales off `markSize`, so the auth
- * screens get the same composition at a smaller size instead of a different one.
+ * It was shared with sign-in and sign-up, and stayed a component when they
+ * dropped it: everything scales off `markSize`, so the composition survives
+ * being placed at any size, and that is the part worth not re-deriving next
+ * time something wants a mark.
  *
- * `flex: 1` with a low `minHeight` is deliberate: the field is the part that
- * gives way when a keyboard opens, so the fields below it stay reachable.
+ * `flex: 1` with a low `minHeight` lets the caller decide how much room it
+ * takes — Welcome gives it whatever the copy below does not use.
  */
 export function BrandField({
   markSize = 76,
   wordmark = true,
   minHeight = 260,
-  collapsed = false,
   style,
 }: {
   markSize?: number;
   wordmark?: boolean;
   minHeight?: number;
-  /**
-   * Hides the contents without unmounting. Collapsing the height alone leaves a
-   * 320pt ring set overflowing a zero-height box; unmounting instead would
-   * replay the entrance animation every time the keyboard closes.
-   */
-  collapsed?: boolean;
   style?: ViewStyle;
 }) {
   const { c, space, radius, elevation } = useTheme();
@@ -94,15 +87,14 @@ export function BrandField({
           minHeight,
           alignItems: 'center',
           justifyContent: 'center',
-          paddingTop: collapsed ? 0 : insets.top,
+          paddingTop: insets.top,
           overflow: 'hidden',
         },
-        collapsed && { display: 'none' },
         style,
       ]}>
-      {/* A halo centred on the mark, not a top-to-bottom wash. A linear one
-          piles its tint against the sheet's top edge, which reads as a light
-          leak and muddies the boundary the sheet depends on. */}
+      {/* A halo, not a top-to-bottom wash. A linear one piles its tint against
+          the bottom edge of the field, where it reads as a light leak rather
+          than as something the mark is giving off. */}
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
           <RadialGradient id={haloId} cx="50%" cy="46%" r="62%">
@@ -197,19 +189,4 @@ export function BrandField({
       </Animated.View>
     </View>
   );
-}
-
-/** The sheet's chrome. Shared for the same reason the field is. */
-export function useSheetStyle(): ViewStyle {
-  const { c, radius, elevation } = useTheme();
-  return {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    // borderStrong, not border. This edge is the only thing separating two
-    // dark surfaces, and the shadow behind it contributes almost nothing.
-    borderTopWidth: 1,
-    borderColor: c.borderStrong,
-    ...elevation.e3,
-  };
 }
