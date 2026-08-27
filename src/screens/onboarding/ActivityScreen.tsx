@@ -1,7 +1,7 @@
 import React from 'react';
-import Svg, { Rect } from 'react-native-svg';
 import { Button } from '../../components/Button';
 import { OptionRow } from '../../components/Field';
+import { Icon, type IconName } from '../../components/Icon';
 import { Stack } from '../../components/Layout';
 import { ACTIVITY } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -16,7 +16,7 @@ import type { ScreenProps } from '../../navigation/types';
  * answerable about yourself, "1.2x" is a question about an unseen formula.
  */
 export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
-  const { space } = useTheme();
+  const { c, space } = useTheme();
   const { draft, patch } = useOnboarding();
   const levels = Object.keys(ACTIVITY) as ActivityLevel[];
 
@@ -31,16 +31,22 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
       {/* A card each, spaced, rather than rows in one well — five answers you
           choose between, not a list you read down. */}
       <Stack gap={space.md}>
-        {levels.map((level, i) => (
+        {levels.map(level => (
           <OptionRow
             key={level}
             title={ACTIVITY[level].label}
             // Not drawn, still spoken. The sub-line came off the cards because
             // five of them turned a choice into a page of reading, but it is
             // the clearest thing on the screen for anyone who cannot see the
-            // meter, so it stays as the hint.
+            // icon, so it stays as the hint.
             detail={ACTIVITY[level].detail}
-            leading={<LevelMeter level={i + 1} selected={draft.activityLevel === level} />}
+            leading={
+              <Icon
+                name={ACTIVITY_ICON[level]}
+                size={26}
+                color={draft.activityLevel === level ? c.ink : c.inkSecondary}
+              />
+            }
             selected={draft.activityLevel === level}
             onPress={() => patch({ activityLevel: level })}
           />
@@ -50,47 +56,23 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
   );
 }
 
-/** Bar heights, bottom-aligned on a 24 grid. Five bars, five levels. */
-const BARS = [7, 10.5, 14, 17.5, 21];
-
 /**
- * How much of the scale this option is, as a rising meter.
+ * One subject per level, escalating: sitting, walking, training, running,
+ * burning.
  *
- * Five figures — a desk, a walk, a jog, a run — is the obvious choice and the
- * wrong one: at this size a jog and a run are the same two sticks, and the set
- * becomes five drawings the eye reads one at a time. These options are not five
- * different things, they are one thing in five amounts, and a meter says that
- * at a glance and in the right order.
+ * Deliberately five different things rather than five poses of a person. A jog
+ * and a run are the same two sticks at 26pt, and a set that can only be told
+ * apart by studying it is a set nobody reads — whereas a desk, a shoe, a
+ * dumbbell, a runner and a flame are distinguishable at a glance and still
+ * arrive in an order.
  *
- * Which also does the job the sub-line used to: the label says "3–4 a week"
- * and the meter says where that sits between the two ends.
- *
- * Drawn here rather than loaded from five .svg files. Importing an svg needs a
- * Metro transformer, which is a build-config dependency and a stale-cache
- * failure mode, and buys nothing for a glyph that is five rectangles derived
- * from a number — there is no artwork here for a designer to hand back. A file
- * would earn its keep for a drawing; this is a chart.
+ * They name the kind of week, not the exercise. Nobody at 'moderate' has to
+ * lift weights, any more than 'very active' means being on fire.
  */
-function LevelMeter({ level, selected }: { level: number; selected: boolean }) {
-  const { c } = useTheme();
-  const on = selected ? c.ink : c.inkSecondary;
-
-  return (
-    <Svg width={26} height={26} viewBox="0 0 24 24">
-      {BARS.map((h, i) => (
-        <Rect
-          key={h}
-          x={1.5 + i * 4.5}
-          y={22 - h}
-          width={3}
-          height={h}
-          rx={1.5}
-          // The bars still to come are the same colour at a fraction of it, not
-          // a second grey — one value to change if the pair ever needs tuning.
-          fill={on}
-          opacity={i < level ? 1 : 0.22}
-        />
-      ))}
-    </Svg>
-  );
-}
+const ACTIVITY_ICON: Record<ActivityLevel, IconName> = {
+  sedentary: 'desk',
+  light: 'shoe',
+  moderate: 'dumbbell',
+  active: 'run',
+  very_active: 'flame',
+};

@@ -33,6 +33,13 @@ export type IconName =
   | 'undo'
   | 'offline'
   | 'flame'
+  // Activity levels. One silhouette each rather than five figures: a jog and a
+  // run are the same two sticks at this size, so the set escalates by subject
+  // — sitting, walking, training, running, burning — not by pose.
+  | 'desk'
+  | 'shoe'
+  | 'dumbbell'
+  | 'run'
   | 'bookmark'
   | 'bowl'
   | 'leaf'
@@ -126,6 +133,29 @@ export function Icon({
       {name === 'trash' && <Path d="M4.4 6.6h15.2M9.8 6.6V4.4h4.4v2.2M6.8 6.6l.9 13.1h8.6l.9-13.1M10.2 10.4v5.6M13.8 10.4v5.6" {...p} />}
       {name === 'undo' && <Path d="M4 9.4h10.6a5.4 5.4 0 1 1 0 10.8H8.6M4 9.4l4-4M4 9.4l4 4" {...p} />}
       {name === 'offline' && <Path d="M3 3l18 18M7.4 18.2h9a4.1 4.1 0 0 0 1.2-8A6.1 6.1 0 0 0 8.6 7.1M5.7 10.6a4.1 4.1 0 0 0 1.4 7.6" {...p} />}
+      {name === 'desk' && (
+        <>
+          <Rect x={3.4} y={4.4} width={17.2} height={10.6} rx={1.8} {...p} />
+          <Path d="M12 15v3.6M8.2 18.6h7.6" {...p} />
+        </>
+      )}
+      {name === 'shoe' && (
+        <Path
+          d="M3.6 17.2h12.8c2.4 0 4-1 4-2.4 0-1.1-1-1.7-2.3-2.2l-4-1.5-2-2.5-2 1.6v2.6H3.6z"
+          {...p}
+        />
+      )}
+      {name === 'dumbbell' && (
+        <Path d="M8.4 12h7.2M6.2 8.8v6.4M17.8 8.8v6.4M3.8 10.2v3.6M20.2 10.2v3.6" {...p} />
+      )}
+      {name === 'run' && (
+        <>
+          <Circle cx={14.8} cy={5.2} r={2.1} {...p} />
+          <Path d="M12.8 9.6 9.2 12.2l2.9 2.5-1.7 5.4" {...p} />
+          <Path d="M12.1 14.7l3.9 1 1.7 4.4" {...p} />
+          <Path d="M12.9 11.1l3.9 1.4 2.4-1.7" {...p} />
+        </>
+      )}
       {name === 'flame' && <Path d="M12 21c3.8 0 6.4-2.5 6.4-5.9 0-4.4-3.9-6.4-4.4-10.8-2 2-3 3.9-3 5.9-1-.5-1.5-1.5-1.5-3-2 2-3.9 4.4-3.9 7.9C5.6 18.5 8.2 21 12 21z" {...p} />}
       {name === 'bookmark' && <Path d="M6.4 4.4h11.2v16l-5.6-4-5.6 4z" {...p} />}
       {name === 'bowl' && <Path d="M3.4 10.6h17.2a8.6 8.6 0 0 1-8.6 8.4 8.6 8.6 0 0 1-8.6-8.4zM8.4 7.4c0-1.4 1.2-2 1.2-3.2M12 7.4c0-1.4 1.2-2 1.2-3.2M15.6 7.4c0-1.4 1.2-2 1.2-3.2" {...p} />}
