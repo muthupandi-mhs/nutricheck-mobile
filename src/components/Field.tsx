@@ -614,12 +614,17 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
               onSubmitEditing={settle}
               keyboardType="number-pad"
               returnKeyType="done"
-              // Android picks its own highlight otherwise, which is a teal this
-              // app uses nowhere.
+              // A caret where the finger landed, not the whole value selected.
+              // Selecting all made replacing a number one keystroke, at the
+              // price of showing a filled block over it every time it was
+              // touched — and most touches here are a correction to one digit,
+              // not a new number, so the block was in the way of the common
+              // case to speed up the rarer one.
+              cursorColor={c.ink}
+              // Only reached by deliberately long-pressing to select now.
+              // Android picks its own otherwise, which is a teal this app uses
+              // nowhere.
               selectionColor={c.primary}
-              // Tap the number and the whole thing is selected, so replacing it
-              // is one keystroke rather than six backspaces.
-              selectTextOnFocus
               accessibilityLabel={`${label}, ${value} ${unit}`}
               style={[
                 text.h1,
