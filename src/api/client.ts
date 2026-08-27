@@ -11,6 +11,8 @@ import type {
   LogEntry,
   MealInsight,
   MealSlot,
+  CheckEmailRequest,
+  CheckEmailResponse,
   RegisterRequest,
   AiMealDraft,
   ResolveDraft,
@@ -34,6 +36,8 @@ import type {
  */
 export interface NutriCheckApi {
   // auth ────────────────────────────────────────────────────────────────────
+  /** POST /v1/auth/check-email — which of the two step two is. */
+  checkEmail(input: CheckEmailRequest): Promise<CheckEmailResponse>;
   /** POST /v1/auth/register */
   register(input: RegisterRequest): Promise<AuthResponse>;
   /** POST /v1/auth/login */

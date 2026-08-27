@@ -17,6 +17,8 @@ import {
   type MealFacts,
   type MealInsight,
   type MealSlot,
+  type CheckEmailRequest,
+  type CheckEmailResponse,
   type RegisterRequest,
   type AiMealDraft,
   type ResolveDraft,
@@ -62,6 +64,18 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
 
   return {
     // ── auth ─────────────────────────────────────────────────────────────────
+
+    /**
+     * No tokens come back, and none are set. This is the one auth call that
+     * leaves the device signed out afterwards.
+     */
+    async checkEmail(input: CheckEmailRequest) {
+      return transport.request<CheckEmailResponse>('/v1/auth/check-email', {
+        method: 'POST',
+        body: input,
+        anonymous: true,
+      });
+    },
 
     async register(input: RegisterRequest) {
       const auth = await transport.request<AuthResponse>('/v1/auth/register', {

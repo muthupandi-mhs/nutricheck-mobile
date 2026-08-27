@@ -26,17 +26,23 @@ export type TabParamList = {
 export type RootStackParamList = {
   // onboarding
   Welcome: undefined;
-  /** Registration step one. Asks for the address and sends nothing. */
-  SignUp: undefined;
+
   /**
-   * Registration step two, which is where the account is actually created.
-   *
-   * The email travels as a param rather than in a shared store: it is a value,
-   * it is the whole of what step one produced, and carrying it this way means
-   * the screen cannot be reached without one.
+   * Step one of the one auth flow there is. Asks for an address, and asks the
+   * server whether it already has an account — signing in and signing up are
+   * the same two screens, because from the user's side they are the same task
+   * and they cannot always tell you which one they are doing.
    */
-  SignUpPassword: { email: string };
-  SignIn: undefined;
+  AuthEmail: undefined;
+  /**
+   * Step two: the password, and the call that either signs in or registers.
+   *
+   * Both values travel as params rather than in a shared store. They are
+   * values, they are the whole of what step one produced, and carrying them
+   * this way means the screen cannot be reached without them — `registered`
+   * decides the title, the rules, and which call is made.
+   */
+  AuthPassword: { email: string; registered: boolean };
   OnboardProfile: undefined;
   OnboardActivity: undefined;
   OnboardObjective: undefined;

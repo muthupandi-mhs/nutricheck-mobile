@@ -145,6 +145,9 @@ export function createStubApi(): NutriCheckApi {
   };
 
   return {
+    // Unregistered by default: the stub's job is to let screens render, and the
+    // sign-up half of the flow is the one with more on it to draw.
+    checkEmail: async () => ({ registered: false }),
     register: async () => ({ user: { ...session, onboarded: false }, tokens }),
     login: async () => ({ user: session, tokens }),
     getSession: async () => session,

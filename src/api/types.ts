@@ -10,6 +10,16 @@ export type RegisterRequest = { email: string; password: string };
 export type LoginRequest = { email: string; password: string };
 
 /**
+ * Step one of the auth flow asks this before asking for a password, so step two
+ * knows whether it is a sign-in screen or a sign-up screen.
+ *
+ * The server answers on the same conditions `login` treats as an account —
+ * an email identity, on a user that is not deleted — and returns nothing else.
+ */
+export type CheckEmailRequest = { email: string };
+export type CheckEmailResponse = { registered: boolean };
+
+/**
  * Length is the only rule. Composition rules reduce entropy in practice (NIST
  * SP 800-63B advises against them); the upper bound stops Argon2id being asked
  * to hash a megabyte.

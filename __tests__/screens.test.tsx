@@ -16,9 +16,8 @@ import { InsightsScreen } from '../src/screens/insights/InsightsScreen';
 import { ActivityScreen } from '../src/screens/onboarding/ActivityScreen';
 import { ObjectiveScreen } from '../src/screens/onboarding/ObjectiveScreen';
 import { ProfileScreen } from '../src/screens/onboarding/ProfileScreen';
-import { SignInScreen } from '../src/screens/onboarding/SignInScreen';
-import { SignUpEmailScreen } from '../src/screens/onboarding/SignUpEmailScreen';
-import { SignUpPasswordScreen } from '../src/screens/onboarding/SignUpPasswordScreen';
+import { AuthEmailScreen } from '../src/screens/onboarding/AuthEmailScreen';
+import { AuthPasswordScreen } from '../src/screens/onboarding/AuthPasswordScreen';
 import { TargetsScreen } from '../src/screens/onboarding/TargetsScreen';
 import { WelcomeScreen } from '../src/screens/onboarding/WelcomeScreen';
 import { CreateFoodScreen } from '../src/screens/search/CreateFoodScreen';
@@ -85,11 +84,11 @@ async function renderScreen(node: React.ReactElement) {
 
 const screens: Array<[string, React.ReactElement]> = [
   ['Welcome', <WelcomeScreen navigation={navigation} route={{ key: 'k', name: 'Welcome' } as never} />],
-  ['SignUpEmail', <SignUpEmailScreen navigation={navigation} route={{ key: 'k', name: 'SignUp' } as never} />],
-  // Carries a param, unlike every other screen here: the address settled on the
-  // step before is what this one is creating an account for.
-  ['SignUpPassword', <SignUpPasswordScreen navigation={navigation} route={{ key: 'k', name: 'SignUpPassword', params: { email: 'someone@example.com' } } as never} />],
-  ['SignIn', <SignInScreen navigation={navigation} route={{ key: 'k', name: 'SignIn' } as never} />],
+  ['AuthEmail', <AuthEmailScreen navigation={navigation} route={{ key: 'k', name: 'AuthEmail' } as never} />],
+  // Both halves of step two, since one flag decides the title, the rules and
+  // the endpoint — rendering only one would leave the other unproven.
+  ['AuthPassword (new)', <AuthPasswordScreen navigation={navigation} route={{ key: 'k', name: 'AuthPassword', params: { email: 'someone@example.com', registered: false } } as never} />],
+  ['AuthPassword (returning)', <AuthPasswordScreen navigation={navigation} route={{ key: 'k', name: 'AuthPassword', params: { email: 'someone@example.com', registered: true } } as never} />],
   ['Profile', <ProfileScreen navigation={navigation} route={{ key: 'k', name: 'OnboardProfile' } as never} />],
   ['Activity', <ActivityScreen navigation={navigation} route={{ key: 'k', name: 'OnboardActivity' } as never} />],
   ['Objective', <ObjectiveScreen navigation={navigation} route={{ key: 'k', name: 'OnboardObjective' } as never} />],

@@ -114,10 +114,10 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
                 ink — which also keeps the accent meaning "a measured value"
                 rather than "the button we want you to press". */}
             <Button
-              label="I have an account"
+              label="Sign in"
               variant="inverse"
               loud
-              onPress={() => navigation.navigate('SignIn')}
+              onPress={() => navigation.navigate('AuthEmail')}
               haptic="select"
             />
             <Gap h={space.md} />
@@ -125,7 +125,7 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
               label="Create an account"
               variant="outline"
               loud
-              onPress={() => navigation.navigate('SignUp')}
+              onPress={() => navigation.navigate('AuthEmail')}
               haptic="select"
             />
 

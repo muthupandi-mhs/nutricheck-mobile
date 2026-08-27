@@ -118,6 +118,16 @@ export type EmailStepValues = z.input<typeof emailStepSchema>;
 export const passwordStepSchema = z.object({ password: newPasswordField });
 export type PasswordStepValues = z.input<typeof passwordStepSchema>;
 
+/**
+ * The same step, for an address that already has an account.
+ *
+ * `existingPasswordField`, so the minimum is not applied: it belongs to a
+ * password being set. Enforcing it here would lock out an account created
+ * under an older rule, and stating it would leak the rule to anyone probing.
+ * Same field shape, so one form type covers both.
+ */
+export const existingPasswordStepSchema = z.object({ password: existingPasswordField });
+
 export const registerSchema = z.object({ email: emailField, password: newPasswordField });
 export const loginSchema = z.object({ email: emailField, password: existingPasswordField });
 
