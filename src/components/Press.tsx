@@ -5,6 +5,7 @@ import {
   Pressable,
   PressableProps,
   StyleProp,
+  StyleSheet,
   ViewStyle,
 } from 'react-native';
 import { haptics } from '../lib/haptics';
@@ -64,6 +65,24 @@ export function Press({
   const { motion } = useTheme();
   const value = useRef(new Animated.Value(0)).current;
 
+  /**
+   * How this thing sizes itself inside its parent belongs on the touchable;
+   * everything else belongs on the view that scales under it.
+   *
+   * Splitting them is not a nicety. `style` looks like it styles the pressable
+   * and does not — it lands on an inner view — so a `flexGrow: 1` meant to
+   * split a row evenly was being applied inside a box that had already sized
+   * itself to its text, and did nothing. That is how the segmented control
+   * ended up with both its options crammed against the left edge.
+   *
+   * They have to MOVE rather than be copied: `flexBasis: 0` on the inner view
+   * is a basis on the cross axis of the row it was written for — a height of
+   * zero — which is its own quiet bug.
+   */
+  const { flex, flexGrow, flexShrink, flexBasis, alignSelf, ...inner } =
+    (StyleSheet.flatten(style) ?? {}) as ViewStyle;
+  const box = { flex, flexGrow, flexShrink, flexBasis, alignSelf };
+
   const animate = (to: number) =>
     Animated.spring(value, {
       toValue: to,
@@ -89,6 +108,7 @@ export function Press({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: Boolean(disabled), ...accessibilityState }}
       hitSlop={hitSlop}
+      style={box}
       disabled={disabled}
       delayLongPress={delayLongPress}
       onPressIn={() => {
@@ -108,7 +128,7 @@ export function Press({
             }
           : undefined
       }>
-      <Animated.View style={[animatedStyle, style]}>{children}</Animated.View>
+      <Animated.View style={[animatedStyle, inner]}>{children}</Animated.View>
     </Pressable>
   );
 }
