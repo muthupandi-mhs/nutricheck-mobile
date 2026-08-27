@@ -32,7 +32,10 @@ export function Chip({
 
   const skin: Record<ChipVariant, { bg: string; fg: string; border: string; dashed?: boolean; width: number }> = {
     default: { bg: c.surface, fg: c.ink, border: c.borderStrong, width: 1 },
-    selected: { bg: c.primary, fg: c.onPrimary, border: 'transparent', width: 0 },
+    // Ink, as everywhere else something is chosen — a selected segment, a
+    // selected tile. The accent is for what a value MEANS, not for which one
+    // the finger last landed on.
+    selected: { bg: c.ink, fg: c.canvas, border: 'transparent', width: 0 },
     attention: { bg: c.attentionSoft, fg: c.attentionInk, border: 'transparent', width: 0 },
     ask: { bg: 'transparent', fg: c.attentionInk, border: c.attention, dashed: true, width: 1.5 },
     success: { bg: c.primarySoft, fg: c.primarySoftInk, border: 'transparent', width: 0 },
