@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { RecentTile } from '../../api/client';
 import { Card } from '../../components/Card';
 import { TextButton } from '../../components/Button';
-import { Badge } from '../../components/Chip';
 import { EmptyState, Notice, UndoToast } from '../../components/Feedback';
 import { Divider, Gap, Gutter, Row, Split, Stack } from '../../components/Layout';
 import { Meter } from '../../components/Meter';
@@ -30,7 +29,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
  * the empty state where it is genuinely the fastest thing available.
  */
 export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
-  const { c, space } = useTheme();
+  const { c, radius, space } = useTheme();
   const { day, date, goal, loading, recents, pending, toast, refresh, logTile, undoToast, dismissToast, retryPending } =
     useAppState();
 
@@ -128,9 +127,16 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
           <Gutter>
             <Card style={{ paddingVertical: space.xxl }}>
               <Stack align="center" gap={space.lg}>
+                {/* The ring draws its own big number — what is LEFT, which is
+                    the figure somebody opens the app to see. This is the line
+                    under it, and it was a Badge: a pill is a label for a thing
+                    beside it, and inside a ring it read as a control. Plain
+                    text says the same thing and stops asking to be tapped. */}
                 <Ring consumed={totals?.kcal ?? 0} goal={target?.kcal ?? 2000}>
-                  <Gap h={6} />
-                  <Badge label={`${kcal(totals?.kcal ?? 0)} of ${kcal(target?.kcal ?? 0)}`} />
+                  <Gap h={2} />
+                  <Txt role="caption" tone="tertiary" numeric>
+                    {kcal(totals?.kcal ?? 0)} of {kcal(target?.kcal ?? 0)}
+                  </Txt>
                 </Ring>
               </Stack>
 
@@ -171,13 +177,22 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
               {unmeasured.length > 0 && (
                 <>
                   <Gap h={space.lg} />
-                  <Card fill="attentionSoft" style={{ padding: space.md }}>
+                  {/* A tinted block, not a Card. This sits INSIDE the day
+                      card, and a card in a card is two edges describing one
+                      object — the thing that made the old onboarding sheets
+                      read as badly drawn. */}
+                  <View
+                    style={{
+                      backgroundColor: c.attentionSoft,
+                      borderRadius: radius.md,
+                      padding: space.md,
+                    }}>
                     <Txt role="caption" tone="attention">
                       {unmeasured.map(u => `${u.label} for ${plural(u.count, 'item')}`).join(', ')}{' '}
                       {unmeasured.length === 1 ? 'is' : 'are'} unknown today. Those are left out of the
                       total rather than counted as zero.
                     </Txt>
-                  </Card>
+                  </View>
                 </>
               )}
             </Card>
@@ -190,7 +205,7 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
             <Gap h={space.xxl} />
             <Gutter>
               <Split align="baseline">
-                <SectionLabel>Log again</SectionLabel>
+                <SectionLabel>Add again</SectionLabel>
                 <Txt role="caption" tone="tertiary">
                   Hold to change portion
                 </Txt>
@@ -212,7 +227,7 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
           <>
             <Gap h={space.xxl} />
             <Gutter>
-              <SectionLabel>Today's meals</SectionLabel>
+              <SectionLabel>What you ate</SectionLabel>
             </Gutter>
             <Gap h={space.md} />
             <Gutter>
@@ -234,14 +249,14 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
         {!loading && !hasEntries && (
           <EmptyState
             icon="bowl"
-            title="Nothing logged yet"
+            title="Nothing yet today"
             detail={
               recents.length > 0
-                ? 'Tap anything above to log it at your usual portion, or describe a whole meal in one sentence.'
-                : 'Start with one thing you ate. Search is the surest way in — describing a meal earns its keep once there are three things on the plate.'
+                ? 'Tap anything above to add it at your usual portion, or say a whole meal in one line.'
+                : 'Say what you ate and the app works out the rest. Looking it up by name is there too, for when you already know exactly what you want.'
             }
-            action={{ label: 'Find a food', icon: 'search', onPress: () => navigation.navigate('Search') }}
-            secondary={{ label: 'Describe a meal instead', onPress: () => navigation.navigate('Composer') }}
+            action={{ label: 'Say what you ate', icon: 'mic', onPress: () => navigation.navigate('Composer') }}
+            secondary={{ label: 'Find a food by name', onPress: () => navigation.navigate('Search') }}
           />
         )}
 
