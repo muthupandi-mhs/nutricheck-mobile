@@ -3,24 +3,45 @@ import { Platform } from 'react-native';
 /**
  * Which backend the app talks to.
  *
- * There is no mock: the app talks to a real API or to nothing. Switching this
- * constant is the whole mechanism — no env files, no build flavours, no extra
- * dependency to keep current.
+ * There is no mock: the app talks to a real API or to nothing.
  *
  *   'staging' — the deployed box. Works from anywhere, on Wi-Fi or mobile data,
- *               with no cable and no adb. Use this unless you are changing the
- *               backend itself.
+ *               with no cable and no adb.
  *
  *   'local'   — the API running on your own machine. Needed when the change you
  *               are testing has not been deployed yet.
  */
 type Backend = 'staging' | 'local';
 
-// The cast is load-bearing. Without it TypeScript narrows this const to the
-// literal 'staging', and every comparison against the other value becomes an
-// error about types with no overlap -- so flipping the switch, the one thing
-// this file exists to let you do, would not compile.
-const BACKEND = 'staging' as Backend;
+/**
+ * Point a DEBUG build somewhere other than localhost. Null follows the rule.
+ *
+ * For the afternoon you are working on a screen against the deployed data
+ * rather than your own — set it to 'staging' and put it back to null. It is
+ * deliberately unable to affect a release build: the direction that needs
+ * protecting is the shipped one, and an override that could reach it would
+ * reintroduce exactly the mistake this replaced.
+ */
+const OVERRIDE: Backend | null = null;
+
+/**
+ * The build decides, not a constant somebody has to remember to flip.
+ *
+ * `__DEV__` is true when the bundle came from Metro and false in a release
+ * build — the one signal that already means exactly what we need it to mean,
+ * with no env file, no build flavour and no dependency to keep current. So a
+ * debug build talks to the machine it was built on, and anything you hand to
+ * somebody else talks to the deployed box.
+ *
+ * This was a constant, and it was the wrong shape for the thing it decided.
+ * Every release build had to be preceded by remembering to change it and
+ * every day of local work by remembering to change it back — and forgetting
+ * in the release direction is invisible: release builds set
+ * usesCleartextTraffic FALSE, so a shipped app pointed at localhost gives a
+ * socket that never connects and no error beyond that. A rule you have to
+ * remember at the moment you are least likely to is not a rule.
+ */
+const BACKEND: Backend = __DEV__ ? OVERRIDE ?? 'local' : 'staging';
 
 /**
  * Staging, over HTTPS with a real Let's Encrypt certificate.
