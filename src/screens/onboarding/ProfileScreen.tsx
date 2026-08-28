@@ -29,7 +29,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'OnboardProfile'>) {
 
   return (
     <OnboardStep
-      step={2}
+      step={1}
       title="About you"
       subtitle="These set your resting burn. Change them any time."
       footer={

@@ -48,6 +48,11 @@ export type RootStackParamList = {
   OnboardActivity: undefined;
   OnboardObjective: undefined;
   /**
+   * How fast. Only on the path where there is a rate to pick — somebody
+   * maintaining their weight goes from the objective straight to the targets.
+   */
+  OnboardRate: undefined;
+  /**
    * `suggestion` is fetched on the step before, while the button spins, so the
    * targets screen opens complete rather than filling in under the reader.
    *

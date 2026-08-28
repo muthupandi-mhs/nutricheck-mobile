@@ -8,7 +8,14 @@ import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
 import { useTheme } from '../../theme/ThemeProvider';
 
-export const STEPS = 6;
+/**
+ * Five, and every one of them is a screen you can point at.
+ *
+ * It said six, and the sixth was nowhere: the count included creating the
+ * account, which happens before any of this and is not a question about you.
+ * So the last step announced itself as five of six and nothing followed it.
+ */
+export const STEPS = 5;
 
 /**
  * The scaffold every onboarding step is built on.

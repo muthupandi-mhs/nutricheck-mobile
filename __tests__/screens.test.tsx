@@ -16,6 +16,7 @@ import { InsightsScreen } from '../src/screens/insights/InsightsScreen';
 import { ActivityScreen } from '../src/screens/onboarding/ActivityScreen';
 import { ObjectiveScreen } from '../src/screens/onboarding/ObjectiveScreen';
 import { ProfileScreen } from '../src/screens/onboarding/ProfileScreen';
+import { RateScreen } from '../src/screens/onboarding/RateScreen';
 import { AuthEmailScreen } from '../src/screens/onboarding/AuthEmailScreen';
 import { AuthPasswordScreen } from '../src/screens/onboarding/AuthPasswordScreen';
 import { TargetsScreen } from '../src/screens/onboarding/TargetsScreen';
@@ -92,7 +93,8 @@ const screens: Array<[string, React.ReactElement]> = [
   ['Profile', <ProfileScreen navigation={navigation} route={{ key: 'k', name: 'OnboardProfile' } as never} />],
   ['Activity', <ActivityScreen navigation={navigation} route={{ key: 'k', name: 'OnboardActivity' } as never} />],
   ['Objective', <ObjectiveScreen navigation={navigation} route={{ key: 'k', name: 'OnboardObjective' } as never} />],
-  ['Targets', <TargetsScreen navigation={navigation} route={{ key: 'k', name: 'OnboardTargets' } as never} />],
+  ['Rate', <RateScreen navigation={navigation} route={{ key: 'k', name: 'OnboardRate' } as never} />],
+  ['Targets', <TargetsScreen navigation={navigation} route={{ key: 'k', name: 'OnboardTargets', params: undefined } as never} />],
   ['Today', <HomeScreen navigation={navigation} route={{ key: 'k', name: 'Today' } as never} />],
   ['Insights', <InsightsScreen navigation={navigation} route={{ key: 'k', name: 'Insights' } as never} />],
   ['Composer', <ComposerScreen navigation={navigation} route={{ key: 'k', name: 'Composer', params: undefined } as never} />],

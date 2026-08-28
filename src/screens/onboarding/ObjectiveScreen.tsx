@@ -1,234 +1,68 @@
-import React, { useMemo, useState } from 'react';
-import { useApi } from '../../api/client';
+import React from 'react';
 import { Button } from '../../components/Button';
-import { Notice } from '../../components/Feedback';
 import { Icon, type IconName } from '../../components/Icon';
-import { Gap, Row, Stack } from '../../components/Layout';
+import { Row } from '../../components/Layout';
 import { Press } from '../../components/Press';
 import { Txt } from '../../components/Text';
-import { deriveGoal, OBJECTIVE_LABEL } from '../../lib/nutrition';
+import { OBJECTIVE_LABEL } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useOnboarding } from '../../state/Onboarding';
-import { OnboardStep, StepGroup } from './OnboardStep';
+import { OnboardStep } from './OnboardStep';
+import { useTargetsPrefetch } from './useTargetsPrefetch';
 import type { Objective } from '../../api/types';
 import type { ScreenProps } from '../../navigation/types';
 
-const RATES = [0.25, 0.5, 0.75, 1.0];
-
 /**
- * How long to hold somebody on the button before giving up on the model.
+ * Which way the weight should go, and nothing else.
  *
- * Long enough for an ordinary call and short enough that a bad minute upstream
- * is a pause rather than a wall. The circuit breaker in front of the provider
- * means a sustained outage fails immediately anyway; this is for the slow case,
- * not the broken one.
- */
-const SUGGEST_TIMEOUT_MS = 5000;
-
-/**
- * Objective, rate, and the number they add up to.
+ * The rate used to live here too, under a second heading. A direction is picked
+ * in a glance and a rate is a judgement, and putting them on one screen made
+ * the smaller question look like a footnote to the larger one. Now each screen
+ * asks one thing.
  *
- * Three tiles across one row rather than three stacked cards: the answers are a
- * direction each, and a direction is a thing to point at rather than a line to
- * read. It also puts the whole question in the height that one of the old rows
- * used, which is what leaves room for the answer underneath.
- *
- * Rate chips are floored: a rate whose deficit would take the target below
- * resting burn is disabled and says so, rather than being offered and silently
- * clipped on the next screen.
+ * Three tiles across one row, because the answers are a direction each — a
+ * thing to point at rather than a line to read.
  */
 export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>) {
   const { space } = useTheme();
-  const api = useApi();
-  const { draft, patch, toProfile } = useOnboarding();
-  const [asking, setAsking] = useState(false);
-
-  const profile = toProfile();
-  const goal = useMemo(() => deriveGoal(profile), [profile]);
-  const rateAllowed = (rate: number) => !deriveGoal({ ...profile, rateKgPerWeek: rate }).basis.flooredAtBmr;
+  const { draft, patch } = useOnboarding();
+  const targets = useTargetsPrefetch(navigation);
 
   const objectives = Object.keys(OBJECTIVE_LABEL) as Objective[];
-  const verb = draft.objective === 'gain' ? 'gain' : 'lose';
-
-  /**
-   * Asks the model on the way out, so the next screen opens finished.
-   *
-   * The wait is capped. A suggestion is worth a moment on a button and is not
-   * worth being stuck behind: past the cap this navigates without one and the
-   * targets screen asks again itself, which costs a card filling in late
-   * rather than a screen that never arrives.
-   *
-   * Every failure lands in the same place — no suggestion, carry on. Onboarding
-   * finished without this before the model was ever asked.
-   */
-  const onSeeTargets = async () => {
-    setAsking(true);
-    const suggestion = await Promise.race([
-      api.suggestTargets(profile).catch(() => undefined),
-      new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), SUGGEST_TIMEOUT_MS)),
-    ]);
-    setAsking(false);
-    navigation.navigate('OnboardTargets', suggestion ? { suggestion } : undefined);
-  };
+  const maintaining = draft.objective === 'maintain';
 
   return (
     <OnboardStep
-      step={4}
+      step={3}
       title="Where should your weight go?"
       footer={
         <Button
-          label="See my targets"
+          // Maintaining skips the rate step, because "how fast would you like
+          // to stay the same" is not a question. That makes this the last
+          // screen before the targets for those users, so it is also where
+          // their suggestion has to be fetched.
+          label={maintaining ? 'See my targets' : 'Continue'}
           loud
-          loading={asking}
-          onPress={onSeeTargets}
+          loading={targets.asking}
+          onPress={() => (maintaining ? targets.go() : navigation.navigate('OnboardRate'))}
           haptic="select"
         />
       }>
-      {/* `huge`, not the usual section gap. These are two separate questions —
-          which way, and then how fast — and at 24 the second one's label sat
-          close enough to the tiles to read as a caption on them. The screen has
-          the room to say they are different questions. */}
-      <Stack gap={space.huge}>
-        <Row gap={space.md}>
-          {objectives.map(o => (
-            <ObjectiveTile
-              key={o}
-              objective={o}
-              selected={draft.objective === o}
-              onPress={() =>
-                patch({ objective: o, rateKgPerWeek: o === 'maintain' ? 0 : draft.rateKgPerWeek || 0.5 })
-              }
-            />
-          ))}
-        </Row>
-
-        {draft.objective !== 'maintain' && (
-          <StepGroup label="How fast, in kg a week">
-            <Stack gap={space.md}>
-              {/* Down, not across. Four across had to share the width three
-                  objective tiles were using, so they came out smaller than the
-                  row above and ragged against it — and the labels under the
-                  numbers were the first thing to get squeezed. Stacked, every
-                  rate is the same full-width row, the numbers line up in a
-                  column of their own, and a scale still reads top to bottom. */}
-              <Stack gap={space.sm}>
-                {RATES.map(rate => (
-                  <RateRow
-                    key={rate}
-                    rate={rate}
-                    verb={verb}
-                    selected={draft.rateKgPerWeek === rate}
-                    allowed={rateAllowed(rate)}
-                    onPress={() => patch({ rateKgPerWeek: rate })}
-                  />
-                ))}
-              </Stack>
-              {/* Only the half that explains something the user can see. The
-                  deficit in calories went: it restated the rate they had just
-                  picked, in a unit they had not asked about, one screen before
-                  the screen that is nothing but calories.
-
-                  This half stays because a dimmed row with no reason beside it
-                  is just a control that does not work — and it only appears
-                  when there is actually one dimmed. */}
-              {RATES.some(r => !rateAllowed(r)) ? (
-                <Txt role="bodySm" tone="secondary">
-                  Greyed-out rates would put your target below your resting burn.
-                </Txt>
-              ) : null}
-            </Stack>
-          </StepGroup>
-        )}
-
-        {goal.basis.flooredAtBmr && (
-          <Notice
-            icon="alert"
-            title="Held at your resting burn"
-            detail="The rate you picked would set a target below what your body spends at rest. We do not go under it."
+      <Row gap={space.md}>
+        {objectives.map(o => (
+          <ObjectiveTile
+            key={o}
+            objective={o}
+            selected={draft.objective === o}
+            onPress={() =>
+              patch({ objective: o, rateKgPerWeek: o === 'maintain' ? 0 : draft.rateKgPerWeek || 0.5 })
+            }
           />
-        )}
-      </Stack>
-      <Gap h={space.sm} />
+        ))}
+      </Row>
     </OnboardStep>
   );
 }
-
-/**
- * One rate, as a full-width row.
- *
- * The number sits in a fixed column so all four line up under each other
- * regardless of how many characters they have — 0.25 and 1 are the same width
- * of space, which is the whole reason a column of numbers reads as a scale
- * rather than as four separate labels.
- *
- * A disallowed rate stays on the list, dimmed, rather than disappearing. Four
- * options that become two as the weight is edited would be a scale that keeps
- * changing shape; and a rate that is missing tells nobody why, where one that
- * is visible and out of reach is explained by the line beneath.
- */
-function RateRow({
-  rate,
-  verb,
-  selected,
-  allowed,
-  onPress,
-}: {
-  rate: number;
-  verb: string;
-  selected: boolean;
-  allowed: boolean;
-  onPress: () => void;
-}) {
-  const { c, radius, space } = useTheme();
-
-  return (
-    <Press
-      onPress={allowed ? onPress : undefined}
-      disabled={!allowed}
-      haptic="select"
-      feedback="none"
-      accessibilityRole="button"
-      accessibilityState={{ selected, disabled: !allowed }}
-      accessibilityLabel={
-        allowed
-          ? `${verb} ${rate} kilograms per week, ${RATE_WORD[rate]}`
-          : `${rate} kilograms per week is unavailable — it would take your target below your resting burn`
-      }
-      style={{
-        opacity: allowed ? 1 : 0.35,
-        backgroundColor: c.surface,
-        borderRadius: radius.lg,
-        borderWidth: 2,
-        borderColor: selected ? c.ink : 'transparent',
-        paddingVertical: space.md,
-        paddingHorizontal: space.lg,
-      }}>
-      <Row gap={space.lg}>
-        {/* Right-aligned in a fixed column: the decimal points stack, so the
-            four numbers read as one scale instead of four labels. */}
-        <Txt
-          role="h3"
-          numeric
-          color={selected ? c.ink : c.inkSecondary}
-          style={{ width: 44, textAlign: 'right' }}>
-          {rate}
-        </Txt>
-        <Txt role="body" color={selected ? c.ink : c.inkSecondary} style={{ flexGrow: 1 }}>
-          {RATE_WORD[rate]}
-        </Txt>
-        {selected ? <Icon name="check" size={18} color={c.ink} weight={2.4} /> : null}
-      </Row>
-    </Press>
-  );
-}
-
-/** What each rate feels like. The number is the amount; this is the meaning. */
-const RATE_WORD: Record<number, string> = {
-  0.25: 'Gentle',
-  0.5: 'Steady',
-  0.75: 'Brisk',
-  1: 'Fast',
-};
 
 /** One of three, splitting the row. Square-ish by the padding, not by an aspect. */
 function ObjectiveTile({

@@ -37,7 +37,7 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
   return (
     <OnboardStep
       fill
-      step={3}
+      step={2}
       title="How active are you?"
       subtitle="A normal week, not your best one."
       footer={

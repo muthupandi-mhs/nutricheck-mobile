@@ -12,6 +12,7 @@ import { InsightsScreen } from '../screens/insights/InsightsScreen';
 import { ActivityScreen } from '../screens/onboarding/ActivityScreen';
 import { ObjectiveScreen } from '../screens/onboarding/ObjectiveScreen';
 import { ProfileScreen } from '../screens/onboarding/ProfileScreen';
+import { RateScreen } from '../screens/onboarding/RateScreen';
 import { AuthEmailScreen } from '../screens/onboarding/AuthEmailScreen';
 import { AuthPasswordScreen } from '../screens/onboarding/AuthPasswordScreen';
 import { TargetsScreen } from '../screens/onboarding/TargetsScreen';
@@ -84,6 +85,7 @@ export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackP
         <Stack.Screen name="OnboardProfile" component={ProfileScreen} />
         <Stack.Screen name="OnboardActivity" component={ActivityScreen} />
         <Stack.Screen name="OnboardObjective" component={ObjectiveScreen} />
+        <Stack.Screen name="OnboardRate" component={RateScreen} />
         <Stack.Screen name="OnboardTargets" component={TargetsScreen} />
 
         {/* the app */}
