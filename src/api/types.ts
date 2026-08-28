@@ -67,6 +67,9 @@ export type AuthResponse = { user: SessionUser; tokens: TokenPair };
 export type SuggestedTargets = {
   kcal: number;
   proteinG: number;
+  /** Derived from the calories, server-side. Never asked of the model. */
+  carbsG: number;
+  fatG: number;
   fiberG: number;
   reasoning: string;
   corrections: string[];

@@ -153,6 +153,8 @@ export function createStubApi(): NutriCheckApi {
   suggestTargets: async () => ({
     kcal: 2100,
     proteinG: 130,
+    carbsG: 233,
+    fatG: 58,
     fiberG: 29,
     reasoning: 'The standard calculation fits you well.',
     corrections: [],

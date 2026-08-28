@@ -1,16 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator } from 'react-native';
 import { useApi } from '../../api/client';
-import { Button, IconButton, TextButton } from '../../components/Button';
+import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
-import { Chip } from '../../components/Chip';
 import { Disclaimer } from '../../components/Feedback';
-import { Stepper } from '../../components/Field';
 import { Icon } from '../../components/Icon';
 import { Gap, Row, Split, Stack } from '../../components/Layout';
 import { Press } from '../../components/Press';
 import { Txt } from '../../components/Text';
-import { ACTIVITY, deriveGoal, goalReasoning } from '../../lib/nutrition';
+import { deriveGoal, goalReasoning } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAppState } from '../../state/AppState';
 import { useOnboarding } from '../../state/Onboarding';
@@ -18,43 +16,50 @@ import { OnboardStep } from './OnboardStep';
 import type { SuggestedTargets, UserProfile } from '../../api/types';
 import type { ScreenProps } from '../../navigation/types';
 
-type Key = 'kcal' | 'protein' | 'fiber';
-
 /**
- * The payoff screen. Three numbers, the reasoning under each, all editable.
- * Showing the arithmetic is the cheapest way to stop people nudging the
- * numbers — a bare target gets adjusted upward by anyone hoping for a bigger one.
+ * The payoff screen: one card holding the whole day, and a button that takes it.
+ *
+ * It used to be three editable numbers with a suggestion card underneath
+ * repeating them, which meant the same three figures appeared twice on one
+ * screen and the second copy had its own accept button — so finishing
+ * onboarding needed two decisions where there is one: is this right, yes.
+ *
+ * Nothing is editable here any more. Every target is changeable in settings,
+ * on a screen built for it, and asking somebody to fine-tune a number before
+ * they have logged a single meal is asking them to have an opinion about a
+ * figure they have no experience of yet.
+ *
+ * All five nutrients, not three. Carbohydrate and fat were already being
+ * calculated and already being tracked against for every meal — leaving them
+ * off this screen meant the first time anybody saw their fat target was when
+ * something was measured against it.
  */
 export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets'>) {
-  const { c, space, radius } = useTheme();
-  const { toProfile, draft } = useOnboarding();
+  const { c, space } = useTheme();
+  const { toProfile } = useOnboarding();
   const { saveProfile, setGoalOverride } = useAppState();
 
   const profile = toProfile();
   const derived = useMemo(() => deriveGoal(profile), [profile]);
   const reasoning = useMemo(() => goalReasoning(derived, profile), [derived, profile]);
-
-  const [values, setValues] = useState({ kcal: derived.kcal, protein: derived.proteinG, fiber: derived.fiberG });
   const asked = useSuggestedTargets(profile, route.params?.suggestion);
-  const [editing, setEditing] = useState<Key | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const rows: Array<{ key: Key; label: string; unit: string; step: number; min: number; max: number; base: number }> = [
-    { key: 'kcal', label: 'Calories', unit: 'kcal', step: 10, min: 800, max: 8000, base: derived.kcal },
-    { key: 'protein', label: 'Protein', unit: 'g', step: 5, min: 20, max: 500, base: derived.proteinG },
-    { key: 'fiber', label: 'Fibre', unit: 'g', step: 1, min: 5, max: 120, base: derived.fiberG },
-  ];
-
+  // What the screen is showing, and therefore what the button commits. The
+  // suggestion when there is one, the formula when there is not.
+  const shown = asked.state === 'ready' ? asked.suggestion : derived;
 
   const onContinue = async () => {
     setSaving(true);
     await saveProfile(profile);
-    // Only send what the user moved — an untouched target stays derived and
-    // keeps tracking the profile as their weight changes.
+
+    // Only send what differs from the formula. An untouched target stays
+    // derived and keeps tracking the profile as the weight changes, which is
+    // the reason goals are append-only rather than edited in place.
     const patch: Record<string, number> = {};
-    if (values.kcal !== derived.kcal) patch.kcal = values.kcal;
-    if (values.protein !== derived.proteinG) patch.proteinG = values.protein;
-    if (values.fiber !== derived.fiberG) patch.fiberG = values.fiber;
+    if (shown.kcal !== derived.kcal) patch.kcal = shown.kcal;
+    if (shown.proteinG !== derived.proteinG) patch.proteinG = shown.proteinG;
+    if (shown.fiberG !== derived.fiberG) patch.fiberG = shown.fiberG;
     if (Object.keys(patch).length) await setGoalOverride(patch);
     setSaving(false);
 
@@ -70,7 +75,7 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
     <OnboardStep
       step={5}
       title="Your daily targets"
-      subtitle="Change anything that looks wrong."
+      subtitle="You can change any of these later in settings."
       footer={
         <>
           <Disclaimer text="Estimates for general wellness, not medical advice." />
@@ -79,43 +84,47 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
         </>
       }>
       <Stack gap={space.md}>
-        {rows.map(row => (
-          <TargetCard
-            key={row.key}
-            row={row}
-            value={values[row.key]}
-            editing={editing === row.key}
-            onEdit={() => setEditing(editing === row.key ? null : row.key)}
-            onChange={v => setValues(prev => ({ ...prev, [row.key]: v }))}
-            onReset={() => setValues(prev => ({ ...prev, [row.key]: row.base }))}
-          />
-        ))}
+        <Card>
+          <Row gap={6} align="baseline">
+            <Txt role="display" numeric style={{ fontSize: 44, lineHeight: 48 }}>
+              {shown.kcal.toLocaleString('en-US')}
+            </Txt>
+            <Txt role="bodyLg" tone="secondary">
+              kcal a day
+            </Txt>
+          </Row>
 
-        <Gap h={space.xs} />
+          <Gap h={space.lg} />
 
-        {asked.state === 'asking' ? <SuggestionPending /> : null}
-        {asked.state === 'ready' ? (
-          <SuggestionCard
-            suggestion={asked.suggestion}
-            applied={
-              values.kcal === asked.suggestion.kcal &&
-              values.protein === asked.suggestion.proteinG &&
-              values.fiber === asked.suggestion.fiberG
-            }
-            differs={
-              asked.suggestion.kcal !== derived.kcal ||
-              asked.suggestion.proteinG !== derived.proteinG ||
-              asked.suggestion.fiberG !== derived.fiberG
-            }
-            onApply={() =>
-              setValues({
-                kcal: asked.suggestion.kcal,
-                protein: asked.suggestion.proteinG,
-                fiber: asked.suggestion.fiberG,
-              })
-            }
-          />
-        ) : null}
+          {/* The four that make up the day underneath the one that bounds it.
+              Same row, same size, because none of them is a footnote to the
+              others — they are what the calorie figure is made of. */}
+          <Row gap={space.md}>
+            <Macro label="Protein" value={shown.proteinG} />
+            <Macro label="Carbs" value={shown.carbsG} />
+            <Macro label="Fat" value={shown.fatG} />
+            <Macro label="Fibre" value={shown.fiberG} />
+          </Row>
+
+          {asked.state === 'asking' ? (
+            <>
+              <Gap h={space.lg} />
+              <Row gap={space.sm} align="center">
+                <ActivityIndicator size="small" color={c.inkTertiary} />
+                <Txt role="labelSm" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
+                  Checking these for you
+                </Txt>
+              </Row>
+            </>
+          ) : null}
+
+          {asked.state === 'ready' ? (
+            <>
+              <Gap h={space.lg} />
+              <Reviewed suggestion={asked.suggestion} />
+            </>
+          ) : null}
+        </Card>
 
         {/* Folded away, not deleted. Showing the arithmetic is what stops a
             target being nudged upward by somebody hoping for a bigger one —
@@ -123,13 +132,13 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
             the question it answers is one people ask once. */}
         <Disclosure label="Why these numbers?">
           <Stack gap={space.md}>
-            {rows.map(row => (
-              <Stack key={row.key} gap={2}>
+            {(['kcal', 'protein', 'fiber'] as const).map(key => (
+              <Stack key={key} gap={2}>
                 <Txt role="labelSm" tone="secondary">
-                  {row.label}
+                  {key === 'kcal' ? 'Calories' : key === 'protein' ? 'Protein' : 'Fibre'}
                 </Txt>
                 <Txt role="bodySm" tone="secondary">
-                  {reasoning[row.key]}
+                  {reasoning[key]}
                 </Txt>
               </Stack>
             ))}
@@ -140,6 +149,66 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
   );
 }
 
+/** One of the four the day is made of. */
+function Macro({ label, value }: { label: string; value: number }) {
+  return (
+    <Stack gap={2} style={{ flexGrow: 1, flexBasis: 0 }}>
+      <Txt role="caption" tone="tertiary">
+        {label}
+      </Txt>
+      <Row gap={2} align="baseline">
+        <Txt role="h3" numeric>
+          {value.toLocaleString('en-US')}
+        </Txt>
+        <Txt role="caption" tone="secondary">
+          g
+        </Txt>
+      </Row>
+    </Stack>
+  );
+}
+
+/**
+ * What the model made of these figures.
+ *
+ * No button. The numbers above already ARE the suggestion — it is what the
+ * screen is showing and what continuing commits — so an accept button would be
+ * asking somebody to agree to something that has already happened. This says
+ * where they came from and what was thought about them, which is the part that
+ * was ever worth reading.
+ */
+function Reviewed({ suggestion }: { suggestion: SuggestedTargets }) {
+  const { c, space } = useTheme();
+
+  return (
+    <Stack gap={space.sm}>
+      <Row gap={space.sm} align="center">
+        <Icon name="sparkle" size={14} color={c.inkTertiary} />
+        <Txt role="labelSm" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
+          Checked for you
+        </Txt>
+      </Row>
+      <Txt role="bodySm" tone="secondary">
+        {suggestion.reasoning}
+      </Txt>
+      {/* Amber, doing its usual job: the app saying a figure is not quite what
+          it appears to be. The model proposed something outside the bounds and
+          the server moved it, and showing the corrected number without saying
+          so would credit the model with the server's answer. */}
+      {suggestion.corrections.map(line => (
+        <Txt key={line} role="caption" tone="attention">
+          {line}
+        </Txt>
+      ))}
+    </Stack>
+  );
+}
+
+type Asked =
+  | { state: 'asking' }
+  | { state: 'none' }
+  | { state: 'ready'; suggestion: SuggestedTargets };
+
 /**
  * Asks the model what it would set, once, when the screen opens.
  *
@@ -147,28 +216,20 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
  * spins, and hands it over as a route param. This is the fallback for when that
  * timed out or failed, and for a screen reached any other way.
  *
- * Mount-only on purpose. The profile is settled by the time anybody reaches
- * this screen — the four steps behind it are what produced it — and `toProfile`
- * builds a fresh object every render, so a dependency on it would ask again on
- * every keystroke of a target being edited.
- *
  * Three states, not two, and that distinction is the whole reason this is a
  * type rather than a nullable value. "Asking" and "there is none" both used to
- * be null, and the screen drew its loading card for both — so a missing
+ * be null, and the screen drew its loading line for both — so a missing
  * endpoint, an unconfigured model or a refusal all showed "checking these for
- * you" forever, on the last screen of onboarding, with no way out but to guess
- * that the button below still worked.
+ * you" forever, on the last screen of onboarding.
  *
  * Every failure is `none`. No model configured, no network, a refusal, a
  * malformed answer: none of them are worth an error on the screen where
  * somebody is about to finish, because the derived targets are already there
  * and are already complete. But none of them are loading either.
+ *
+ * Mount-only on purpose. `toProfile` builds a fresh object every render, so a
+ * dependency on it would ask again — and bill again — on every re-render.
  */
-type Asked =
-  | { state: 'asking' }
-  | { state: 'none' }
-  | { state: 'ready'; suggestion: SuggestedTargets };
-
 function useSuggestedTargets(profile: UserProfile, prefetched?: SuggestedTargets): Asked {
   const api = useApi();
   const asked = useRef(profile);
@@ -191,201 +252,6 @@ function useSuggestedTargets(profile: UserProfile, prefetched?: SuggestedTargets
   }, [api, prefetched]);
 
   return result;
-}
-
-/**
- * What the model would set, and why.
- *
- * Three states, and the distinction between the first two is the point:
- *
- * - it agrees with the formula, which the prompt says is the common answer.
- *   Then there is nothing to apply and the card is reassurance, not an offer.
- * - it would change something. Then it shows its figures and a way to take
- *   them, and the derived numbers stay above, unchanged, until you do.
- * - it was corrected on the way out. Then it says so, because a number the
- *   server moved is not the number the model chose.
- */
-function SuggestionCard({
-  suggestion,
-  applied,
-  differs,
-  onApply,
-}: {
-  suggestion: SuggestedTargets;
-  applied: boolean;
-  differs: boolean;
-  onApply: () => void;
-}) {
-  const { c, space } = useTheme();
-
-  return (
-    <Card>
-      <Row gap={space.sm} align="center">
-        <Icon name="sparkle" size={16} color={c.inkSecondary} />
-        <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
-          {differs ? 'Suggested for you' : 'Checked for you'}
-        </Txt>
-      </Row>
-
-      <Gap h={space.md} />
-      <Txt role="body">{suggestion.reasoning}</Txt>
-
-      {differs ? (
-        <>
-          <Gap h={space.lg} />
-          <Row gap={space.xl}>
-            <Suggested label="Calories" value={suggestion.kcal} unit="kcal" />
-            <Suggested label="Protein" value={suggestion.proteinG} unit="g" />
-            <Suggested label="Fibre" value={suggestion.fiberG} unit="g" />
-          </Row>
-          <Gap h={space.lg} />
-          <Button
-            label={applied ? 'Applied' : 'Use these'}
-            variant="tonal"
-            size="sm"
-            full={false}
-            disabled={applied}
-            icon={applied ? 'check' : undefined}
-            onPress={onApply}
-            haptic="select"
-          />
-        </>
-      ) : null}
-
-      {suggestion.corrections.length > 0 ? (
-        <>
-          <Gap h={space.md} />
-          {/* Amber, and doing its usual job: this is the app saying a figure is
-              not what it appears to be. The model proposed something outside
-              the bounds and the server moved it, and showing the corrected
-              number without saying so would credit the model with the server's
-              answer. */}
-          {suggestion.corrections.map((line: string) => (
-            <Txt key={line} role="caption" tone="attention">
-              {line}
-            </Txt>
-          ))}
-        </>
-      ) : null}
-    </Card>
-  );
-}
-
-/** One suggested figure, next to its siblings. */
-function Suggested({ label, value, unit }: { label: string; value: number; unit: string }) {
-  const { space } = useTheme();
-  return (
-    <Stack gap={2} style={{ flexGrow: 1, flexBasis: 0 }}>
-      <Txt role="caption" tone="tertiary">
-        {label}
-      </Txt>
-      <Row gap={3} align="baseline">
-        <Txt role="h3" numeric>
-          {value.toLocaleString('en-US')}
-        </Txt>
-        <Txt role="caption" tone="secondary">
-          {unit}
-        </Txt>
-      </Row>
-      <Gap h={space.xs} />
-    </Stack>
-  );
-}
-
-/** One target: the number, and the way in to change it. */
-function TargetCard({
-  row,
-  value,
-  editing,
-  onEdit,
-  onChange,
-  onReset,
-}: {
-  row: { key: Key; label: string; unit: string; step: number; min: number; max: number; base: number };
-  value: number;
-  editing: boolean;
-  onEdit: () => void;
-  onChange: (v: number) => void;
-  onReset: () => void;
-}) {
-  const { space } = useTheme();
-  const overridden = value !== row.base;
-
-  return (
-    <Card>
-      {editing ? (
-        <Stack gap={space.lg}>
-          <Stepper
-            label={row.label}
-            value={value}
-            unit={row.unit}
-            step={row.step}
-            min={row.min}
-            max={row.max}
-            onChange={onChange}
-          />
-          <Split>
-            <TextButton
-              label={`Reset to ${row.base.toLocaleString('en-US')}`}
-              tone="secondary"
-              role="labelSm"
-              onPress={onReset}
-            />
-            <Button label="Done" size="sm" full={false} variant="tonal" onPress={onEdit} />
-          </Split>
-        </Stack>
-      ) : (
-        <Row gap={space.lg} align="center">
-          <Stack gap={4} style={{ flexGrow: 1, flexShrink: 1 }}>
-            <Row gap={space.sm} align="center">
-              <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
-                {row.label}
-              </Txt>
-              {overridden && <Chip label="Yours" variant="success" />}
-            </Row>
-            <Row gap={6} align="baseline">
-              <Txt role="display" numeric style={{ fontSize: 36, lineHeight: 40 }}>
-                {value.toLocaleString('en-US')}
-              </Txt>
-              <Txt role="body" tone="secondary">
-                {row.unit}
-              </Txt>
-            </Row>
-          </Stack>
-          <IconButton
-            name="edit"
-            size={18}
-            variant="tonal"
-            onPress={onEdit}
-            accessibilityLabel={`Edit ${row.label.toLowerCase()} target`}
-          />
-        </Row>
-      )}
-    </Card>
-  );
-}
-
-/**
- * The suggestion card's place, while there is not one yet.
- *
- * A box the same size as what is coming, rather than a spinner or nothing.
- * Nothing means the screen grows a card under the reader a second after they
- * arrive; a spinner in the middle of a finished screen reads as something
- * being wrong. This just says what is on its way.
- */
-function SuggestionPending() {
-  const { c, space } = useTheme();
-
-  return (
-    <Card>
-      <Row gap={space.sm} align="center">
-        <ActivityIndicator size="small" color={c.inkTertiary} />
-        <Txt role="labelSm" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
-          Checking these for you
-        </Txt>
-      </Row>
-    </Card>
-  );
 }
 
 /** A heading that opens. Closed by default, because the answer is read once. */
