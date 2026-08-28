@@ -8,7 +8,7 @@ import { Icon } from '../../components/Icon';
 import { Gap, Row, Split, Stack } from '../../components/Layout';
 import { Press } from '../../components/Press';
 import { Txt } from '../../components/Text';
-import { deriveGoal, goalReasoning } from '../../lib/nutrition';
+import { deriveGoal, goalReasoning, macrosFor } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAppState } from '../../state/AppState';
 import { useOnboarding } from '../../state/Onboarding';
@@ -47,7 +47,14 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
 
   // What the screen is showing, and therefore what the button commits. The
   // suggestion when there is one, the formula when there is not.
-  const shown = asked.state === 'ready' ? asked.suggestion : derived;
+  //
+  // The macros are derived here from whichever calorie figure won, rather than
+  // read off the response. They are a function of it — fat a share, carbs the
+  // remainder — so computing them locally means the four numbers always add up
+  // to the one above them, and a server that answers with an older shape shows
+  // a consistent card instead of crashing on a field that is not there.
+  const chosen = asked.state === 'ready' ? asked.suggestion : derived;
+  const shown = { ...chosen, ...macrosFor(chosen.kcal, chosen.proteinG) };
 
   const onContinue = async () => {
     setSaving(true);

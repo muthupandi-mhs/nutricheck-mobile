@@ -130,6 +130,28 @@ export function bmr(p: UserProfile, now = new Date()): number {
  * The calorie target is floored at BMR — an aggressive rate gets the floor and
  * is told so, rather than a number that endorses an unsafe deficit.
  */
+/** The share of calories that comes from fat. A policy, not a measurement. */
+export const FAT_PCT_OF_KCAL = 0.25;
+
+/**
+ * Fat and carbohydrate for a calorie and protein target.
+ *
+ * Fat is a POLICY share; carbohydrate takes the remainder by difference. Both
+ * mirror the server's goal-calculator exactly — the targets screen previews
+ * live as the profile changes, and a preview that disagreed with the goal the
+ * user then accepts would be worse than no preview at all.
+ *
+ * Exported because the calorie figure has two sources: the formula, and a
+ * suggestion that may have moved it. Deriving the macros HERE from whichever
+ * calorie figure is on screen means the four numbers always add up, whatever
+ * the server sent and whatever version of it answered.
+ */
+export function macrosFor(kcal: number, proteinG: number): { carbsG: number; fatG: number } {
+  const fatG = Math.round((kcal * FAT_PCT_OF_KCAL) / 9);
+  const carbsG = Math.max(0, Math.round((kcal - proteinG * 4 - fatG * 9) / 4));
+  return { carbsG, fatG };
+}
+
 export function deriveGoal(p: UserProfile, now = new Date()): Goal {
   const factor = ACTIVITY[p.activityLevel].factor;
   const restingBurn = bmr(p, now);
@@ -150,13 +172,7 @@ export function deriveGoal(p: UserProfile, now = new Date()): Goal {
   // 14 g per 1,000 kcal — the dietary-guidelines basis.
   const fiberG = Math.round((kcal / 1000) * 14);
 
-  // Fat is a POLICY share; carbohydrate takes the remainder by difference.
-  // Both mirror the server's goal-calculator exactly — the targets screen
-  // previews live as the profile changes, and a preview that disagreed with
-  // the goal the user then accepts would be worse than no preview at all.
-  const fatPctOfKcal = 0.25;
-  const fatG = Math.round((kcal * fatPctOfKcal) / 9);
-  const carbsG = Math.max(0, Math.round((kcal - proteinG * 4 - fatG * 9) / 4));
+  const { carbsG, fatG } = macrosFor(kcal, proteinG);
 
   return {
     id: 'goal-derived',
@@ -172,7 +188,7 @@ export function deriveGoal(p: UserProfile, now = new Date()): Goal {
       activityFactor: factor,
       adjustmentPct: tdee === 0 ? 0 : Math.round((signed / tdee) * 100),
       flooredAtBmr,
-      fatPctOfKcal,
+      fatPctOfKcal: FAT_PCT_OF_KCAL,
     },
   };
 }
