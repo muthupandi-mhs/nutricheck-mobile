@@ -9,15 +9,6 @@ import { Txt } from '../../components/Text';
 import { useTheme } from '../../theme/ThemeProvider';
 
 /**
- * Five, and every one of them is a screen you can point at.
- *
- * It said six, and the sixth was nowhere: the count included creating the
- * account, which happens before any of this and is not a question about you.
- * So the last step announced itself as five of six and nothing followed it.
- */
-export const STEPS = 5;
-
-/**
  * The scaffold every onboarding step is built on.
  *
  * One surface, not two. It used to put the controls on a `surface` sheet with
@@ -34,16 +25,12 @@ export const STEPS = 5;
  * the user's height.
  */
 export function OnboardStep({
-  step,
   title,
-  subtitle,
   children,
   footer,
   fill,
 }: {
-  step: number;
   title: string;
-  subtitle?: string;
   children: React.ReactNode;
   /** Pinned to the bottom of the sheet, on its own fill. */
   footer: React.ReactNode;
@@ -70,22 +57,7 @@ export function OnboardStep({
           another half, and what was left to answer the question in was two
           cards. It is read once; the controls are used repeatedly. */}
       <Gap h={space.lg} />
-      {/* Uppercase and letterspaced, matching the field labels in the auth
-          flow — the same voice for the same kind of small structural note. */}
-      <Txt role="caption" tone="tertiary" caps style={{ letterSpacing: 1.1 }}>
-        Step {step} of {STEPS}
-      </Txt>
-      <Gap h={space.sm} />
       <Txt role="h1">{title}</Txt>
-      {subtitle ? (
-        <>
-          <Gap h={space.sm} />
-          <Txt role="bodyLg" tone="secondary">
-            {subtitle}
-          </Txt>
-        </>
-      ) : null}
-
       <Gap h={space.xl} />
     </>
   );

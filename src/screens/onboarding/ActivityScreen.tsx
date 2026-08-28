@@ -37,9 +37,7 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
   return (
     <OnboardStep
       fill
-      step={2}
       title="How active are you?"
-      subtitle="A normal week, not your best one."
       footer={
         <Button label="Continue" loud onPress={() => navigation.navigate('OnboardObjective')} haptic="select" />
       }>

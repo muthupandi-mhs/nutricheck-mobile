@@ -41,9 +41,7 @@ export function RateScreen({ navigation }: ScreenProps<'OnboardRate'>) {
 
   return (
     <OnboardStep
-      step={4}
       title={`How fast do you want to ${verb} it?`}
-      subtitle="In kilos a week. Slower is easier to keep to."
       footer={
         <Button
           label="See my targets"

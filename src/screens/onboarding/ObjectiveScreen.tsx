@@ -33,7 +33,6 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
 
   return (
     <OnboardStep
-      step={3}
       title="Where should your weight go?"
       footer={
         <Button
