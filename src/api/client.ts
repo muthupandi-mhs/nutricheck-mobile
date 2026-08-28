@@ -141,7 +141,12 @@ export interface NutriCheckApi {
    * Rejects with a 503 problem when the server has no AI key, and 429 when the
    * daily call or spend ceiling is reached.
    */
-  interpretMeal(phrase: string): Promise<AiMealDraft>;
+  /**
+   * `signal` matters more here than on search. This is a billed model call, and
+   * leaving the confirm sheet is the user saying they do not want the answer —
+   * so it should stop, not finish quietly and be thrown away.
+   */
+  interpretMeal(phrase: string, signal?: AbortSignal): Promise<AiMealDraft>;
 
   // committing ──────────────────────────────────────────────────────────────
   /** POST /v1/logs — idempotent on clientId, so a replayed queue is safe. */

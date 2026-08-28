@@ -174,7 +174,16 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
           <Txt role="h1">What did you eat?</Txt>
           <IconButton
             name="close"
-            onPress={() => navigation.goBack()}
+            // Cancels first, then leaves. Unmounting does tear the recorder
+            // down, but that runs after the transition starts and after any
+            // transcript already in flight has had its chance to fire — which
+            // is how closing a screen ended in a confirm sheet for a sentence
+            // nobody meant to finish. Doing it here makes leaving the end of
+            // the session, not a race with it.
+            onPress={() => {
+              cancelRecording();
+              navigation.goBack();
+            }}
             accessibilityLabel="Close"
             style={{ marginRight: -10 }}
           />

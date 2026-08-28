@@ -111,18 +111,24 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
 
   useEffect(() => {
     let alive = true;
+    // Leaving cancels the call, rather than letting it land somewhere nobody
+    // is looking. `alive` alone only stopped the RESULT being used — the
+    // request carried on, and this one is a model call that is paid for and
+    // counted against a daily quota whether or not anybody sees it.
+    const abort = new AbortController();
 
     // One POST, not SSE. The resolver streamed because its parse landed well
     // before its database match and the skeletons could fill early; there is no
     // such half-answer here, so the wait is honest and the phrase is echoed
     // back while it runs rather than pretending to progress.
     api
-      .interpretMeal(phrase)
+      .interpretMeal(phrase, abort.signal)
       .then(draft => {
         if (alive) return hydrate(draft);
       })
       .catch(err => {
         if (!alive) return;
+        if (abort.signal.aborted) return;
         // Every failure keeps the phrase and lands on a route that cannot fail.
         // Losing typed input is the failure that makes people delete a tracker.
         // resolver-unavailable is split out from resolver-timeout. Both used to
@@ -144,6 +150,7 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
 
     return () => {
       alive = false;
+      abort.abort();
     };
   }, [api, hydrate, navigation, phrase]);
 

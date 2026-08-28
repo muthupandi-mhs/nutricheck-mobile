@@ -70,14 +70,19 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
     if (Object.keys(patch).length) await setGoalOverride(patch);
     setSaving(false);
 
-    // Straight into the composer, already listening. This used to open the
-    // search screen instead, on the reasoning that a first meal should succeed
-    // with certainty before anybody is asked to trust a parse — but that put a
-    // text box and a food database in front of somebody whose first impression
-    // of the app was meant to be that they could just say it.
+    // Into the composer, and NOT listening.
+    //
+    // It did arrive listening, and that was wrong in a way worth writing down:
+    // a transcript ends the turn by itself and walks straight to the confirm
+    // sheet, so a screen that opens with the microphone already on can hear a
+    // room, decide that was a sentence, and present somebody with a meal they
+    // never said — on their very first use, having paid for the parse of it.
+    //
+    // The microphone is one tap away and the tap is the consent. Nothing in
+    // this app should start recording because a screen appeared.
     navigation.reset({
       index: 1,
-      routes: [{ name: 'Main' }, { name: 'Composer', params: { autoStart: true } }],
+      routes: [{ name: 'Main' }, { name: 'Composer' }],
     });
   };
 

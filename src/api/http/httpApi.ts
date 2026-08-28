@@ -286,7 +286,7 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
 
     // ── the AI route ─────────────────────────────────────────────────────────
 
-    interpretMeal(phrase: string) {
+    interpretMeal(phrase: string, signal?: AbortSignal) {
       // A plain POST, not SSE. The resolver streams because its parse lands
       // well before its database match does and the sheet can fill skeletons
       // meanwhile; here there is one model call and nothing to show until it
@@ -294,6 +294,7 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
       return transport.request<AiMealDraft>('/v1/ai-meal', {
         method: 'POST',
         body: { phrase },
+        signal,
       });
     },
 
