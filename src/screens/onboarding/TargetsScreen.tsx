@@ -8,6 +8,7 @@ import { Icon } from '../../components/Icon';
 import { Gap, Row, Split, Stack } from '../../components/Layout';
 import { Press } from '../../components/Press';
 import { Txt } from '../../components/Text';
+import { requestMic } from '../../lib/speech';
 import { deriveGoal, goalReasoning, macrosFor } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAppState } from '../../state/AppState';
@@ -68,21 +69,35 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
     if (shown.proteinG !== derived.proteinG) patch.proteinG = shown.proteinG;
     if (shown.fiberG !== derived.fiberG) patch.fiberG = shown.fiberG;
     if (Object.keys(patch).length) await setGoalOverride(patch);
+
+    // The microphone, asked for on the tap that ends the form.
+    //
+    // Here rather than on the screen that uses it, because this is the moment
+    // somebody has just said yes to something: the targets are accepted, the
+    // next screen is the first meal, and the dialog lands between the two
+    // rather than on top of a screen still being read. Android spends that
+    // dialog at most twice, so it is worth spending on a tap that already
+    // means "go on".
+    //
+    // The answer is not branched on. A refusal is not a reason to skip the
+    // screen — it can be granted from there, or the screen can be left — and a
+    // grant is still not consent to record. Nothing in this app starts
+    // recording because a screen appeared: a turn ends by itself and walks
+    // straight to the confirm sheet, so a screen that arrives listening can
+    // hear a room and present somebody with a meal they never said, on their
+    // first use, having paid for the parse of it.
+    await requestMic();
+
+    // Held through the dialog. The tap is still in progress until the next
+    // screen is up, and a button that comes back to life underneath a system
+    // prompt invites the whole commit to be run twice.
     setSaving(false);
 
-    // Into the composer, and NOT listening.
-    //
-    // It did arrive listening, and that was wrong in a way worth writing down:
-    // a transcript ends the turn by itself and walks straight to the confirm
-    // sheet, so a screen that opens with the microphone already on can hear a
-    // room, decide that was a sentence, and present somebody with a meal they
-    // never said — on their very first use, having paid for the parse of it.
-    //
-    // The microphone is one tap away and the tap is the consent. Nothing in
-    // this app should start recording because a screen appeared.
+    // Main goes underneath, so speaking (which ends at the confirm sheet) and
+    // skipping both land on Today with no onboarding left to swipe back into.
     navigation.reset({
       index: 1,
-      routes: [{ name: 'Main' }, { name: 'Composer' }],
+      routes: [{ name: 'Main' }, { name: 'Listen', params: { first: true } }],
     });
   };
 
@@ -93,7 +108,7 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
         <>
           <Disclaimer text="Estimates for general wellness, not medical advice." />
           <Gap h={space.md} />
-          <Button label="Looks right — continue" loud loading={saving} onPress={onContinue} haptic="commit" />
+          <Button label="Looks right — continue" loading={saving} onPress={onContinue} haptic="commit" />
         </>
       }>
       <Stack gap={space.md}>

@@ -39,7 +39,7 @@ export function ActivityScreen({ navigation }: ScreenProps<'OnboardActivity'>) {
       fill
       title="How active are you?"
       footer={
-        <Button label="Continue" loud onPress={() => navigation.navigate('OnboardObjective')} haptic="select" />
+        <Button label="Continue" onPress={() => navigation.navigate('OnboardObjective')} haptic="select" />
       }>
       <View style={{ flex: 1, gap: space.md }}>
         {[levels.slice(0, 2), levels.slice(2, 4), levels.slice(4)].map((row, i) => (

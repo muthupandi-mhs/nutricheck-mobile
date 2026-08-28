@@ -97,3 +97,23 @@ export const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
 /** Pluralise without a library. `plural(1,'item')` → "1 item". */
 export const plural = (n: number, one: string, many = `${one}s`): string =>
   `${n} ${n === 1 ? one : many}`;
+
+/**
+ * A meal sentence cut to what the resolver will accept.
+ *
+ * `maxLength` on a field bounds what can be TYPED, and nothing else — a
+ * prefill, a remembered phrase, or a dictation appended to a sentence that was
+ * already there all arrive in code and would sail past it. Those are the paths
+ * that can actually reach the cap, since nobody thumbs 500 characters.
+ *
+ * The cut is at a word boundary when there is one to cut at. What is left goes
+ * to a model, and a sentence ending in "and half a bowl of ri" invites it to
+ * guess at a food that was never said.
+ */
+export function capPhrase(phrase: string, max: number): string {
+  if (phrase.length <= max) return phrase;
+  const cut = phrase.lastIndexOf(' ', max);
+  // No space to cut at means one very long token, and half of it is all there
+  // is to keep.
+  return (cut > 0 ? phrase.slice(0, cut) : phrase.slice(0, max)).trimEnd();
+}

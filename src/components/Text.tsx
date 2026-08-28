@@ -16,7 +16,7 @@ export type TxtProps = Omit<TextProps, 'role'> & {
   tone?: Tone;
   /** Locks tabular figures on. Anything that can change while visible needs it. */
   numeric?: boolean;
-  /** Uppercases and is only valid on the `overline` role. */
+  /** Uppercases. Only the `overline` and `button` roles are tracked for caps. */
   caps?: boolean;
   color?: string;
   style?: StyleProp<TextStyle>;

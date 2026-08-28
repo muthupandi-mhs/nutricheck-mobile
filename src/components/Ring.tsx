@@ -11,9 +11,21 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 /**
  * The calorie ring.
  *
- * It counts *down* — "637 left" is the question people open the app with.
- * Overshoot does not wrap: past the target the arc completes and the number
- * flips to amber, since resetting to a thin sliver at 2,041 kcal would read as
+ * The big figure is what has been EATEN, with the target under it: "1,404 /
+ * of 2,041 kcal". It counted down for a long time, on the reasoning that
+ * "637 left" is the question people open the app with — true at four in the
+ * afternoon, and wrong at every other moment. A remaining figure is a budget,
+ * and a budget is only readable if you already know the two numbers behind it;
+ * what somebody has eaten is a fact they can check against their own day, and
+ * it is also the number the arc is drawing. Ring and figure now say the same
+ * thing, which is the point of putting one inside the other.
+ *
+ * What is left is still there, under the target, as a line rather than a
+ * headline — the caller supplies it, because only the caller knows whether
+ * this is today's ring or a past day's.
+ *
+ * Overshoot does not wrap: past the target the arc completes and the figure
+ * turns amber, since resetting to a thin sliver at 2,041 kcal would read as
  * progress.
  */
 export function Ring({
@@ -73,8 +85,8 @@ export function Ring({
       accessibilityRole="progressbar"
       accessibilityLabel={
         over
-          ? `${Math.abs(remaining)} calories over your target of ${goal}`
-          : `${remaining} calories left of ${goal}`
+          ? `${Math.round(consumed)} calories eaten, ${Math.abs(remaining)} over your target of ${goal}`
+          : `${Math.round(consumed)} calories eaten of ${goal}, ${remaining} left`
       }>
       <Svg width={size} height={size} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
         <Defs>
@@ -102,11 +114,11 @@ export function Ring({
       <Stack gap={2} align="center" accessibilityElementsHidden importantForAccessibility="no">
         <Row gap={4} align="flex-end">
           <Txt role="display" numeric tone={over ? 'attention' : 'ink'} style={tabular}>
-            {Math.abs(remaining).toLocaleString('en-US')}
+            {Math.round(consumed).toLocaleString('en-US')}
           </Txt>
         </Row>
-        <Txt role="caption" tone="secondary">
-          {over ? 'kcal over' : 'kcal left'}
+        <Txt role="caption" tone="secondary" numeric>
+          of {Math.round(goal).toLocaleString('en-US')} kcal
         </Txt>
         {children}
       </Stack>

@@ -12,7 +12,8 @@ import { Press } from '../../components/Press';
 import { Screen } from '../../components/Screen';
 import { SectionLabel, Txt } from '../../components/Text';
 import { useApi } from '../../api/client';
-import { kcal } from '../../lib/format';
+import { PHRASE_MAX } from '../../api/types';
+import { capPhrase, kcal } from '../../lib/format';
 import { hasMic, requestMic, SPEECH_LOCALES, useSpeech, type SpeechFailure } from '../../lib/speech';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAppState } from '../../state/AppState';
@@ -71,7 +72,11 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
   // screen talks through rather than reaching for a transport of its own.
   const api = useApi();
 
-  const [phrase, setPhrase] = useState(route.params?.prefill ?? '');
+  // A prefill arrives in code, so the field's own `maxLength` never sees it.
+  // Every one of them is a phrase that was already inside the cap once, so this
+  // cuts nothing in practice — it is here so the field cannot be seeded past a
+  // limit it then enforces.
+  const [phrase, setPhrase] = useState(capPhrase(route.params?.prefill ?? '', PHRASE_MAX));
   const [micState, setMicState] = useState<'idle' | 'priming' | 'recording'>('idle');
   const [micGranted, setMicGranted] = useState(false);
   const [spoke, setSpoke] = useState(false);
@@ -99,7 +104,14 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
   const speech = useSpeech(api, heard => {
     setMicState('idle');
     if (!heard) return;
-    const next = phraseRef.current ? `${phraseRef.current}, ${heard}` : heard;
+    // Capped, and this is the path that needs it: dictation APPENDS to what
+    // is already in the field and then navigates straight to the resolver, so
+    // it is the one write that can hand the server a sentence the field
+    // itself would have refused.
+    const next = capPhrase(
+      phraseRef.current ? `${phraseRef.current}, ${heard}` : heard,
+      PHRASE_MAX,
+    );
     setSpoke(true);
     setPhrase(next);
     navigation.navigate('Confirm', { phrase: next, source: 'voice' });
@@ -198,6 +210,10 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
             placeholder="two rotis, dal and a bowl of curd"
             multiline
             minHeight={132}
+            // The resolver refuses more than this, so the field does — a
+            // sentence rejected after the button costs a round trip to say
+            // what the keyboard could have said while it was being written.
+            maxLength={PHRASE_MAX}
             // Arriving by mic, the keyboard would race the recording overlay up
             // the screen and win. The field takes focus when dictation ends.
             autoFocus={!route.params?.autoStart}
@@ -298,7 +314,7 @@ export function ComposerScreen({ navigation, route }: ScreenProps<'Composer'>) {
                   <View key={p.id}>
                     {i > 0 && <Divider inset={space.xl + 40 + space.md} />}
                     <Press
-                      onPress={() => setPhrase(p.phrase)}
+                      onPress={() => setPhrase(capPhrase(p.phrase, PHRASE_MAX))}
                       feedback="none"
                       accessibilityLabel={`Reuse: ${p.phrase}`}
                       style={{ paddingHorizontal: space.xl, paddingVertical: space.md }}>

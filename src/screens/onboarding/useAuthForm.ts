@@ -50,7 +50,7 @@ export function useAuthOutcome(navigation: Nav) {
       // account that never finished it still lands there, however old it is.
       navigation.reset({
         index: 0,
-        routes: [{ name: auth.user.onboarded ? 'Main' : 'OnboardProfile' }],
+        routes: [{ name: auth.user.onboarded ? 'Main' : 'OnboardName' }],
       });
     } catch (e) {
       if (e instanceof OfflineError) {

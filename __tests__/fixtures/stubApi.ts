@@ -1,10 +1,12 @@
 import type { CommitDraft, NutriCheckApi, RecentPhrase, RecentTile } from '../../src/api/client';
 import type {
   DaySummary,
+  FoodIdeas,
   FoodDetail,
   FoodSearchResult,
   Goal,
   LogEntry,
+  MonthSummary,
   Nutrients,
   UserProfile,
   WeekSummary,
@@ -367,6 +369,89 @@ export function createStubApi(): NutriCheckApi {
       model: null,
     }),
 
+    /**
+     * Two ideas with plausible estimates, and a note.
+     *
+     * Unlike the insight fixture, this one is NOT empty. An empty ideas list
+     * renders the screen's degraded state, which would leave the card layout
+     * — the part most likely to break under a renamed token — unrendered by
+     * every test that claims to render every screen.
+     */
+    getFoodIdeas: async (date: string): Promise<FoodIdeas> => ({
+      date,
+      remaining: { kcal: 640, proteinG: 48, carbsG: 70, fatG: 22, fiberG: 12 },
+      ideas: [
+        {
+          food: {
+            id: 'idea-curd',
+            name: 'Curd, plain',
+            brand: null,
+            kcalPer100g: 98,
+          },
+          reason: 'A cup covers a fifth of the protein you have left, for under 200 calories.',
+          grams: 200,
+          servingLabel: '1 cup',
+          kcal: 196,
+          proteinG: 22,
+          carbsG: 6.8,
+          fatG: 8.6,
+          fiberG: 0,
+          confidence: 'high',
+        },
+        {
+          food: {
+            id: 'idea-chana',
+            name: 'Chana, boiled',
+            brand: null,
+            kcalPer100g: 164,
+          },
+          reason: 'Most of the fibre you are short of, and it does not crowd the calories.',
+          grams: 150,
+          servingLabel: '1 bowl',
+          kcal: 246,
+          proteinG: 13.4,
+          carbsG: 41.1,
+          fatG: 3.9,
+          fiberG: 11.4,
+          confidence: 'low',
+        },
+      ],
+      note: 'You have most of the evening left and are short on protein.',
+      estimated: true,
+      cached: false,
+    }),
+    /**
+     * A month with a few logged days in it, not an empty one.
+     *
+     * An empty month renders the calendar grid with every cell uncoloured,
+     * which is the one layout least likely to catch a regression in the part
+     * that matters -- the banding. These three days sit on either side of
+     * both thresholds on a 2,000 kcal target.
+     */
+    getMonth: async (anyDayInMonth: string): Promise<MonthSummary> => {
+      const month = anyDayInMonth.slice(0, 7);
+      const days = Array.from({ length: 30 }, (_, i) => {
+        const date = month + '-' + String(i + 1).padStart(2, '0');
+        // 2,050 -> on target. 1,400 -> close. 900 -> well off.
+        const kcal = i === 3 ? 2050 : i === 4 ? 1400 : i === 5 ? 900 : 0;
+        return {
+          date,
+          kcal,
+          proteinG: kcal ? 90 : 0,
+          carbsG: kcal ? 180 : 0,
+          fatG: kcal ? 60 : 0,
+          fiberG: kcal ? 20 : 0,
+          logged: kcal > 0,
+        };
+      });
+      return {
+        from: month + '-01',
+        to: month + '-30',
+        days,
+        goal: { kcal: 2000, proteinG: 145, carbsG: 200, fatG: 65, fiberG: 35 },
+        loggedDays: days.filter(d => d.logged).length,
+      };
+    },
     getPhrases: async (): Promise<RecentPhrase[]> => [
       {
         id: 'phrase-1',

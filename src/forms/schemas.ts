@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN, type CreateCustomFood } from '../api/types';
+import { EMAIL_MAX, NAME_MAX, PASSWORD_MAX, PASSWORD_MIN, type CreateCustomFood } from '../api/types';
 
 /**
  * Form schemas — the client half of the contract in
@@ -137,6 +137,43 @@ export type Credentials = z.output<typeof registerSchema>;
 
 export const credentialsSchema = (mode: 'register' | 'login') =>
   mode === 'register' ? registerSchema : loginSchema;
+
+// ── profile ──────────────────────────────────────────────────────────────────
+
+/**
+ * The name step.
+ *
+ * A first name is required and a surname is not, which is the whole opinion
+ * this schema holds. The app says the first name back to people — a greeting,
+ * the account card — and has never once needed the second; asking for it costs
+ * a tap, requiring it costs a completed signup from anyone who does not want to
+ * give a stranger their full legal name to count calories.
+ *
+ * Nothing is enforced about the SHAPE of either. Every rule anyone has written
+ * about what a name may contain — letters only, two parts, no numerals — is
+ * wrong for somebody, and being told your own name is invalid is a poor first
+ * thing for an app to say to you.
+ *
+ * Trimmed before it is measured, so a field of spaces is empty rather than
+ * eight characters long, and the surname becomes `undefined` rather than `""`:
+ * the wire shape says absent, and an empty string is a third state that the
+ * server would then have to store and every reader handle.
+ */
+export const nameStepSchema = z.object({
+  firstName: trimmed.pipe(
+    z
+      .string()
+      .min(1, 'What should we call you?')
+      .max(NAME_MAX, `That is longer than ${NAME_MAX} characters — a short version is fine.`),
+  ),
+  lastName: trimmed
+    .pipe(z.string().max(NAME_MAX, `Keep it under ${NAME_MAX} characters.`))
+    .transform(v => v || undefined),
+});
+/** What the two fields hold, which is two strings — the surname may be blank. */
+export type NameStepValues = z.input<typeof nameStepSchema>;
+/** What comes out: trimmed, and a surname that is either a name or absent. */
+export type NameStep = z.output<typeof nameStepSchema>;
 
 // ── custom food ──────────────────────────────────────────────────────────────
 

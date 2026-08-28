@@ -13,8 +13,21 @@ import { SectionLabel, Txt } from '../../components/Text';
 import { kcal } from '../../lib/format';
 import { ACTIVITY, ageFrom, OBJECTIVE_LABEL } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
+import type { UserProfile } from '../../api/types';
 import { useAppState } from '../../state/AppState';
 import type { ScreenProps } from '../../navigation/types';
+
+/**
+ * Their name, as much of it as they gave.
+ *
+ * Undefined rather than an empty string when there is neither, so the caller
+ * has one thing to test — a blank name and a missing one are the same fact
+ * about the account, and only one of them should be expressible.
+ */
+function fullName(profile: UserProfile | null): string | undefined {
+  const name = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ').trim();
+  return name || undefined;
+}
 
 /** Hoisted out of the screen so the list is not rebuilt on every state change. */
 function SettingRow({
@@ -74,11 +87,19 @@ function SettingRow({
 
 /**
  * You. Export and delete are top-level rows rather than buried under an account
- * submenu, and permissions are listed with their state so "what does this app
- * have access to" is one screen away. All of them are currently "not asked".
+ * submenu, and the identity card is the way into the profile rather than a row
+ * further down — a summary you cannot act on is where people press first.
+ *
+ * There was a permissions section here, listing the microphone, reminders and
+ * health data with their state. Every one of them read "Not asked", because the
+ * app asks at the moment of use and none of those moments has arrived — so it
+ * was three rows of furniture answering a question nobody had, and the one
+ * place a user could get the impression something had been granted. The OS
+ * settings app is where a granted permission is actually reviewed and revoked;
+ * this can come back when there is a state worth reporting.
  */
 export function YouScreen({ navigation }: ScreenProps<'You'>) {
-  const { space } = useTheme();
+  const { c, space } = useTheme();
   const api = useApi();
   const { profile, goal } = useAppState();
 
@@ -91,26 +112,45 @@ export function YouScreen({ navigation }: ScreenProps<'You'>) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.huge }}>
         <Gutter>
           <Stack gap={space.xl}>
-            {/* identity */}
-            <Card>
-              <Row gap={space.lg}>
-                <FoodGlyph name="you" seed="account" size={56} icon="user" />
-                <Stack gap={4} style={{ flexShrink: 1 }}>
-                  <Txt role="h3">Your account</Txt>
-                  <Txt role="bodySm" tone="secondary">
-                    {profile
-                      ? `${ageFrom(profile.birthDate)} · ${profile.heightCm} cm · ${profile.weightKg} kg`
-                      : 'Profile not set'}
-                  </Txt>
-                  {profile && (
-                    <Row gap={space.sm} wrap style={{ paddingTop: 2 }}>
-                      <Badge label={ACTIVITY[profile.activityLevel].short} />
-                      <Badge label={OBJECTIVE_LABEL[profile.objective]} tone="success" />
-                    </Row>
-                  )}
-                </Stack>
-              </Row>
-            </Card>
+            {/* identity — and the way into the profile, which is the only
+                screen that can change any of what this card is showing. It is
+                the card itself rather than a row further down: a summary you
+                cannot act on is the place people press first anyway. */}
+            <Press
+              onPress={() => navigation.navigate('ProfileEditor')}
+              feedback="scale"
+              accessibilityLabel="Your profile"
+              accessibilityHint="Change your name, body details, activity and goal">
+              <Card>
+                <Row gap={space.lg}>
+                  <FoodGlyph name="you" seed="account" size={56} icon="user" />
+                  <Stack gap={4} style={{ flexGrow: 1, flexShrink: 1 }}>
+                    {/* Their name where the card used to say "Your account",
+                        which is a label for a card already sitting under a
+                        heading saying You. Accounts made before the name step
+                        have none, and fall back to what was always there. */}
+                    <Txt role="h3" numberOfLines={1}>
+                      {fullName(profile) ?? 'Your account'}
+                    </Txt>
+                    <Txt role="bodySm" tone="secondary">
+                      {profile
+                        ? `${ageFrom(profile.birthDate)} · ${profile.heightCm} cm · ${profile.weightKg} kg`
+                        : 'Profile not set'}
+                    </Txt>
+                    {profile && (
+                      <Row gap={space.sm} wrap style={{ paddingTop: 2 }}>
+                        <Badge label={ACTIVITY[profile.activityLevel].short} />
+                        <Badge label={OBJECTIVE_LABEL[profile.objective]} tone="success" />
+                      </Row>
+                    )}
+                  </Stack>
+                  {/* The same chevron every other pressable row carries. A
+                      card that opens something and a card that only reports
+                      look identical without it. */}
+                  <Icon name="chevronRight" size={17} color={c.inkTertiary} />
+                </Row>
+              </Card>
+            </Press>
 
             {/* targets */}
             <Stack gap={space.md}>
@@ -136,20 +176,6 @@ export function YouScreen({ navigation }: ScreenProps<'You'>) {
                   onPress={() => navigation.navigate('GoalEditor')}
                   last
                 />
-              </Card>
-            </Stack>
-
-            {/* permissions */}
-            <Stack gap={space.md}>
-              <SectionLabel>Permissions</SectionLabel>
-              <Txt role="bodySm" tone="secondary">
-                Each is asked at the moment it first becomes useful, never up front. None is required to log
-                a meal.
-              </Txt>
-              <Card padded={false}>
-                <SettingRow icon="mic" title="Microphone" value="Not asked" first />
-                <SettingRow icon="clock" title="Meal reminders" value="Not asked" />
-                <SettingRow icon="scale" title="Health data" value="Not asked" last />
               </Card>
             </Stack>
 

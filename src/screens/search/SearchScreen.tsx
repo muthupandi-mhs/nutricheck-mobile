@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useApi } from '../../api/client';
-import type { FoodSearchResult } from '../../api/types';
+import { SEARCH_MAX, type FoodSearchResult } from '../../api/types';
 import { Button, IconButton, TextButton } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Chip';
@@ -148,6 +148,8 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
           autoFocus
           placeholder="Search foods"
           returnKeyType="search"
+          // What the food search accepts. Anything longer is not a search.
+          maxLength={SEARCH_MAX}
           accessibilityHint="Search the food database"
         />
       </Gutter>

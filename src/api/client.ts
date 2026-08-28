@@ -5,11 +5,13 @@ import type {
   CreateCustomFood,
   DaySummary,
   FoodDetail,
+  FoodIdeas,
   FoodSearchResult,
   Goal,
   LoginRequest,
   LogEntry,
   MealInsight,
+  MonthSummary,
   MealSlot,
   CheckEmailRequest,
   CheckEmailResponse,
@@ -90,6 +92,25 @@ export interface NutriCheckApi {
    */
   getMealInsight(date: string, meal: MealSlot): Promise<MealInsight>;
 
+  // food ideas ─────────────────────────────────────────────────────────────
+  /**
+   * GET /v1/ideas?date=&tz=
+   *
+   * Foods that would fit what is left of the day. Never throws for a missing
+   * list: an unreachable model returns the gap with no ideas and an empty
+   * note, because a tab that shows an error where a suggestion would be tells
+   * the user something broke when nothing they did has.
+   *
+   * Every figure on every idea is an ESTIMATE. The foods behind them are real
+   * rows created by the server, so they commit through the ordinary portion
+   * screen, but not one of their numbers was measured and the screen must say
+   * so — see `estimated`, which is a literal `true` for exactly that reason.
+   *
+   * Rejects with 429 when the daily AI allowance is spent. A cached list is
+   * served before that check, so a user who has already seen today's ideas
+   * keeps seeing them.
+   */
+  getFoodIdeas(date: string, signal?: AbortSignal): Promise<FoodIdeas>;
   // the day ─────────────────────────────────────────────────────────────────
   /**
    * GET /v1/logs/day?date=&tz=
@@ -99,6 +120,15 @@ export interface NutriCheckApi {
    * every user east of Greenwich someone else's day boundary.
    */
   getDay(date: string): Promise<DaySummary>;
+  /**
+   * GET /v1/logs/month?date=&tz=
+   *
+   * Every day of the calendar month `anyDayInMonth` falls in, logged or not.
+   * Backs the history calendar: the grid needs a cell per day whether or not
+   * anything was eaten, and a client that filtered the gaps would have to
+   * rebuild them to lay the month out.
+   */
+  getMonth(anyDayInMonth: string, signal?: AbortSignal): Promise<MonthSummary>;
   /** GET /v1/logs/week?date=&tz= — seven days ending on `endingOn`. */
   getWeek(endingOn: string): Promise<WeekSummary>;
 

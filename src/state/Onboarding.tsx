@@ -7,6 +7,15 @@ import type { ActivityLevel, Objective, Sex, UserProfile } from '../api/types';
  * ninety-second flow is not worth restoring across a process death.
  */
 export type Draft = {
+  /**
+   * Asked first, before anything measurable. Blank until the name step is
+   * answered — which it always is, since the step cannot be passed without a
+   * first name, and a draft that starts with a plausible-looking default is a
+   * draft that can be submitted without anyone having read the question.
+   */
+  firstName: string;
+  /** Optional on the step, so it stays optional here. */
+  lastName: string;
   sex: Sex;
   birthYear: number;
   heightCm: number;
@@ -24,6 +33,8 @@ export type Draft = {
 };
 
 const INITIAL: Draft = {
+  firstName: '',
+  lastName: '',
   sex: 'male',
   birthYear: new Date().getFullYear() - 30,
   heightCm: 175,
@@ -51,6 +62,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       draft,
       patch: p => setDraft(d => ({ ...d, ...p })),
       toProfile: () => ({
+        firstName: draft.firstName,
+        // Absent rather than empty: the contract says a surname is either a
+        // name or missing, and "" is a third state with no meaning.
+        lastName: draft.lastName || undefined,
         sex: draft.sex,
         // The formula needs age, so a birth year is one field instead of a date
         // picker and no less accurate for a resting-burn estimate.

@@ -8,6 +8,7 @@ import {
   type CreateCustomFood,
   type DaySummary,
   type FoodDetail,
+  type FoodIdeas,
   type FoodSearchResult,
   type FoodSummary,
   type Goal,
@@ -17,6 +18,7 @@ import {
   type MealFacts,
   type MealInsight,
   type MealSlot,
+  type MonthSummary,
   type CheckEmailRequest,
   type CheckEmailResponse,
   type RegisterRequest,
@@ -241,6 +243,35 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
       }
     },
 
+    // ── food ideas ───────────────────────────────────────────────────────────
+
+    /**
+     * `GET /v1/ideas?date=&tz=`.
+     *
+     * The zone is injected here for the same reason `getDay` injects it: the
+     * wire contract defaults it to UTC, and the gap these ideas are built
+     * from is a day total — so a forgotten `tz` would suggest breakfast to
+     * somebody at dinner, off somebody else's day boundary.
+     *
+     * **This does NOT swallow failures, and `getMealInsight` above does.** The
+     * difference is what the screen has left when the call fails. A meal card
+     * that loses its note still has every number on it, so an error there would
+     * be noise over intact content. This response IS the screen — lose it and
+     * there is nothing behind it — so a swallowed failure renders as a
+     * confident, wrong explanation rather than a true one.
+     *
+     * That is not hypothetical. The first build of this method returned an
+     * empty list on any error, and a 404 from a server that had not been
+     * restarted reached the device as "suggestions need a model, and one was
+     * not reachable" — a sentence the app had no evidence for, naming a cause
+     * that was not the cause, on a screen with no way to tell.
+     */
+    getFoodIdeas(date: string, signal?: AbortSignal): Promise<FoodIdeas> {
+      return transport.request<FoodIdeas>('/v1/ideas', {
+        query: { date, tz },
+        signal,
+      });
+    },
     // ── the day ──────────────────────────────────────────────────────────────
 
     /**
@@ -256,6 +287,20 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
       return transport.request<DaySummary>('/v1/logs/day', { query: { date, tz } });
     },
 
+    /**
+     * `GET /v1/logs/month?date=&tz=`.
+     *
+     * Same day-boundary rule as the day and the week: the zone is injected
+     * here, never asked of the caller. A month grid off by a zone puts a
+     * late meal on the wrong CELL, which is more visible and more confusing
+     * than the same error on a total.
+     */
+    getMonth(anyDayInMonth: string, signal?: AbortSignal) {
+      return transport.request<MonthSummary>('/v1/logs/month', {
+        query: { date: anyDayInMonth, tz },
+        signal,
+      });
+    },
     /** `GET /v1/logs/week?date=&tz=` — same boundary rule as the day. */
     getWeek(endingOn: string) {
       return transport.request<WeekSummary>('/v1/logs/week', {

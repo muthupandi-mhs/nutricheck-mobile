@@ -13,6 +13,10 @@ import { Txt } from './Text';
 
 const ICONS: Record<string, IconName> = {
   Today: 'home',
+  // The same mark every AI surface in the app carries. Ideas is the only
+  // destination whose contents a model wrote, and the icon says so before
+  // the tap rather than after it.
+  Ideas: 'sparkle',
   Insights: 'chart',
 };
 
@@ -20,8 +24,8 @@ const ICONS: Record<string, IconName> = {
 const BAR_HEIGHT = 62;
 
 /**
- * A floating tab bar: a dark pill holding the destinations, and the log action
- * as its own circle beside it.
+ * A floating tab bar: a dark pill holding the three destinations, and the log
+ * action as its own circle beside it.
  *
  * Two things follow from floating rather than sitting in the page. It stays in
  * normal layout flow, so the bar's own height reserves the strip and nothing is

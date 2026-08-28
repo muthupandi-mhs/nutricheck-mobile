@@ -29,6 +29,7 @@ export function OnboardStep({
   children,
   footer,
   fill,
+  pinFooter,
 }: {
   title: string;
   children: React.ReactNode;
@@ -45,6 +46,16 @@ export function OnboardStep({
    * nothing, quietly, which looks like a layout that simply ignored you.
    */
   fill?: boolean;
+  /**
+   * Keeps the button above the keyboard instead of standing it down.
+   *
+   * For a step that is TYPED into. The default suits a step of steppers and
+   * segments, where the keypad only ever covers a number field and closes
+   * itself on the tick — but on a step whose answer is words, the keyboard is
+   * up for the whole of it, and hiding the only way forward for the whole of it
+   * reads as a screen with no way out.
+   */
+  pinFooter?: boolean;
 }) {
   const { space } = useTheme();
   const insets = useSafeAreaInsets();
@@ -101,7 +112,7 @@ export function OnboardStep({
 
             No fill of its own: on the canvas that would be the only thing on
             the screen pretending to be a bar. */}
-        {keyboard ? null : (
+        {keyboard && !pinFooter ? null : (
           <View
             style={{
               paddingHorizontal: space.gutter,

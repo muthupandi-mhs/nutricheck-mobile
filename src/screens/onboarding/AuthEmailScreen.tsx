@@ -72,8 +72,6 @@ export function AuthEmailScreen({ navigation }: ScreenProps<'AuthEmail'>) {
       footer={
         <Button
           label="Continue"
-         
-          loud
           loading={busy}
           disabled={form.formState.isSubmitted && !form.formState.isValid}
           onPress={submit}

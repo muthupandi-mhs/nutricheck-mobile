@@ -36,6 +36,23 @@ export type CheckEmailResponse = { registered: boolean };
 export const PASSWORD_MIN = 6;
 export const PASSWORD_MAX = 200;
 export const EMAIL_MAX = 254;
+/** Mirrors `NameField` in `contracts/src/profile.ts`. A cap, not a rule about names. */
+export const NAME_MAX = 60;
+
+/**
+ * A meal said in words — `contracts/src/resolve.ts` and `ai-meal.ts` both cap it
+ * at 500, and both reject what is over.
+ *
+ * Enforced on the field rather than at the send, deliberately. The screens
+ * that produce a phrase send it to a model, and a sentence that is refused
+ * AFTER the button has been pressed costs a round trip to say something the
+ * keyboard could have said while it was being typed. It is also the only
+ * unbounded thing a user can hand this app.
+ */
+export const PHRASE_MAX = 500;
+
+/** `contracts/src/food.ts` — the search query. Longer is not a search. */
+export const SEARCH_MAX = 120;
 
 export type TokenPair = {
   accessToken: string;
@@ -261,6 +278,19 @@ export type AiMealItemDraft = {
   fiberG: number;
   /** Low when the dish was unfamiliar or the portion had to be assumed. */
   confidence: 'high' | 'low';
+  /**
+   * Which meal the words put this item in, or null when they said nothing.
+   *
+   * One sentence is routinely a whole day here — "kalaila lemon rice ...
+   * mathiyam briyani ... iravu 3 chappathi" — so the slot belongs to the item
+   * and not to the draft, and the read-back files each group under its own
+   * meal instead of putting breakfast into dinner.
+   *
+   * Optional on this side on purpose. A server that has not shipped the field
+   * yet, or a cached draft from before it, should read as "the sentence said
+   * nothing" and fall back to the clock — which is exactly what null means.
+   */
+  meal?: MealSlot | null;
 };
 
 export type AiMealDraft = {
@@ -355,6 +385,21 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 export type Objective = 'lose' | 'maintain' | 'gain';
 
 export type UserProfile = {
+  /**
+   * What to call them, asked on the first onboarding step.
+   *
+   * Optional on both sides of the wire: accounts that predate the name step
+   * have no name, and the profile save is a merge — so a screen saving a
+   * weight change without one must not read as "delete my name".
+   *
+   * Which is why `null` is in the type and is not the same as leaving it out.
+   * Absent means "I am not saying anything about this field" and keeps what is
+   * stored; null is how a surname is actually cleared. Sending `undefined`
+   * would drop the key from the body and the old surname would come back on
+   * the next load.
+   */
+  firstName?: string | null;
+  lastName?: string | null;
   sex: Sex;
   birthDate: string;
   heightCm: number;
@@ -411,6 +456,26 @@ export type WeekSummary = {
   averages: { kcal: number; proteinG: number; carbsG: number; fatG: number; fiberG: number };
   /** Consecutive days with at least one entry, counting back from today. */
   streakDays: number;
+};
+
+/**
+ * Every day of one calendar month, logged or not.
+ *
+ * The same `DayPoint` the week chart uses. A calendar cell and a chart bar
+ * answer the same question at different resolutions, and a second shape for it
+ * would be a second place for `logged` to drift.
+ *
+ * `goal` is the one in effect on the LAST day of the month, not per day — the
+ * same limitation `WeekSummary` carries. Someone who changed their target
+ * mid-month has the front half coloured against the back half's goal.
+ */
+export type MonthSummary = {
+  from: string;
+  to: string;
+  /** 28 to 31 entries. Every day is present, so a grid can index by position. */
+  days: DayPoint[];
+  goal: { kcal: number; proteinG: number; carbsG: number; fatG: number; fiberG: number };
+  loggedDays: number;
 };
 
 // ── errors ───────────────────────────────────────────────────────────────────
@@ -513,4 +578,68 @@ export type MealInsight = {
   text: string;
   cached: boolean;
   model: string | null;
+};
+
+// ── food ideas ───────────────────────────────────────────────────────────────
+
+/**
+ * One suggested food, for a person with some of their day left.
+ *
+ * The third place a model supplies nutrition, after `/v1/ai-meal` and the
+ * targets step — and the only one that runs because a TAB WAS OPENED rather
+ * than because somebody asked. Everything on it is an estimate, and the screen
+ * showing it has to say so.
+ *
+ * `food` is a real row the server created, source `'ai'` with every nutrient
+ * state `imputed`, so tapping an idea opens the ordinary portion screen and
+ * commits through the ordinary log path. `reason` is not decoration: the claim
+ * of this tab is that the list was built from THIS person's remaining targets,
+ * and a suggestion with no argument attached cannot be disagreed with.
+ */
+export type FoodIdea = {
+  food: FoodSummary;
+  /** Why this food, for this gap. One sentence, addressed to the user. */
+  reason: string;
+  /** The portion the figures below describe. */
+  grams: number;
+  /** That portion in ordinary words — "1 cup", "2 eggs". */
+  servingLabel: string;
+  /** Computed server-side from per-100g rates and `grams`, never by the model. */
+  kcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  fiberG: number;
+  confidence: 'high' | 'low';
+};
+
+/**
+ * What is left of the day's targets.
+ *
+ * Null when the target is not set, and NEGATIVE when it has been passed —
+ * reported either way, never clamped. Somebody 300 kcal over is asking a
+ * different question from somebody exactly on target.
+ */
+export type RemainingTargets = {
+  kcal: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+  fiberG: number | null;
+};
+
+export type FoodIdeas = {
+  date: string;
+  /** The gap the ideas were built for, so the screen can show its own evidence. */
+  remaining: RemainingTargets;
+  ideas: FoodIdea[];
+  /**
+   * A sentence about the day. EMPTY whenever the model was unavailable or
+   * refused — render `remaining` and say less, exactly as a meal card does with
+   * a missing note. Never an error to retry.
+   */
+  note: string;
+  /** Literal true, so no screen can render one of these without being told. */
+  estimated: true;
+  cached: boolean;
 };

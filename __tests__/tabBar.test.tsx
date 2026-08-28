@@ -14,6 +14,7 @@ import { ThemeProvider } from '../src/theme/ThemeProvider';
 
 const routes = [
   { key: 'today-1', name: 'Today' },
+  { key: 'ideas-1', name: 'Ideas' },
   { key: 'insights-1', name: 'Insights' },
 ];
 
@@ -26,7 +27,7 @@ function props(index: number) {
   const emit = jest.fn(() => ({ defaultPrevented: false }));
   const navigate = jest.fn();
   return {
-    state: { index, routes, key: 'tab', routeNames: ['Today', 'Insights'] },
+    state: { index, routes, key: 'tab', routeNames: ['Today', 'Ideas', 'Insights'] },
     navigation: { emit, navigate },
     emit,
     navigate,
@@ -56,10 +57,11 @@ function byLabel(tree: ReactTestRenderer.ReactTestRenderer, label: string) {
 }
 
 describe('the floating tab bar', () => {
-  it('renders both destinations and the action', async () => {
+  it('renders every destination and the action', async () => {
     const { tree } = await render(0);
 
     expect(byLabel(tree, 'Today').length).toBeGreaterThan(0);
+    expect(byLabel(tree, 'Ideas').length).toBeGreaterThan(0);
     expect(byLabel(tree, 'Insights').length).toBeGreaterThan(0);
     expect(byLabel(tree, 'Say what you ate').length).toBeGreaterThan(0);
 
@@ -87,7 +89,10 @@ describe('the floating tab bar', () => {
   });
 
   it('marks the focused destination selected, so the reader is not left to infer it from colour', async () => {
-    const { tree } = await render(1);
+    // Index 2, not 1: Ideas sits between Today and Insights. The index is
+    // positional, so a tab inserted anywhere but the end moves every one after
+    // it -- which is how this test caught the insertion.
+    const { tree } = await render(2);
 
     const selected = (label: string) =>
       tree.root.findAll(
@@ -95,6 +100,7 @@ describe('the floating tab bar', () => {
       )[0]?.props.accessibilityState.selected;
 
     expect(selected('Insights')).toBe(true);
+    expect(selected('Ideas')).toBe(false);
     expect(selected('Today')).toBe(false);
 
     await ReactTestRenderer.act(async () => tree.unmount());

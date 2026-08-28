@@ -8,6 +8,7 @@ import {
   existingPasswordField,
   goalTargetsSchema,
   loginSchema,
+  nameStepSchema,
   newPasswordField,
   portionGramsField,
   registerSchema,
@@ -77,6 +78,36 @@ describe('password', () => {
     const weak = { email: 'a@b.co', password: 'short' };
     expect(registerSchema.safeParse(weak).success).toBe(false);
     expect(loginSchema.safeParse(weak).success).toBe(true);
+  });
+});
+
+describe('name', () => {
+  it('takes a first name and leaves the surname out when it is blank', () => {
+    expect(nameStepSchema.parse({ firstName: '  Alex  ', lastName: '   ' })).toEqual({
+      firstName: 'Alex',
+      lastName: undefined,
+    });
+  });
+
+  it('keeps a surname that was given', () => {
+    expect(nameStepSchema.parse({ firstName: 'Alex', lastName: ' Rivera ' })).toEqual({
+      firstName: 'Alex',
+      lastName: 'Rivera',
+    });
+  });
+
+  it('asks for a first name rather than judging a blank one', () => {
+    expect(problem(nameStepSchema, { firstName: '   ', lastName: '' })).toMatch(
+      /What should we call you/,
+    );
+  });
+
+  // Every rule about the shape of a name is wrong for somebody. The schema
+  // holds a length and nothing else, and this is what says so.
+  it('accepts names that a letters-only rule would reject', () => {
+    for (const name of ['Ng', "O'Brien", 'Anne-Marie', 'Ravi Kumar', '李', 'X Æ A-12']) {
+      expect(problem(nameStepSchema, { firstName: name, lastName: '' })).toBeNull();
+    }
   });
 });
 

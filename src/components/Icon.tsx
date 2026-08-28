@@ -25,6 +25,7 @@ export type IconName =
   | 'chevronDown'
   | 'settings'
   | 'clock'
+  | 'calendar'
   | 'alert'
   | 'info'
   | 'edit'
@@ -120,6 +121,15 @@ export function Icon({
         <>
           <Circle cx={12} cy={12} r={8.6} {...p} />
           <Path d="M12 7.2v5l3.2 2" {...p} />
+        </>
+      )}
+      {/* A month block, not a page with a date on it: this opens a grid of
+          days, and the tick marks at the top are the two hangers every
+          calendar app has trained people to recognise at 22px. */}
+      {name === 'calendar' && (
+        <>
+          <Rect x={3.2} y={5} width={17.6} height={16} rx={2.6} {...p} />
+          <Path d="M3.2 9.6h17.6M8 2.8v4.2M16 2.8v4.2" {...p} />
         </>
       )}
       {name === 'alert' && (

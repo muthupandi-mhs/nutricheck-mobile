@@ -41,7 +41,6 @@ export function ObjectiveScreen({ navigation }: ScreenProps<'OnboardObjective'>)
           // screen before the targets for those users, so it is also where
           // their suggestion has to be fetched.
           label={maintaining ? 'See my targets' : 'Continue'}
-          loud
           loading={targets.asking}
           onPress={() => (maintaining ? targets.go() : navigation.navigate('OnboardRate'))}
           haptic="select"

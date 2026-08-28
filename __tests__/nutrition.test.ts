@@ -1,6 +1,6 @@
 import type { UserProfile } from '../src/api/types';
 import { deriveGoal, scale, total } from '../src/lib/nutrition';
-import { DASH, grams, gramsOrDash, kcal } from '../src/lib/format';
+import { capPhrase, DASH, grams, gramsOrDash, kcal } from '../src/lib/format';
 
 /**
  * The arithmetic behind every number on screen.
@@ -125,5 +125,38 @@ describe('formatting', () => {
   it('renders unknown as an em dash, never zero', () => {
     expect(gramsOrDash(null)).toBe(DASH);
     expect(gramsOrDash(0)).toBe('0');
+  });
+});
+
+/**
+ * The cap the resolver applies, applied at the field instead — so an over-long
+ * sentence is shortened while it is being written rather than refused after the
+ * button, which costs a round trip to say something unactionable.
+ */
+describe('capPhrase', () => {
+  it('leaves a sentence inside the cap exactly as it was', () => {
+    expect(capPhrase('two rotis and dal', 500)).toBe('two rotis and dal');
+    expect(capPhrase('', 500)).toBe('');
+  });
+
+  // What is left goes to a model. A sentence ending mid-word invites it to
+  // guess at a food nobody said.
+  it('cuts at a word boundary, not mid-word', () => {
+    expect(capPhrase('two rotis and a bowl of rice', 20)).toBe('two rotis and a bowl');
+  });
+
+  it('leaves no trailing space where the cut was', () => {
+    expect(capPhrase('rice and dal', 5)).toBe('rice');
+  });
+
+  it('falls back to a hard cut when there is no boundary to cut at', () => {
+    expect(capPhrase('a'.repeat(40), 10)).toBe('a'.repeat(10));
+  });
+
+  // The boundary search finds index 0 here, and cutting there would return an
+  // empty string — the field blanking itself for no reason the user can see.
+  // Hence `cut > 0` rather than `>= 0`.
+  it('does not empty a phrase whose only space is at the front', () => {
+    expect(capPhrase(' ' + 'a'.repeat(40), 10)).toHaveLength(10);
   });
 });

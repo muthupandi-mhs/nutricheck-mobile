@@ -31,12 +31,23 @@ export function FoodGlyph({
   seed,
   size = 44,
   icon,
+  shape = 'rounded',
 }: {
   name: string;
   /** Stable tint key. Defaults to the name; pass the food id where you have it. */
   seed?: string;
   size?: number;
   icon?: IconName;
+  /**
+   * `round` makes the tile a circle, matching a button.
+   *
+   * Defaulted to `rounded` so this is opt-in per screen rather than a change to
+   * every food row in the app at once. The two are not interchangeable: a
+   * rounded square reads as a thumbnail — a stand-in for a photograph of the
+   * food — and a circle reads as a control. Use `round` where the row IS the
+   * control and there is nothing else on it to tap.
+   */
+  shape?: 'rounded' | 'round';
 }) {
   const { c, radius, glyphTint } = useTheme();
   return (
@@ -44,7 +55,7 @@ export function FoodGlyph({
       style={{
         width: size,
         height: size,
-        borderRadius: radius.md,
+        borderRadius: shape === 'round' ? radius.pill : radius.md,
         backgroundColor: glyphTint(seed ?? name),
         alignItems: 'center',
         justifyContent: 'center',

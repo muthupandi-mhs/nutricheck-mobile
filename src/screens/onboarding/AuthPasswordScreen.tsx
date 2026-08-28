@@ -49,8 +49,6 @@ export function AuthPasswordScreen({ navigation, route }: ScreenProps<'AuthPassw
       footer={
         <Button
           label={registered ? 'Sign in' : 'Create account'}
-         
-          loud
           loading={f.busy}
           disabled={f.tried && !f.ready}
           onPress={f.submit}

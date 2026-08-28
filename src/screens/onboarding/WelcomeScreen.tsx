@@ -115,8 +115,6 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
                 rather than "the button we want you to press". */}
             <Button
               label="Sign in"
-             
-              loud
               onPress={() => navigation.navigate('AuthEmail')}
               haptic="select"
             />
@@ -124,7 +122,6 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
             <Button
               label="Create an account"
               variant="outline"
-              loud
               onPress={() => navigation.navigate('AuthEmail')}
               haptic="select"
             />

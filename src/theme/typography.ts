@@ -57,9 +57,20 @@ export const text = {
   body: style(15, 22, '400'),
   /** Secondary supporting text. */
   bodySm: style(13, 19, '400'),
-  /** Buttons, chips, tabs — anything that is a target, not prose. */
+  /** Chips, tabs, segments — anything that is a target, not prose. */
   label: style(15, 20, '600'),
   labelSm: style(13, 17, '600'),
+  /**
+   * Button labels, and only buttons.
+   *
+   * Uppercase, heavy, and widely tracked — which is why the tracking is stated
+   * here rather than left to `track()`. That curve is fitted to mixed-case
+   * reading, and caps at this weight close up without help. A button label is
+   * not read, it is recognised, so it is the one place in the app allowed to
+   * shout.
+   */
+  button: style(15, 20, '700', 1.5),
+  buttonSm: style(13, 17, '700', 1.2),
   /** Metadata, units, provenance. */
   caption: style(12, 16, '500'),
   /** Section headers. Uppercase, wide, never longer than three words. */

@@ -12,8 +12,31 @@ type Size = 'lg' | 'md' | 'sm';
 const HEIGHTS: Record<Size, number> = { lg: 56, md: 48, sm: 38 };
 
 /**
+ * Rounded rectangles, not pills.
+ *
+ * Every button was `radius.pill`, which on a 56pt full-width commit means the
+ * two ends are half-circles 28pt across — round enough that the control stops
+ * reading as a surface and starts reading as a capsule floating on one. The
+ * reference this app is drawn against ends a button with a corner, and so does
+ * everything else here that holds something: cards are 20, sheets are 28. At
+ * 999 the button was the one element in the system with no relationship to any
+ * other radius in it.
+ *
+ * Per size rather than fixed, so a 38pt inline action keeps the same optical
+ * corner as a 56pt commit instead of reading squarer than it.
+ */
+const RADII: Record<Size, 'md' | 'sm'> = { lg: 'md', md: 'md', sm: 'sm' };
+
+/**
  * `lg` is the full-width commit at the bottom of a screen, one per screen. `md`
  * is for cards and sheets, `sm` for inline actions.
+ *
+ * Every button in the app is a pill with an uppercase, tracked label. That used
+ * to be an opt-in prop, which meant onboarding shouted and the confirm sheet
+ * murmured — the same control reading as two different controls depending on
+ * which screen you had reached it from. It is intrinsic now: a button either
+ * looks like this or it is not a button. An inline word that should stay
+ * sentence-case is a `TextButton`, which is a link and is styled like one.
  *
  * Disabled keeps a readable label rather than dropping to 30% opacity — the
  * blocking reason is always stated in the line directly above it.
@@ -27,7 +50,6 @@ export function Button({
   iconRight,
   disabled,
   loading,
-  loud,
   full = true,
   haptic,
   accessibilityLabel,
@@ -42,12 +64,6 @@ export function Button({
   iconRight?: IconName;
   disabled?: boolean;
   loading?: boolean;
-  /**
-   * Uppercase and letterspaced, for the full-width commit on a screen that asks
-   * one question. Opt-in rather than the default: it suits a screen with a
-   * single decision on it and shouts on a card with three.
-   */
-  loud?: boolean;
   full?: boolean;
   haptic?: React.ComponentProps<typeof Press>['haptic'];
   accessibilityLabel?: string;
@@ -96,7 +112,7 @@ export function Button({
           height,
           alignSelf: full ? 'stretch' : 'flex-start',
           paddingHorizontal: size === 'sm' ? space.lg : space.xxl,
-          borderRadius: radius.pill,
+          borderRadius: radius[RADII[size]],
           backgroundColor: bg,
           borderWidth: variant === 'outline' && !inert ? 1.5 : 0,
           borderColor: s.border,
@@ -111,11 +127,7 @@ export function Button({
         ) : (
           <>
             {icon && <Icon name={icon} size={iconSize} color={fg} weight={2.1} />}
-            <Txt
-              role={size === 'sm' ? 'labelSm' : 'label'}
-              color={fg}
-              caps={loud}
-              style={loud ? { letterSpacing: 1.2 } : undefined}>
+            <Txt role={size === 'sm' ? 'buttonSm' : 'button'} color={fg} caps numberOfLines={1}>
               {label}
             </Txt>
             {iconRight && <Icon name={iconRight} size={iconSize} color={fg} weight={2.1} />}
@@ -158,6 +170,9 @@ export function IconButton({
         {
           width: hit,
           height: hit,
+          // The one control that stays a circle: it is a 44pt target around a
+          // glyph, not a surface with a label, and a rounded square around an X
+          // reads as a button inside a button.
           borderRadius: radius.pill,
           backgroundColor: bg,
           borderWidth: variant === 'surface' ? 1 : 0,

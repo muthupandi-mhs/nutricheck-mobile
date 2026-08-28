@@ -13,14 +13,28 @@ import type { SuggestedTargets } from '../api/types';
  */
 
 /**
- * The two persistent destinations. Logging is the raised centre action.
+ * The three persistent destinations. Logging is the raised centre action.
  *
  * `You` is deliberately not here: settings are a place you visit, not a place
  * you live, and a permanent tab spends the scarcest real estate on the screen
  * to say so. It is reached from the avatar in Today's top-right instead.
+ *
+ * `Ideas` earned a tab where settings did not, because it is a place you
+ * return to: what it shows changes every time something is logged, which is the
+ * property that distinguishes a destination from a task. Three is also the
+ * ceiling — a fourth would start to crowd the raised action out of the pill.
  */
 export type TabParamList = {
   Today: undefined;
+  /**
+   * Food suggestions, built from the onboarding profile and what is left of
+   * today's targets.
+   *
+   * Takes no params on purpose. Everything it needs is either on the server
+   * (the profile) or derivable from the day the app is already showing, and a
+   * param would let one tab hand another a stale gap.
+   */
+  Ideas: undefined;
   Insights: undefined;
 };
 
@@ -44,6 +58,12 @@ export type RootStackParamList = {
    * decides the title, the rules, and which call is made.
    */
   AuthPassword: { email: string; registered: boolean };
+  /**
+   * The first onboarding step, and the one question in the flow that feeds no
+   * calculation. Takes no params: the name lives in the onboarding draft with
+   * every other answer, and is written with them in one PATCH at the end.
+   */
+  OnboardName: undefined;
   OnboardProfile: undefined;
   OnboardActivity: undefined;
   OnboardObjective: undefined;
@@ -62,6 +82,33 @@ export type RootStackParamList = {
    * not a dead end.
    */
   OnboardTargets: { suggestion?: SuggestedTargets } | undefined;
+  /**
+   * Listening. The whole of the voice route's front half, and the same screen
+   * whether it is somebody's first meal or their four hundredth.
+   *
+   * `first` marks the onboarding pass, and changes three things: the question
+   * at the top, where leaving goes (a reset to Today, since there is a finished
+   * flow underneath) and whether typing is offered as a way out. Everything
+   * else — the orb, the halo, the language — is deliberately identical, because
+   * the first meal is not a tutorial for a different screen.
+   */
+  Listen: { first?: boolean } | undefined;
+  /**
+   * The keyboard half of the voice route: the same question, the same
+   * read-back, a different way of answering.
+   *
+   * `prefill` is words that already exist somewhere — a remembered sentence
+   * being adjusted — never a suggestion the screen invented.
+   */
+  Type: { prefill?: string } | undefined;
+  /**
+   * What the model made of the words, read back before any of it is logged.
+   *
+   * The phrase travels, not the parse: params are values that survive a killed
+   * process, and a draft is neither small nor still true an hour later. The
+   * screen makes its own call. `first` carries the same meaning as on Listen.
+   */
+  MealDetails: { phrase: string; source: 'text' | 'voice'; first?: boolean };
 
   /** The tab host. Everything below it is pushed over the tabs. */
   Main: undefined;
@@ -80,8 +127,24 @@ export type RootStackParamList = {
   CreateFood: { name?: string } | undefined;
   EntryDetail: { entryId: string };
 
+  /**
+   * The history calendar, pushed from Today's masthead.
+   *
+   * Takes no params. It reads the date the app is already looking at from
+   * AppState and writes back through the same store, so a date cannot arrive
+   * here by one route and leave by another.
+   */
+  Calendar: undefined;
   /** Pushed from Today's top-right avatar, not a tab. */
   You: undefined;
+  /**
+   * The profile after onboarding — every answer the flow collected, editable.
+   *
+   * Takes no params: it reads the saved profile from app state, which is the
+   * only copy that is true. Handing it one through a param would let a stale
+   * screen seed the editor with figures that have since changed.
+   */
+  ProfileEditor: undefined;
   GoalEditor: undefined;
 };
 

@@ -45,7 +45,6 @@ export function RateScreen({ navigation }: ScreenProps<'OnboardRate'>) {
       footer={
         <Button
           label="See my targets"
-          loud
           loading={targets.asking}
           onPress={targets.go}
           haptic="select"

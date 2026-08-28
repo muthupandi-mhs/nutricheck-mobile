@@ -51,7 +51,7 @@ function Root() {
         if (!alive) return;
         // Three states, not two — collapsing the middle one lands a
         // half-onboarded account on a home screen with no targets.
-        setInitial(!user ? 'Welcome' : user.onboarded ? 'Main' : 'OnboardProfile');
+        setInitial(!user ? 'Welcome' : user.onboarded ? 'Main' : 'OnboardName');
       })
       .catch(() => alive && setInitial('Welcome'));
     return () => {

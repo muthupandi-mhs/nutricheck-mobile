@@ -22,6 +22,12 @@ export type FieldProps = {
   suffix?: string;
   icon?: IconName;
   autoFocus?: boolean;
+  /**
+   * A hard stop, and the field says so before it is hit: within the last tenth
+   * of the allowance the hint is replaced by what is left. A `maxLength` on its
+   * own is silent, and a keyboard that stops accepting letters without saying
+   * why is indistinguishable from one that has frozen.
+   */
   maxLength?: number;
   secure?: boolean;
   autoCapitalize?: TextInputProps['autoCapitalize'];
@@ -51,6 +57,12 @@ export type FieldProps = {
  * border on focus reflows the row by a pixel, which is small enough to look
  * like a rendering fault and large enough to see.
  */
+/**
+ * The shortest cap worth counting down from. Above every numeric field in the
+ * app and below every prose one, which is the line it is drawn on.
+ */
+const COUNT_FROM = 24;
+
 export function Field({
   label,
   value,
@@ -79,6 +91,23 @@ export function Field({
   const [revealed, setRevealed] = useState(false);
 
   const ring = problem ? c.attention : focused ? c.primary : c.borderStrong;
+
+  /**
+   * How much is left, once there is little enough left to be worth saying.
+   *
+   * A tenth of the allowance, floored at ten characters — proportional alone
+   * would start counting an email address down from 25 remaining, and a flat
+   * number would never appear on a field capped at 12.
+   */
+  const left = maxLength == null ? null : maxLength - value.length;
+  const counting =
+    left !== null &&
+    maxLength != null &&
+    // Counting is for prose. On a field capped at six because it holds grams,
+    // a countdown is noise from the first keystroke — the bound that matters
+    // there is the value, and the schema says that one in words.
+    maxLength >= COUNT_FROM &&
+    left <= Math.max(10, Math.round(maxLength / 10));
 
   return (
     <Stack gap={8}>
@@ -168,6 +197,17 @@ export function Field({
             {problem}
           </Txt>
         </Row>
+      ) : counting ? (
+        // Ahead of the hint rather than beside it. Running out of room is the
+        // more useful of the two things to know at the point it is true, and a
+        // second line appearing under a field pushes whatever is below it down
+        // mid-keystroke.
+        <Txt
+          role="caption"
+          tone={left === 0 ? 'attention' : 'tertiary'}
+          accessibilityLiveRegion="polite">
+          {left === 0 ? 'That is as long as this can be.' : `${left} characters left`}
+        </Txt>
       ) : hint ? (
         <Txt role="caption" tone="tertiary">
           {hint}
@@ -614,6 +654,11 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
               onSubmitEditing={settle}
               keyboardType="number-pad"
               returnKeyType="done"
+              // Wider than any value this takes — heights, weights and
+              // calories all fit in four digits. It is here to stop a paste
+              // rendering a paragraph at 34px across the card, not to bound
+              // the number: `settle` clamps that to min and max.
+              maxLength={7}
               // A caret where the finger landed, not the whole value selected.
               // Selecting all made replacing a number one keystroke, at the
               // price of showing a filled block over it every time it was
