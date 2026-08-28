@@ -121,7 +121,7 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
   }, [results]);
 
   const pick = (row: FoodSearchResult) =>
-    navigation.navigate('Portion', { foodId: row.id, firstLog: params.firstLog });
+    navigation.navigate('Portion', { foodId: row.id });
 
   const notice = params.notice;
 
@@ -129,7 +129,7 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
     <Screen scrollable>
       <Gutter>
         <Split style={{ minHeight: 44 }}>
-          <Txt role="h1">{params.firstLog ? 'Your first log' : 'Find a food'}</Txt>
+          <Txt role="h1">Find a food</Txt>
           <IconButton
             name="close"
             onPress={() => navigation.goBack()}
@@ -145,8 +145,8 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
           // Not on the first log. The keyboard would cover the sentence route
           // below, and offering a choice the user cannot see is not offering it.
           // Every other entry into search is someone who came here to search.
-          autoFocus={!params.firstLog}
-          placeholder={params.firstLog ? 'Try one thing you ate today' : 'Search foods'}
+          autoFocus
+          placeholder="Search foods"
           returnKeyType="search"
           accessibilityHint="Search the food database"
         />
@@ -210,38 +210,6 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
       )}
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: space.huge }}>
-        {params.firstLog && !q && (
-          <Gutter>
-            <Card fill="primarySoft">
-              <Stack gap={6}>
-                <SectionLabel tone="primary">Step 6 of 6</SectionLabel>
-                <Txt role="h2">Log one thing you ate today</Txt>
-                <Txt role="body" tone="secondary">
-                  Anything at all. Once one meal is in, the strip on your home screen makes the next one a
-                  single tap.
-                </Txt>
-              </Stack>
-            </Card>
-
-            {/* The sentence route, offered but not taken for them.
-                USER-FLOWS §2 puts the first log in search on purpose — it is the
-                route with no model in it, so it cannot fail on a bad parse at the
-                one moment a new user has no reason to forgive it. That argument
-                is about the *default*, not about hiding the feature: a user who
-                never sees the composer during onboarding has no idea the app
-                accepts a whole meal in one line. So search stays the thing the
-                cursor is already in, and this sits under it. */}
-            <Gap h={space.md} />
-            <Button
-              label="Or say the whole meal in one line"
-              variant="tonal"
-              icon="sparkle"
-              onPress={() => navigation.navigate('Composer')}
-              accessibilityHint="Type or speak everything you ate, and we work out the foods and amounts"
-            />
-          </Gutter>
-        )}
-
         {searching && results === null && (
           <Gutter>
             {[0, 1, 2].map(i => (
@@ -299,7 +267,7 @@ export function SearchScreen({ navigation, route }: ScreenProps<'Search'>) {
           </Gutter>
         )}
 
-        {!q && !params.firstLog && (
+        {!q && (
           <Gutter>
             <Card fill="sunken">
               <Stack gap={6}>

@@ -75,8 +75,8 @@ export type RootStackParamList = {
   /** The confirm sheet. Opens before the resolve call returns. */
   Confirm: { phrase: string; source: 'text' | 'voice' };
   /** `notice` explains why search opened, when it opened as a fallback. */
-  Search: { prefill?: string; firstLog?: boolean; notice?: 'timeout' | 'unparsed' | 'quota' | 'off' } | undefined;
-  Portion: { foodId: string; firstLog?: boolean };
+  Search: { prefill?: string; notice?: 'timeout' | 'unparsed' | 'quota' | 'off' } | undefined;
+  Portion: { foodId: string };
   CreateFood: { name?: string } | undefined;
   EntryDetail: { entryId: string };
 

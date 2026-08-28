@@ -70,11 +70,14 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
     if (Object.keys(patch).length) await setGoalOverride(patch);
     setSaving(false);
 
-    // The first log goes to search, not the composer — it should succeed with
-    // certainty before anyone is asked to trust a parse.
+    // Straight into the composer, already listening. This used to open the
+    // search screen instead, on the reasoning that a first meal should succeed
+    // with certainty before anybody is asked to trust a parse — but that put a
+    // text box and a food database in front of somebody whose first impression
+    // of the app was meant to be that they could just say it.
     navigation.reset({
       index: 1,
-      routes: [{ name: 'Main' }, { name: 'Search', params: { firstLog: true } }],
+      routes: [{ name: 'Main' }, { name: 'Composer', params: { autoStart: true } }],
     });
   };
 

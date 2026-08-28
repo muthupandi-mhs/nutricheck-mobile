@@ -246,7 +246,7 @@ export function PortionScreen({ navigation, route }: ScreenProps<'Portion'>) {
 
         <Dock>
           <Button
-            label={route.params.firstLog ? 'Log it — that is onboarding done' : 'Add to today'}
+            label="Add to today"
             disabled={!gramsValue}
             loading={saving}
             onPress={onCommit}
