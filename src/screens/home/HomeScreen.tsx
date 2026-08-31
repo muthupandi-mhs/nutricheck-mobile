@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -10,19 +10,22 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useApi } from '../../api/client';
 import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { IconButton, TextButton } from '../../components/Button';
+import { TextButton } from '../../components/Button';
 import { UndoToast } from '../../components/Feedback';
 import { Icon, type IconName } from '../../components/Icon';
 import { Gap, Gutter, Row, Stack } from '../../components/Layout';
+
 import { Press } from '../../components/Press';
-import { Ring } from '../../components/Ring';
 import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
-import { dateEyebrow, grams, kcal, localDate, MEAL_ORDER, parseLocalDate, plural } from '../../lib/format';
+import { DASH, dateEyebrow, grams, kcal, localDate, MEAL_ORDER, parseLocalDate, plural } from '../../lib/format';
 import { useAppState } from '../../state/AppState';
 import { useTheme } from '../../theme/ThemeProvider';
+import { Dial } from './Dial';
 import { MealCard } from './MealCard';
 import type { TabScreenProps } from '../../navigation/types';
 
@@ -35,6 +38,13 @@ import type { TabScreenProps } from '../../navigation/types';
  * needs the same again, which is a fact about the number rather than an
  * opinion about the person.
  */
+/**
+ * SVG gradient ids resolve by name. Fixed ones collide when two instances of a
+ * screen are mounted at once through a transition, which is why every other
+ * gradient in this app is numbered per instance.
+ */
+let instances = 0;
+
 const ON_TRACK = 0.5;
 
 /**
@@ -47,6 +57,77 @@ const ON_TRACK = 0.5;
  * perfectly well, and leaves amber saying only what it has always said.
  */
 const BAND_INK: Record<'short' | 'track' | 'met', number> = { short: 0.3, track: 0.55, met: 1 };
+
+/**
+ * The scale the fasting dial fills against: one day, not a target.
+ *
+ * Deliberately not 16 hours or any other fasting window. An arc drawn against
+ * a window would make the dial a goal the app never set and cannot defend —
+ * this product does not tell anybody how long to go without eating. A day is a
+ * neutral denominator: the arc says how far into one you are since you last
+ * ate, and nothing about whether that is good.
+ */
+const FAST_SCALE_H = 24;
+
+/** "14h" / "45m". Whole units, because the minute is not the point. */
+function fastingLabel(hours: number): string {
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`;
+  return `${Math.floor(hours)}h`;
+}
+
+/**
+ * One end of the day stepper.
+ *
+ * Disabled rather than hidden on the day it cannot move to, so the pill keeps
+ * its width and the label under your thumb does not jump sideways.
+ */
+function Step({
+  icon,
+  label,
+  onPress,
+  disabled,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  const { c, radius } = useTheme();
+
+  return (
+    <Press
+      onPress={onPress}
+      disabled={disabled}
+      feedback="fade"
+      haptic="select"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: radius.pill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.3 : 1,
+      }}>
+      <Icon name={icon} size={17} color={c.ink} weight={2.2} />
+    </Press>
+  );
+}
+
+/**
+ * A day either side, clamped to today.
+ *
+ * Built from the parts rather than by adding milliseconds: a day is not always
+ * 86,400 seconds long, and on the two mornings a year it is not, arithmetic on
+ * the timestamp lands on the wrong date or the same one twice.
+ */
+function shiftDay(date: string, delta: number): string {
+  const d = parseLocalDate(date);
+  const moved = localDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() + delta));
+  const today = localDate();
+  return moved > today ? today : moved;
+}
 
 /** One silhouette per macro. Subjects, not abstractions — an egg, a grain. */
 const MACRO_ICON: Record<string, IconName> = {
@@ -77,10 +158,11 @@ const MACRO_ICON: Record<string, IconName> = {
  * look at.
  */
 export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
-  const { c, space } = useTheme();
+  const { c, radius, space } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const {
+    profile,
     day,
     date,
     setDate,
@@ -97,6 +179,22 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
   const [refreshing, setRefreshing] = useState(false);
 
   /**
+   * Days logged in a row, or null while nobody has told us.
+   *
+   * Read off the week rather than counted here: the server already computes it
+   * for Insights, and a second implementation on the client would be a second
+   * answer to "what is a streak" that could disagree with the first one on the
+   * screen next door.
+   *
+   * Its own call, not part of `refresh()`. That function is the day, and every
+   * screen in the app waits on it; a decoration in the corner of one header
+   * must not be able to slow it down, and must not be able to fail it either —
+   * the catch here leaves the pill absent and the day untouched.
+   */
+  const api = useApi();
+  const [streak, setStreak] = useState<number | null>(null);
+
+  /**
    * Whether the screen is showing today or a day picked from the calendar.
    *
    * Recomputed each render rather than held in state: it depends on the wall
@@ -109,6 +207,22 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
     useCallback(() => {
       refresh();
     }, [refresh]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      // Always counted back from today, whatever day is being LOOKED at: a
+      // streak is a fact about now, and paging back to last Tuesday does not
+      // change how many days you have logged in a row.
+      api
+        .getWeek(localDate())
+        .then(w => alive && setStreak(w.streakDays))
+        .catch(() => undefined);
+      return () => {
+        alive = false;
+      };
+    }, [api]),
   );
 
   const onRefresh = async () => {
@@ -148,69 +262,202 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
   const hasEntries = entries.length > 0;
   const waiting = loading && !day;
 
-  const ring = Math.min(248, width * 0.62);
-  /** Positive is headroom, negative is overshoot. Read by the line in the ring. */
+  const glow = useRef<string | null>(null);
+  if (glow.current === null) glow.current = `todayGlow${(instances += 1)}`;
+
+  /** Three across the gutter, with a gap between each. */
+  const dial = Math.min(118, (width - space.gutter * 2 - space.sm * 2) / 3);
+
+  /** Positive is headroom, negative is overshoot. */
   const left = Math.round((target?.kcal ?? 0) - (totals?.kcal ?? 0));
+
+  /**
+   * Hours since the last thing logged, or null when there is nothing to
+   * measure from.
+   *
+   * Derived rather than tracked. The app has no fasting feature and does not
+   * need one to answer this: a meal is logged with the time it was logged, so
+   * "how long since you last ate" is already in the data. What it is NOT is a
+   * fast somebody declared — it is a gap, and it says so by being called one.
+   *
+   * Only for today. "How long since you ate" on a Tuesday you are looking back
+   * at is a question about now, not about that day, and answering it with
+   * today's clock would be nonsense.
+   */
+  const fasting = useMemo(() => {
+    if (!isToday) return null;
+    const last = [...(day?.entries ?? [])]
+      .map(e => Date.parse(e.loggedAt))
+      .filter(t => Number.isFinite(t))
+      .sort((a, b) => b - a)[0];
+    if (last === undefined) return null;
+    return Math.max(0, (Date.now() - last) / 3600000);
+  }, [day, isToday]);
 
   return (
     <Screen style={{ paddingTop: 0, paddingBottom: 0 }}>
-      <LinearGradient
-        colors={[c.wash[1], c.canvas, c.canvas]}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.85, y: 1 }}
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-      />
+      {/* The backdrop, in the same two colours everything else on this route
+          is lit with.
+
+          The dials' arcs, the mic on the tab bar and the field in the ask sheet
+          all run `ringFrom` to `ringTo`; the page they sit on was a flat
+          near-black, so the lit things read as stuck onto it rather than lit by
+          it. This puts two soft lights behind the dials in those same two ashes
+          — a background belonging to the same family as what stands on it,
+          which is what the reference is doing when its page seems to glow
+          behind the rings.
+
+          Faint on purpose: 0.16 and 0.10 over a near-black page. Amber has to
+          stay the loudest thing on this screen, and it cannot be if the page
+          itself is competing. */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <LinearGradient
+          colors={[c.wash[1], c.canvas, c.canvas]}
+          start={{ x: 0.15, y: 0 }}
+          end={{ x: 0.85, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <Svg style={StyleSheet.absoluteFill}>
+          <Defs>
+            {/* Two lights, not one gradient across the page: the arcs run
+                light to mid left-to-right, so the page under them does the
+                same and the row appears lit rather than painted. */}
+            <RadialGradient id={`${glow.current}A`} cx="26%" cy="18%" r="52%">
+              <Stop offset="0" stopColor={c.ringFrom} stopOpacity={0.16} />
+              <Stop offset="1" stopColor={c.ringFrom} stopOpacity={0} />
+            </RadialGradient>
+            <RadialGradient id={`${glow.current}B`} cx="82%" cy="12%" r="46%">
+              <Stop offset="0" stopColor={c.ringTo} stopOpacity={0.1} />
+              <Stop offset="1" stopColor={c.ringTo} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${glow.current}A)`} />
+          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${glow.current}B)`} />
+        </Svg>
+      </View>
 
       <View style={{ flex: 1, paddingTop: insets.top + space.xs }}>
-        {/* The masthead: the day in the middle, one control at each end.
+        {/* The masthead: you on the left, the day in the middle, the month on
+            the right.
 
-            The left control is the CALENDAR, not search. Search used to sit
-            here on the reasoning that looking a food up has nothing to do with
-            having logged nothing yet — true, but it is still reachable from the
-            composer and from four paths in the confirm sheet, which is where
-            people are when they actually need it. What was NOT reachable was
-            any other day: the app has always held a `date` in AppState and had
-            no control anywhere that could move it, so every day but today was
-            unreachable from the UI. A control that opens a locked door beats a
-            second door to a room you were already in. */}
+            The day is a stepper now rather than a label with a calendar button
+            beside it. Moving a day is the thing people do constantly — "what
+            did I eat yesterday" — and it was costing a screen, a grid and a
+            tap on the right cell; the chevrons make it one tap in the place
+            the date already is. The calendar stays, on the right, for the jump
+            that a stepper is bad at: a Tuesday three weeks ago.
+
+            Forward is present but INERT on today rather than missing. A
+            control that vanishes moves the two beside it, so the whole
+            masthead shifts every time you step back a day — and there is
+            nothing to look at in the future either way. */}
         <Gutter>
-          <Row justify="space-between" align="center" style={{ minHeight: 44 }}>
-            <IconButton
-              name="calendar"
-              onPress={() => navigation.navigate('Calendar')}
-              accessibilityLabel="Open the calendar, to look at a previous day"
-              style={{ marginLeft: -10 }}
-            />
-            <View style={{ alignItems: 'center' }}>
-              {/* Says which day is on screen, not the literal word "Today".
-                  Now that a past date can be selected, a hardcoded "Today" over
-                  last Tuesday's meals would be the screen lying about what it
-                  is showing. */}
-              <Txt role="labelSm" caps style={{ letterSpacing: 2 }} accessibilityRole="header">
-                {isToday ? 'Today' : 'That day'}
-              </Txt>
-              <Txt role="caption" tone="tertiary" caps style={{ letterSpacing: 1.2 }}>
-                {dateEyebrow(parseLocalDate(date))}
-              </Txt>
-            </View>
-            <IconButton
-              name="user"
+          <Row justify="space-between" align="center" style={{ minHeight: 48 }}>
+            {/* You, as a face rather than a glyph in a row of glyphs. The ring
+                is what makes it read as a portrait — the reference does the
+                same, and it is the one control here that is about a person
+                rather than about a date. */}
+            <Press
               onPress={() => navigation.navigate('You')}
+              feedback="scale"
+              haptic="select"
               accessibilityLabel="You"
-              style={{ marginRight: -10 }}
-            />
-          </Row>
+              accessibilityHint="Your profile, targets and settings"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: radius.pill,
+                borderWidth: 1.5,
+                borderColor: c.borderStrong,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+              <Icon name="user" size={19} color={c.ink} weight={1.9} />
+            </Press>
 
-          {/* The way back, and it only exists when it is needed.
-              Without it the calendar is a one-way door: picking a past day
-              leaves the whole app on that day, and the only route home is
-              opening the calendar again and finding today in the grid. */}
-          {!isToday ? (
-            <Row justify="center" style={{ paddingTop: space.sm }}>
-              <TextButton label="Back to today" onPress={() => setDate(localDate())} />
+            {/* One pill, three targets: back a day, the day itself, forward a
+                day. Tapping the middle opens the calendar, so the label is not
+                dead space between two chevrons. */}
+            <Row
+              gap={2}
+              style={{
+                padding: 3,
+                borderRadius: radius.pill,
+                backgroundColor: c.sunken,
+              }}>
+              <Step
+                icon="chevronLeft"
+                label="Previous day"
+                onPress={() => setDate(shiftDay(date, -1))}
+              />
+
+              <Press
+                onPress={() => navigation.navigate('Calendar')}
+                feedback="fade"
+                haptic="select"
+                accessibilityRole="button"
+                accessibilityLabel={`${isToday ? 'Today' : dateEyebrow(parseLocalDate(date))}. Opens the calendar.`}
+                style={{ paddingHorizontal: space.md, justifyContent: 'center', minHeight: 34 }}>
+                <Txt role="labelSm" caps style={{ letterSpacing: 1.6 }} accessibilityRole="header">
+                  {isToday ? 'Today' : dateEyebrow(parseLocalDate(date))}
+                </Txt>
+              </Press>
+
+              <Step
+                icon="chevronRight"
+                label="Next day"
+                disabled={isToday}
+                onPress={() => setDate(shiftDay(date, 1))}
+              />
             </Row>
-          ) : null}
+
+            {/* The streak, where the calendar icon was.
+
+                The calendar did not lose a door — tapping the date opens it,
+                which is where somebody looking for a particular day already
+                is. What that corner was missing was a reason to glance at it:
+                a run of logged days is the one number on this screen that is
+                about the habit rather than the meal, and it belongs beside the
+                date it is counted from.
+
+                Absent, not zero, when the week has not answered. "0 days" is a
+                claim about somebody's month; a gap is the truth while a request
+                is in flight. */}
+            {streak === null ? (
+              <View style={{ width: 40 }} />
+            ) : (
+              <Press
+                onPress={() => navigation.navigate('Insights')}
+                feedback="scale"
+                haptic="select"
+                accessibilityLabel={`${plural(streak, 'day')} logged in a row. Opens Insights.`}
+                style={{
+                  minWidth: 40,
+                  height: 40,
+                  paddingHorizontal: space.sm + 2,
+                  borderRadius: radius.pill,
+                  backgroundColor: c.sunken,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                <Row gap={5} align="center">
+                  {/* Amber only once it is a streak. A flame on a day nobody
+                      has logged is the app congratulating an empty page — and
+                      amber is spoken for anyway, so the lit version has to earn
+                      it by there being something to light. */}
+                  <Icon
+                    name="flame"
+                    size={15}
+                    color={streak > 0 ? c.attention : c.inkTertiary}
+                    weight={2}
+                  />
+                  <Txt role="labelSm" numeric tone={streak > 0 ? 'ink' : 'tertiary'}>
+                    {streak}
+                  </Txt>
+                </Row>
+              </Press>
+            )}
+          </Row>
         </Gutter>
 
         <ScrollView
@@ -222,38 +469,63 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
           }>
           <Gap h={space.xl} />
 
-          {/* The figure, and nothing beside it. It counts DOWN — "637 left" is
-              the question people open the app with — and past the target it
-              flips to what is over, in amber. */}
-          <View style={{ alignItems: 'center' }}>
-            {waiting ? (
-              <View
-                style={{
-                  width: ring,
-                  height: ring,
-                  borderRadius: ring / 2,
-                  borderWidth: 16,
-                  borderColor: c.sunken,
-                }}
+          {/* Three dials, in the shape the reference uses: equal circles,
+              equal weight, calories in the middle because it is the one people
+              open the app for and the middle is where the eye lands.
+
+              Fasting and weight are not decoration around it. They are the two
+              questions somebody tracking their eating asks that a calorie
+              count cannot answer — how long since I last ate, and is any of
+              this moving the number I actually care about. */}
+          <Gutter>
+            <Row gap={space.sm} align="flex-start">
+              <Dial
+                size={dial}
+                progress={fasting === null ? null : Math.min(fasting / FAST_SCALE_H, 1)}
+                value={fasting === null ? DASH : fastingLabel(fasting)}
+                label="Fasting"
+                accessibilityLabel={
+                  fasting === null
+                    ? 'Fasting, no meal logged to measure from'
+                    : `Fasting, ${fastingLabel(fasting)} since your last meal`
+                }
               />
-            ) : (
-              <Ring consumed={totals?.kcal ?? 0} goal={target?.kcal ?? 2000} size={ring} stroke={16}>
-                <Gap h={2} />
-                {/* What is left, under what has been eaten. It is still the
-                    figure people steer by late in the day, but it is a
-                    consequence of the two numbers above it rather than a third
-                    number competing with them — and past the target it says
-                    "over" in amber, which is the one thing on this screen that
-                    is allowed to shout. */}
-                <Txt
-                  role="caption"
-                  tone={left < 0 ? 'attention' : 'tertiary'}
-                  numeric>
-                  {kcal(Math.abs(left))} {left < 0 ? 'over' : 'left'}
-                </Txt>
-              </Ring>
-            )}
-          </View>
+
+              <Dial
+                size={dial}
+                progress={waiting || !target?.kcal ? null : (totals?.kcal ?? 0) / target.kcal}
+                value={waiting ? DASH : kcal(totals?.kcal ?? 0)}
+                unit={waiting ? undefined : 'kcal'}
+                over={left < 0}
+                label="Calories"
+                accessibilityLabel={
+                  waiting
+                    ? 'Calories, still loading'
+                    : `${kcal(totals?.kcal ?? 0)} calories of ${kcal(target?.kcal ?? 0)}, ${kcal(
+                        Math.abs(left),
+                      )} ${left < 0 ? 'over' : 'left'}`
+                }
+              />
+
+              {/* No arc, because there is nothing to draw one against: the app
+                  holds one weight, not a history of them, so a change cannot
+                  be computed however it is displayed. It shows what it knows
+                  and opens the screen where that number is changed. */}
+              <Dial
+                size={dial}
+                progress={null}
+                value={profile?.weightKg ? String(profile.weightKg) : DASH}
+                unit={profile?.weightKg ? 'kg' : undefined}
+                label="Weight"
+                onPress={() => navigation.navigate('ProfileEditor')}
+                accessibilityLabel={
+                  profile?.weightKg
+                    ? `Weight, ${profile.weightKg} kilograms. Opens your profile to update it.`
+                    : 'Weight not set. Opens your profile to set it.'
+                }
+              />
+            </Row>
+          </Gutter>
 
           <Gap h={space.xxl} />
 
