@@ -95,11 +95,18 @@ export function TabBar({ state, navigation, onLogPress }: BottomTabBarProps & { 
         accessibilityLabel="Say what you ate"
         accessibilityHint="Starts listening straight away. You can edit the words, or type instead."
         style={{ borderRadius: radius.pill, ...elevation.e2 }}>
-        {/* Filled with the brand gradient rather than ringed with it. The
-            reference rings a logo; this is the app's primary action, and a
-            hollow circle asks for the tap far more quietly than a solid one. */}
+        {/* Filled with the ask sheet's own colours rather than the page's.
+
+            This button and that sheet are one thing: it is the door, the sheet
+            is the room, and on an otherwise ash screen the tint is what says
+            so before it opens. Ash here made the app's primary action the same
+            grey as the bar it sits in.
+
+            Filled rather than ringed. The reference rings a logo; this is the
+            action the whole app is arranged around, and a hollow circle asks
+            for the tap far more quietly than a solid one. */}
         <LinearGradient
-          colors={[c.ringFrom, c.ringTo]}
+          colors={[c.askFrom, c.askTo]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{
@@ -112,7 +119,11 @@ export function TabBar({ state, navigation, onLogPress }: BottomTabBarProps & { 
           {/* A mic, not a plus. The fastest way in is speaking, so the button
               names that rather than the generic "add something". Typing is still
               one tap away inside — the overlay cancels onto the same field. */}
-          <Icon name="mic" size={26} color={c.onPrimary} weight={2.5} />
+          {/* Ink, not `onPrimary`. That token is the dark text for a LIGHT
+              accent fill, and this fill is no longer light — a near-black
+              glyph on blue-violet is the one combination here that is actually
+              hard to read. */}
+          <Icon name="mic" size={26} color={c.ink} weight={2.5} />
         </LinearGradient>
       </Press>
     </View>

@@ -58,16 +58,18 @@ export type Palette = {
    * The ask sheet's own light, and the one hue left in this palette that is
    * not a warning.
    *
-   * The app is ash. This is the exception, confined to a single surface: the
-   * panel the microphone raises, where somebody is speaking TO the app rather
-   * than reading it. The reference does exactly this — a monochrome dashboard
-   * with one tinted conversational panel — and the tint is what marks that
-   * panel as a different kind of thing rather than another page of numbers.
+   * The app is ash. This is the exception, and it belongs to one thing said in
+   * two places: the panel the microphone raises, where somebody is speaking TO
+   * the app rather than reading it, and the microphone itself — the door to
+   * that room, which has to look like it before it opens. The reference does
+   * exactly this: a monochrome dashboard with one tinted conversational panel
+   * and one tinted control that summons it.
    *
-   * Three rules keep it from becoming an accent again. It appears on ONE
-   * surface. It never encodes anything — no value, state or grade is drawn in
-   * it, so it cannot compete with amber. And it never touches text: it is an
-   * edge and a wash, so nothing anybody has to read depends on it.
+   * Two rules keep it from becoming an accent again. It never encodes anything
+   * — no value, state or grade is drawn in it, so it cannot compete with amber
+   * for meaning. And on the panel it never touches text: it is an edge and a
+   * wash, so nothing anybody has to READ depends on it. The mic is the single
+   * place it fills a shape, because that shape is a button and not a number.
    */
   askFrom: string;
   askTo: string;
