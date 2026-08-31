@@ -28,7 +28,15 @@ export type Palette = {
   /** Text and icons on a filled primary surface. */
   onPrimary: string;
 
-  /** The brand. Every affirmative action, every completed metric. */
+  /**
+   * Emphasis, in ash. Links, a selected state, a completed metric.
+   *
+   * Named `primary` because it is still the accent slot every component reads
+   * from — renaming it would be a hundred-file change for a word. What changed
+   * is that it is now a light grey, deliberately brighter than `inkSecondary`
+   * and dimmer than `ink`, so an emphasised thing reads as emphasised without
+   * introducing a hue that competes with amber.
+   */
   primary: string;
   primaryPressed: string;
   /** Tinted background for tonal buttons, selected chips, soft badges. */
@@ -46,6 +54,26 @@ export type Palette = {
   danger: string;
   dangerSoft: string;
 
+  /**
+   * The ask sheet's own light, and the one hue left in this palette that is
+   * not a warning.
+   *
+   * The app is ash. This is the exception, confined to a single surface: the
+   * panel the microphone raises, where somebody is speaking TO the app rather
+   * than reading it. The reference does exactly this — a monochrome dashboard
+   * with one tinted conversational panel — and the tint is what marks that
+   * panel as a different kind of thing rather than another page of numbers.
+   *
+   * Three rules keep it from becoming an accent again. It appears on ONE
+   * surface. It never encodes anything — no value, state or grade is drawn in
+   * it, so it cannot compete with amber. And it never touches text: it is an
+   * edge and a wash, so nothing anybody has to read depends on it.
+   */
+  askFrom: string;
+  askTo: string;
+  /** The top of the sheet's own wash, warmer and bluer than the page's. */
+  askWash: string;
+
   /** Behind a modal sheet. */
   scrim: string;
   /** Neutral tint pool for food glyphs. */
@@ -55,12 +83,25 @@ export type Palette = {
 };
 
 /**
- * The palette. There is one, and it is dark.
+ * The palette. There is one, it is dark, and it is ASH.
  *
- * Cool rather than warm: the greys lean blue, which is what makes a screen of
- * numbers read as an instrument. The app used to run a warm off-white scheme
- * alongside this one; carrying two meant every token had to be proved twice,
- * and half of them only ever got looked at in one.
+ * Monochrome by design now, not by omission. It ran a blue-to-violet accent —
+ * links, arcs, the mic, the ring — and the reference this app is drawn against
+ * carries no hue at all: its rings, labels and controls are all one family of
+ * cool grey, and the only colour on the screen is the colour that means
+ * something.
+ *
+ * That turns out to be the version this palette was already arguing for. The
+ * one hard rule here is that **amber never decorates** — it is the app's claim
+ * that a number is unknown — and a rule like that is only as strong as the
+ * quietness around it. With the accent gone, the two remaining hues are amber
+ * for "we do not know" and red for "this deletes something", and both now
+ * carry across a screen at a glance because nothing else is competing.
+ *
+ * What replaces the accent is WEIGHT. Emphasis is a lighter grey, not a
+ * different colour; the loudest thing the palette can make is still ink on
+ * canvas. Anything that needs to look tappable earns it with shape — a fill, a
+ * chevron, a rule — which is what the reference does too.
  */
 const palette: Palette = {
   canvas: '#0B0C0E',
@@ -76,18 +117,21 @@ const palette: Palette = {
   // 4.9:1 on `surface`. Tertiary is still text, so it clears AA rather than
   // sitting at the edge of legible the way a true disabled grey would.
   inkTertiary: '#828B94',
-  onPrimary: '#0A1020',
+  onPrimary: '#0B0C0E',
 
-  primary: '#5B8DEF',
-  primaryPressed: '#4A76C9',
-  primarySoft: '#161F33',
-  primarySoftInk: '#9BBBF7',
-  ringFrom: '#6FA8FF',
-  ringTo: '#7B5BEF',
+  primary: '#C2CAD1',
+  primaryPressed: '#A7B0B8',
+  primarySoft: '#1A1E22',
+  primarySoftInk: '#CBD3DA',
+  // Light to mid, so an arc still has a direction to travel in — the thing the
+  // old blue-to-violet sweep was actually doing, minus the hue.
+  ringFrom: '#DCE3E9',
+  ringTo: '#737C85',
 
-  // Unchanged, and deliberately. Amber is the app's one claim of ignorance,
-  // and it has to stay as far from the accent as it was when the accent was
-  // green — a blue page makes amber MORE distinct, not less.
+  // Unchanged through every repaint of this palette — a green accent, then a
+  // blue one, now none — because it is the only thing here carrying a meaning
+  // rather than a mood. On an ash screen it is the single warm mark, which is
+  // as far from the rest as it has ever been.
   attention: '#E0A458',
   attentionSoft: '#2A2114',
   attentionInk: '#F0BE7E',
@@ -95,9 +139,17 @@ const palette: Palette = {
   danger: '#E4736A',
   dangerSoft: '#301A19',
 
+  // Kept from the palette this app used to run everywhere. What was a whole
+  // scheme is now one panel's worth of it.
+  askFrom: '#6FA8FF',
+  askTo: '#7B5BEF',
+  askWash: '#161C2E',
+
   scrim: 'rgba(0,0,0,0.66)',
-  glyph: ['#161C24', '#1A1B26', '#131E22', '#1E1A24', '#141F1E', '#1C1D20'],
-  wash: ['#0B0C0E', '#121A28'],
+  // Six neutrals a shade apart, so a wall of food rows has texture without any
+  // of them appearing to mean something. They were faintly blue and violet.
+  glyph: ['#15181B', '#17191C', '#141719', '#181B1E', '#16191B', '#1A1D20'],
+  wash: ['#0B0C0E', '#171B1F'],
 };
 
 export { palette };
