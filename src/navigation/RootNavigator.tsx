@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { View } from 'react-native';
 import { DefaultTheme, NavigationContainer, useNavigation, type Theme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -25,6 +26,7 @@ import { PortionScreen } from '../screens/search/PortionScreen';
 import { SearchScreen } from '../screens/search/SearchScreen';
 import { GoalEditorScreen } from '../screens/settings/GoalEditorScreen';
 import { ProfileEditorScreen } from '../screens/settings/ProfileEditorScreen';
+import { AskSheet } from '../screens/voice/AskSheet';
 import { ListenScreen } from '../screens/voice/ListenScreen';
 import { MealScreen } from '../screens/voice/MealScreen';
 import { TypeScreen } from '../screens/voice/TypeScreen';
@@ -43,24 +45,49 @@ const Tab = createBottomTabNavigator<TabParamList>();
 function MainTabs() {
   const navigation = useNavigation<import('@react-navigation/native-stack').NativeStackNavigationProp<RootStackParamList>>();
 
+  /**
+   * The microphone opens a sheet HERE, over the live tab, rather than pushing
+   * a screen.
+   *
+   * It was a route, and a route was wrong twice over: it put an entry in the
+   * back stack for something that is not a place, and what you saw behind the
+   * panel was a transparent modal rather than the day itself. Mounted by the
+   * tab host, Today keeps scrolling behind it, keeps its position, and is
+   * still the thing you came back to.
+   *
+   * Held here rather than inside Today because the mic is on the tab bar and
+   * belongs to all three tabs — Ideas and Insights raise the same sheet, over
+   * themselves, without either of them knowing it exists.
+   */
+  const [asking, setAsking] = useState(false);
+
   return (
-    <Tab.Navigator
-      screenOptions={{ headerShown: false }}
-      /* eslint-disable-next-line react/no-unstable-nested-components -- tabBar is
-         react-navigation's documented render prop, not a component definition. */
-      /* The centre mic opens the listening screen, not the composer. It is a
-         microphone, and it now behaves like one: one tap, one orb, no keyboard
-         racing a recording overlay up the screen. Typing is still a screen
-         away, from the plus on Today and from the listening screen itself. */
-      tabBar={props => <TabBar {...props} onLogPress={() => navigation.navigate('Listen')} />}>
-      <Tab.Screen name="Today" component={HomeScreen} />
-      {/* Between the two, not after them. Ideas is about the day in progress
-          and Insights about the days behind it, so the order runs now →
-          next → past, and the tab nearest Today is the one that changes
-          when Today does. */}
-      <Tab.Screen name="Ideas" component={IdeasScreen} />
-      <Tab.Screen name="Insights" component={InsightsScreen} />
-    </Tab.Navigator>
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        screenOptions={{ headerShown: false }}
+        /* eslint-disable-next-line react/no-unstable-nested-components -- tabBar is
+           react-navigation's documented render prop, not a component definition. */
+        tabBar={props => <TabBar {...props} onLogPress={() => setAsking(true)} />}>
+        <Tab.Screen name="Today" component={HomeScreen} />
+        {/* Between the two, not after them. Ideas is about the day in progress
+            and Insights about the days behind it, so the order runs now →
+            next → past, and the tab nearest Today is the one that changes
+            when Today does. */}
+        <Tab.Screen name="Ideas" component={IdeasScreen} />
+        <Tab.Screen name="Insights" component={InsightsScreen} />
+      </Tab.Navigator>
+
+      {/* Unmounted when closed, not hidden. The sheet holds a microphone and a
+          language, and a hidden copy of both sitting behind Today for the life
+          of the app is a recorder nobody can see the state of. */}
+      {asking ? (
+        <AskSheet
+          onClose={() => setAsking(false)}
+          onPhrase={(phrase, source) => navigation.navigate('MealDetails', { phrase, source })}
+          onSearch={() => navigation.navigate('Search')}
+        />
+      ) : null}
+    </View>
   );
 }
 

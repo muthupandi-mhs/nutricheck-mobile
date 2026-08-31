@@ -30,15 +30,24 @@ export function KeyboardAvoid({
   children,
   offset = 0,
   style,
+  pointerEvents,
 }: {
   children: React.ReactNode;
   /** Height of anything above this view that the keyboard should not count. */
   offset?: number;
   style?: ViewStyle;
+  /**
+   * `box-none` for a sheet: this view is `flex: 1`, so over a panel that only
+   * fills the bottom of the screen it also covers the scrim above it and eats
+   * every tap meant to dismiss. Nothing else needs it — a full screen has
+   * nothing behind it to reach.
+   */
+  pointerEvents?: 'auto' | 'box-none' | 'none' | 'box-only';
 }) {
   return (
     <KeyboardAvoidingView
       style={[{ flex: 1 }, style]}
+      pointerEvents={pointerEvents}
       behavior="padding"
       // Android only fires keyboardDidShow, never keyboardWillShow, so the
       // adjustment lands a frame after the keyboard starts moving. Visible if

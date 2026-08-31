@@ -19,15 +19,8 @@ import { Gap, Gutter, Row } from '../../components/Layout';
 import { Press } from '../../components/Press';
 import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
-import { clamp01 } from '../../lib/format';
-import { onAmplitude } from '../../lib/recorder';
-import {
-  hasMic,
-  requestMic,
-  SPEECH_LOCALES,
-  useSpeech,
-  type SpeechFailure,
-} from '../../lib/speech';
+import { hasMic, requestMic, SPEECH_LOCALES, useSpeech } from '../../lib/speech';
+import { EXAMPLE_MS, EXAMPLES, TROUBLE, useLevel } from './listening';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { ScreenProps } from '../../navigation/types';
 
@@ -39,16 +32,6 @@ import type { ScreenProps } from '../../navigation/types';
 let instances = 0;
 
 /**
- * What to say, shown one at a time. Three, in the register the app is actually
- * spoken in — an example in careful English teaches people to speak carefully,
- * which is the one thing this parser does not need them to do.
- */
-const EXAMPLES = ['two dosai and sambar', 'a bowl of curd rice', 'rendu idli, chutney'] as const;
-
-/** How long each example holds before the next fades in. */
-const EXAMPLE_MS = 3400;
-
-/**
  * The transcribing sweep: one revolution, and the share of the ring it covers.
  *
  * Deliberately not a percentage of anything. The server answers when it
@@ -58,33 +41,6 @@ const EXAMPLE_MS = 3400;
  */
 const SWEEP_MS = 1150;
 const SWEEP_ARC = 0.24;
-
-/**
- * One line per failure, not a panel.
- *
- * Every one of these is recoverable by tapping the orb again, and a bordered
- * error box on a screen whose whole composition is one circle would be the
- * loudest thing on it — louder than the thing that fixes it.
- */
-const TROUBLE: Record<SpeechFailure, string> = {
-  permission: 'The microphone is off for NutriCheck.',
-  unavailable: 'Dictation is not available in this build.',
-  'nothing-heard': 'We did not catch that. Try again, a little closer.',
-  offline: 'Dictation needs the network. Try again in a moment.',
-  failed: 'That stopped early. Tap and say it again.',
-};
-
-/**
- * The floor of the amplitude scale, and how fast the running peak forgets.
- *
- * `getMaxAmplitude()` is a raw 0–32767 and a quiet room still reads a few
- * hundred, so there is no fixed number to draw a halo against: 3,000 is a
- * shout on one phone and a fridge on another. The visual is relative instead —
- * normalised against a peak that decays — which is honest about what it is
- * (motion that follows a voice) rather than pretending to be a meter.
- */
-const NOISE_FLOOR = 1200;
-const PEAK_DECAY = 0.93;
 
 /**
  * The microphone, as a screen.
@@ -188,8 +144,7 @@ export function ListenScreen({ navigation, route }: ScreenProps<'Listen'>) {
 
   /** The idle breath, and the voice. Two sources, one halo. */
   const pulse = useRef(new Animated.Value(0)).current;
-  const level = useRef(new Animated.Value(0)).current;
-  const peak = useRef(NOISE_FLOOR);
+  const level = useLevel(listening);
 
   useEffect(() => {
     if (reduced || listening || transcribing) {
@@ -210,26 +165,6 @@ export function ListenScreen({ navigation, route }: ScreenProps<'Listen'>) {
     loop.start();
     return () => loop.stop();
   }, [listening, pulse, reduced, transcribing]);
-
-  useEffect(() => {
-    if (!listening) {
-      peak.current = NOISE_FLOOR;
-      Animated.timing(level, { toValue: 0, duration: 240, useNativeDriver: true }).start();
-      return undefined;
-    }
-    return onAmplitude(raw => {
-      peak.current = Math.max(raw, peak.current * PEAK_DECAY, NOISE_FLOOR);
-      const half = NOISE_FLOOR / 2;
-      Animated.timing(level, {
-        toValue: clamp01((raw - half) / (peak.current - half)),
-        // The native side samples every 100ms; anything slower than that lags
-        // visibly behind the voice, which reads as the app not keeping up.
-        duration: 110,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start();
-    });
-  }, [level, listening]);
 
   /**
    * The third source of motion, and the only one that is not the user: the

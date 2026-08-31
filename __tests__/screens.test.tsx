@@ -30,6 +30,7 @@ import { PortionScreen } from '../src/screens/search/PortionScreen';
 import { SearchScreen } from '../src/screens/search/SearchScreen';
 import { GoalEditorScreen } from '../src/screens/settings/GoalEditorScreen';
 import { ProfileEditorScreen } from '../src/screens/settings/ProfileEditorScreen';
+import { AskSheet, askGreeting } from '../src/screens/voice/AskSheet';
 import { ListenScreen } from '../src/screens/voice/ListenScreen';
 import { MealScreen } from '../src/screens/voice/MealScreen';
 import { TypeScreen } from '../src/screens/voice/TypeScreen';
@@ -106,6 +107,10 @@ const screens: Array<[string, React.ReactElement]> = [
   ['Rate', <RateScreen navigation={navigation} route={{ key: 'k', name: 'OnboardRate' } as never} />],
   ['Targets', <TargetsScreen navigation={navigation} route={{ key: 'k', name: 'OnboardTargets', params: undefined } as never} />],
   ['Listen (first meal)', <ListenScreen navigation={navigation} route={{ key: 'k', name: 'Listen', params: { first: true } } as never} />],
+  [
+    'Ask sheet',
+    <AskSheet onClose={() => {}} onPhrase={() => {}} onSearch={() => {}} />,
+  ],
   ['Listen (from the mic button)', <ListenScreen navigation={navigation} route={{ key: 'k', name: 'Listen', params: undefined } as never} />],
   ['Type', <TypeScreen navigation={navigation} route={{ key: 'k', name: 'Type', params: undefined } as never} />],
   ['MealDetails',
@@ -683,6 +688,50 @@ describe('a day in one sentence', () => {
 
     await ReactTestRenderer.act(async () => tree!.unmount());
   }, 20000);
+});
+
+/**
+ * The line the sheet opens with reads the day's numbers, which makes it code
+ * rather than copy: "you're 1,404 in" is a claim, and the way a claim like that
+ * goes wrong is silently, in the one state nobody thought to open the sheet in.
+ */
+describe('ask greeting', () => {
+  it('greets by name and says where the day stands', () => {
+    expect(askGreeting({ name: 'Muthupandi', eaten: 1404, target: 2041, logged: 3 })).toBe(
+      "Hey Muthupandi, you're 1,404 in with 637 kcal left today. What did you eat?",
+    );
+  });
+
+  it('says the whole target is still theirs before anything is logged', () => {
+    // "0 in with 2,041 left" is arithmetic nobody needs at breakfast.
+    expect(askGreeting({ name: 'Asha', eaten: 0, target: 2041, logged: 0 })).toBe(
+      'Hey Asha, nothing logged yet — the whole 2,041 kcal is still yours. What did you eat?',
+    );
+  });
+
+  it('says over without dressing it up, and asks what else', () => {
+    // Past the target the question changes: "what did you eat" reads as though
+    // the app has not noticed the day already has meals in it.
+    expect(askGreeting({ name: 'Asha', eaten: 2300, target: 2041, logged: 4 })).toBe(
+      "Hey Asha, you're 259 kcal past today's target. What else did you eat?",
+    );
+  });
+
+  it('drops the greeting rather than writing "Hey ,"', () => {
+    // An account made before the name step has no name, and the sentence still
+    // has to start with a capital.
+    expect(askGreeting({ name: null, eaten: 1404, target: 2041, logged: 3 })).toBe(
+      "You're 1,404 in with 637 kcal left today. What did you eat?",
+    );
+  });
+
+  it('asks the question and nothing else when there is no target yet', () => {
+    // A brand-new account, or a day that has not loaded. Every other line here
+    // would be dividing by a goal that does not exist.
+    expect(askGreeting({ name: 'Asha', eaten: 0, target: 0, logged: 0 })).toBe(
+      'Hey Asha, what did you eat?',
+    );
+  });
 });
 
 describe('recording overlay', () => {

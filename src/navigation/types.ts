@@ -92,6 +92,14 @@ export type RootStackParamList = {
    * else — the orb, the halo, the language — is deliberately identical, because
    * the first meal is not a tutorial for a different screen.
    */
+  /**
+   * Onboarding's microphone: a whole screen, one orb, nothing else on it.
+   *
+   * `first` is what it is for. Inside the app the same job is done by
+   * `AskSheet`, which is not a route at all: the tab host mounts it over the
+   * live tab, because a screen that covers everything to take one sentence is
+   * right at the end of a signup and wrong in the middle of a Tuesday.
+   */
   Listen: { first?: boolean } | undefined;
   /**
    * The keyboard half of the voice route: the same question, the same
