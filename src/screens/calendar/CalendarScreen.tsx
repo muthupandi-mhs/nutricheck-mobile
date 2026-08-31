@@ -3,16 +3,16 @@ import { ScrollView, View } from 'react-native';
 import { useApi } from '../../api/client';
 import type { DayPoint, MonthSummary } from '../../api/types';
 import { Card } from '../../components/Card';
-import { Divider, Gap, Gutter, Row, Split, Stack } from '../../components/Layout';
+import { Divider, Gutter, Row, Split, Stack } from '../../components/Layout';
 import { IconButton } from '../../components/Button';
 import { Press } from '../../components/Press';
 import { Header, Screen } from '../../components/Screen';
 import { Shimmer } from '../../components/Skeleton';
 import { SectionLabel, Txt } from '../../components/Text';
-import { kcal, localDate, parseLocalDate, plural } from '../../lib/format';
+import { DASH, kcal, localDate, parseLocalDate, plural } from '../../lib/format';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useAppState } from '../../state/AppState';
-import { adherenceOf, bandOf, BAND_LABEL, type Band } from './adherence';
+import { adherenceOf, bandOf, BAND_LABEL, BAND_RANGE, type Band } from './adherence';
 import type { ScreenProps } from '../../navigation/types';
 
 const WEEKDAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -294,48 +294,63 @@ function DayCell({
 }
 
 /**
- * The legend, in words rather than percentages.
+ * The legend: the colour, what it means, and where the band actually starts.
  *
- * Required, not decoration: three coloured numbers with nothing explaining them
+ * Required, not decoration. Three coloured numbers with nothing explaining them
  * is a code the reader has to break, and the natural guess — that green means
- * "more" — is the one reading this scale does not have.
+ * "more" — is the one reading this scale does not have. The percentage is what
+ * makes each row checkable rather than merely reassuring: "Close" is an opinion
+ * until it says 15–40% off.
+ *
+ * One row per band rather than a wrapped strip of dots. Four labels and four
+ * ranges on one line wrap into a shape where it stops being obvious which range
+ * belongs to which colour, which is worse than no ranges at all.
  */
 function Legend() {
   const { c, space } = useTheme();
+
+  const rows: Array<{ key: string; colour: string; label: string; range: string }> = [
+    ...(['on', 'near', 'off'] as const).map(band => ({
+      key: band,
+      colour: bandColour(band, c),
+      label: BAND_LABEL[band],
+      range: BAND_RANGE[band],
+    })),
+    // No range, and a dash rather than "0%": a day nobody logged has no
+    // distance from target, and printing one would be scoring it.
+    { key: 'none', colour: c.inkTertiary, label: 'Not logged', range: DASH },
+  ];
 
   return (
     <Card fill="sunken">
       <Stack gap={space.md}>
         <SectionLabel>What the colours mean</SectionLabel>
-        <Row gap={space.lg} style={{ flexWrap: 'wrap', rowGap: space.sm }}>
-          {(['on', 'near', 'off'] as const).map(band => (
-            <Row key={band} gap={6} align="center">
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: bandColour(band, c),
-                }}
-              />
-              <Txt role="caption" tone="secondary">
-                {BAND_LABEL[band]}
+        <Stack gap={space.sm}>
+          {rows.map(row => (
+            <Split key={row.key} align="center">
+              <Row gap={space.sm} align="center">
+                <View
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: row.colour,
+                  }}
+                />
+                <Txt role="caption" tone="secondary">
+                  {row.label}
+                </Txt>
+              </Row>
+              <Txt role="caption" tone="tertiary" numeric>
+                {row.range}
               </Txt>
-            </Row>
+            </Split>
           ))}
-          <Row gap={6} align="center">
-            <View
-              style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.inkTertiary }}
-            />
-            <Txt role="caption" tone="secondary">
-              Not logged
-            </Txt>
-          </Row>
-        </Row>
+        </Stack>
         <Divider />
         <Txt role="caption" tone="tertiary">
-          Measured on calories against the target in effect that month. Both directions count — a day well over
-          reads the same as one well under, because neither is the day you were aiming for.
+          Distance from the calorie target in effect that month, in either direction — a day well over reads the
+          same as one well under, because neither is the day you were aiming for.
         </Txt>
       </Stack>
     </Card>
@@ -374,7 +389,7 @@ function accessibilityFor(day: DayPoint, band: Band, isToday: boolean): string {
   const d = parseLocalDate(day.date);
   const when = `${d.getDate()} ${MONTHS[d.getMonth()]}${isToday ? ', today' : ''}`;
   if (band === 'none') return `${when}, nothing logged`;
-  return `${when}, ${kcal(day.kcal)} calories, ${BAND_LABEL[band].toLowerCase()}`;
+  return `${when}, ${kcal(day.kcal)} calories, ${BAND_LABEL[band].toLowerCase()}, ${BAND_RANGE[band]}`;
 }
 
 /**
