@@ -35,6 +35,7 @@ import { ListenScreen } from '../src/screens/voice/ListenScreen';
 import { MealScreen } from '../src/screens/voice/MealScreen';
 import { TypeScreen } from '../src/screens/voice/TypeScreen';
 import { WeightScreen } from '../src/screens/weight/WeightScreen';
+import { FastingScreen } from '../src/screens/fasting/FastingScreen';
 import { YouScreen } from '../src/screens/settings/YouScreen';
 
 /**
@@ -139,6 +140,7 @@ const screens: Array<[string, React.ReactElement]> = [
   ],
   ['CreateFood', <CreateFoodScreen navigation={navigation} route={{ key: 'k', name: 'CreateFood', params: { name: 'Rajma' } } as never} />],
   ['Weight', <WeightScreen navigation={navigation} route={{ key: 'k', name: 'Weight' } as never} />],
+  ['Fasting', <FastingScreen navigation={navigation} route={{ key: 'k', name: 'Fasting' } as never} />],
   ['You', <YouScreen navigation={navigation} route={{ key: 'k', name: 'You' } as never} />],
   ['ProfileEditor', <ProfileEditorScreen navigation={navigation} route={{ key: 'k', name: 'ProfileEditor' } as never} />],
   ['GoalEditor', <GoalEditorScreen navigation={navigation} route={{ key: 'k', name: 'GoalEditor' } as never} />],

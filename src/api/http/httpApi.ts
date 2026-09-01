@@ -30,6 +30,7 @@ import {
   type ResolveSource,
   type SessionUser,
   type SuggestedTargets,
+  type FastingSummary,
   type SetGoal,
   type TranscribeLocale,
   type TranscribeResult,
@@ -277,6 +278,63 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
      */
     deleteWeight(date: string) {
       return transport.request<WeightSeries>(`/v1/me/weight/${encodeURIComponent(date)}`, {
+        method: 'DELETE',
+      });
+    },
+
+    // ── fasting ──────────────────────────────────────────────────────────────
+
+    /** `GET /v1/me/fasting?limit=`. */
+    getFasting(limit?: number) {
+      return transport.request<FastingSummary>('/v1/me/fasting', {
+        query: limit === undefined ? undefined : { limit: String(limit) },
+      });
+    },
+
+    /**
+     * `POST /v1/me/fasting`.
+     *
+     * `startedAt` is left off unless the caller supplies one, and the server
+     * fills in the moment the request lands. This is the one dated call in
+     * this client that does NOT default the value here, and the reason is that
+     * it is an instant rather than a local day: `localDate` exists because the
+     * server's idea of "today" is UTC and wrong for most of the planet, while
+     * an instant is the same instant everywhere. Sending the device's clock
+     * would only import its drift.
+     */
+    startFast(input: { targetHours: number; startedAt?: string }) {
+      return transport.request<FastingSummary>('/v1/me/fasting', {
+        method: 'POST',
+        body: input,
+      });
+    },
+
+    /** `PATCH /v1/me/fasting/current` — extend the target, correct the start, or both. */
+    adjustFast(input: { targetHours?: number; startedAt?: string }) {
+      return transport.request<FastingSummary>('/v1/me/fasting/current', {
+        method: 'PATCH',
+        body: input,
+      });
+    },
+
+    /**
+     * `POST /v1/me/fasting/current/end`.
+     *
+     * A route of its own rather than a field on the PATCH above, because this
+     * is the record's one state transition and it should not look like an
+     * edit. The body is sent even when empty — the server reads `endedAt` from
+     * it and defaults to now.
+     */
+    endFast(input?: { endedAt?: string }) {
+      return transport.request<FastingSummary>('/v1/me/fasting/current/end', {
+        method: 'POST',
+        body: input ?? {},
+      });
+    },
+
+    /** `DELETE /v1/me/fasting/:id` — the running fast or a finished one. */
+    discardFast(id: string) {
+      return transport.request<FastingSummary>(`/v1/me/fasting/${encodeURIComponent(id)}`, {
         method: 'DELETE',
       });
     },

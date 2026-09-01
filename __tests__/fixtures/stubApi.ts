@@ -11,6 +11,7 @@ import type {
   UserProfile,
   WeekSummary,
   WeightSeries,
+  FastingSummary,
 } from '../../src/api/types';
 
 /**
@@ -156,6 +157,59 @@ export function createStubApi(): NutriCheckApi {
     start: { date: '2026-07-08', weightKg: 82 },
     trend: { kgPerWeek: -0.4, deltaKg: -2.8, spanDays: 49, intendedKgPerWeek: -0.5 },
   };
+
+  /**
+   * Fasting times are relative to the clock, not literal like the weight dates
+   * above, and they have to be: a fixed `startedAt` would read as "fourteen
+   * hours in" only on the afternoon it was written, and as a fast running for
+   * eight months by the time anybody ran the suite again.
+   */
+  const NOW = new Date().toISOString();
+  const hoursAgo = (h: number): string => new Date(Date.now() - h * 3_600_000).toISOString();
+
+  const openFast = (hoursIn: number) => ({
+    id: '00000000-0000-4000-8000-000000000001',
+    startedAt: hoursAgo(hoursIn),
+    endedAt: null,
+    targetHours: 16,
+    // Null on an open fast is the contract, not a gap in the stub: the screen
+    // computes the running length from `startedAt` against its own clock.
+    hours: null,
+    reachedTarget: null,
+  });
+
+  const FASTING: FastingSummary = {
+    current: openFast(14),
+    recent: [
+      {
+        id: '00000000-0000-4000-8000-000000000002',
+        startedAt: hoursAgo(40),
+        endedAt: hoursAgo(23),
+        targetHours: 16,
+        hours: 17,
+        reachedTarget: true,
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000003',
+        startedAt: hoursAgo(64),
+        endedAt: hoursAgo(51),
+        targetHours: 16,
+        hours: 13,
+        reachedTarget: false,
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000004',
+        startedAt: hoursAgo(88),
+        endedAt: hoursAgo(70),
+        targetHours: 16,
+        hours: 18,
+        reachedTarget: true,
+      },
+    ],
+    stats: { completed: 3, reached: 2, longestHours: 18, averageHours: 16 },
+    lastTargetHours: 16,
+  };
+
   return {
     // Unregistered by default: the stub's job is to let screens render, and the
     // sign-up half of the flow is the one with more on it to draw.
@@ -210,6 +264,32 @@ export function createStubApi(): NutriCheckApi {
       ...WEIGHT,
       points: WEIGHT.points.slice(0, -1),
     }),
+
+    /**
+     * A fast fourteen hours in, with three finished ones behind it.
+     *
+     * Running rather than idle, because the running state is the one with
+     * something on it: a ticking clock, an arc, a projected finish, an end
+     * button, and a record to compare against. `current: null` would draw the
+     * plan picker and leave all of that unexercised.
+     */
+    getFasting: async (): Promise<FastingSummary> => FASTING,
+    startFast: async ({ targetHours }: { targetHours: number }): Promise<FastingSummary> => ({
+      ...FASTING,
+      current: { ...openFast(0), targetHours },
+      lastTargetHours: targetHours,
+    }),
+    adjustFast: async ({ targetHours }: { targetHours?: number }): Promise<FastingSummary> => ({
+      ...FASTING,
+      current: { ...FASTING.current!, targetHours: targetHours ?? FASTING.current!.targetHours },
+    }),
+    endFast: async (): Promise<FastingSummary> => ({
+      ...FASTING,
+      current: null,
+      recent: [{ ...FASTING.current!, endedAt: NOW, hours: 14, reachedTarget: false }, ...FASTING.recent],
+    }),
+    discardFast: async (): Promise<FastingSummary> => ({ ...FASTING, current: null }),
+
     getDay: async (date: string) => day(date),
     getWeek: async (endingOn: string): Promise<WeekSummary> => ({
       from: '2026-08-20',

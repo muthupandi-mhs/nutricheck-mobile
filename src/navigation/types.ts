@@ -153,6 +153,17 @@ export type RootStackParamList = {
    * takes to arrive.
    */
   Weight: undefined;
+  /**
+   * The fasting timer, pushed from the fasting dial on Home.
+   *
+   * Takes no params, including the fast it is about — the same reasoning as
+   * `Weight` above, and one more besides: a fast is a single running thing
+   * that a second device can end, so a seeded copy would not merely be
+   * redundant, it could be false. The screen asks the server, which is the
+   * only place the answer lives.
+   */
+  Fasting: undefined;
+
   /** Pushed from Home's top-right avatar, not a tab. */
   You: undefined;
   /**

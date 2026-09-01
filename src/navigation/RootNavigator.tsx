@@ -31,6 +31,7 @@ import { ListenScreen } from '../screens/voice/ListenScreen';
 import { MealScreen } from '../screens/voice/MealScreen';
 import { TypeScreen } from '../screens/voice/TypeScreen';
 import { WeightScreen } from '../screens/weight/WeightScreen';
+import { FastingScreen } from '../screens/fasting/FastingScreen';
 import { YouScreen } from '../screens/settings/YouScreen';
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -179,6 +180,7 @@ export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackP
             other task rather than up like the calendar — the calendar changes
             what Home is showing and comes back to it, this is a place you go. */}
         <Stack.Screen name="Weight" component={WeightScreen} />
+        <Stack.Screen name="Fasting" component={FastingScreen} />
 
         {/* settings — reached from Home's avatar, so it pushes like any task */}
         <Stack.Screen name="Calendar" component={CalendarScreen} options={{ animation: 'slide_from_bottom' }} />

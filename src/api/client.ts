@@ -24,6 +24,7 @@ import type {
   ResolveSource,
   SessionUser,
   SuggestedTargets,
+  FastingSummary,
   SetGoal,
   TranscribeLocale,
   TranscribeResult,
@@ -125,6 +126,63 @@ export interface NutriCheckApi {
    * app state after one, exactly as it would after a log.
    */
   deleteWeight(date: string): Promise<WeightSeries>;
+
+  // fasting ─────────────────────────────────────────────────────────────────
+  /**
+   * GET /v1/me/fasting?limit=
+   *
+   * The running fast, the all-time record, and recent finished ones. `limit`
+   * bounds the LIST only — the stats are over every fast there has ever been,
+   * because a longest-fast figure that forgot last March would be worse than
+   * showing none.
+   *
+   * Note what a running fast does NOT carry: `hours` and `reachedTarget` are
+   * null until it ends. Its length changes every second, so the device does
+   * that subtraction against its own clock rather than rendering a figure that
+   * was already stale when the response was built.
+   */
+  getFasting(limit?: number): Promise<FastingSummary>;
+  /**
+   * POST /v1/me/fasting
+   *
+   * Starts one and returns the whole summary, because the timer, the record
+   * and the list all move when a fast begins.
+   *
+   * Rejects with 409 when a fast is already running — there is only ever one,
+   * and no edit to the body would make a second acceptable. `startedAt`
+   * defaults to now and may be backdated up to 72 hours, which is how "I
+   * actually stopped eating at eight" is recorded as a correction rather than
+   * lost.
+   */
+  startFast(input: { targetHours: number; startedAt?: string }): Promise<FastingSummary>;
+  /**
+   * PATCH /v1/me/fasting/current
+   *
+   * Changes the running fast without ending it — its target, its start, or
+   * both. Extending is the point: somebody fourteen hours into a sixteen who
+   * feels fine pushes on to eighteen, and ending-then-restarting would throw
+   * away the fourteen hours already served.
+   *
+   * Rejects with 404 when nothing is running, and 422 on an empty body.
+   */
+  adjustFast(input: { targetHours?: number; startedAt?: string }): Promise<FastingSummary>;
+  /**
+   * POST /v1/me/fasting/current/end
+   *
+   * Ends the running fast. 404 when there is none — including on a second send
+   * of the same request, which is deliberate: the server will not overwrite an
+   * end time the user has already been shown.
+   */
+  endFast(input?: { endedAt?: string }): Promise<FastingSummary>;
+  /**
+   * DELETE /v1/me/fasting/:id — throws one away, running or finished.
+   *
+   * One call for both, because from the user's side they are one thing: this
+   * should not be in my history. Unlike a weight reading, the last one CAN go:
+   * nothing in the app is derived from a fast, so an empty history is an
+   * ordinary state rather than one the targets would break on.
+   */
+  discardFast(id: string): Promise<FastingSummary>;
 
   // insights ────────────────────────────────────────────────────────────────
   /**

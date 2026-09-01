@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApi } from '../../api/client';
+import type { Fast } from '../../api/types';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TextButton } from '../../components/Button';
@@ -51,13 +52,19 @@ const ON_TRACK = 0.5;
 const BAND_INK: Record<'short' | 'track' | 'met', number> = { short: 0.3, track: 0.55, met: 1 };
 
 /**
- * The scale the fasting dial fills against: one day, not a target.
+ * The scale the fasting dial fills against **when nobody has declared a fast**:
+ * one day, not a target.
  *
  * Deliberately not 16 hours or any other fasting window. An arc drawn against
- * a window would make the dial a goal the app never set and cannot defend —
- * this product does not tell anybody how long to go without eating. A day is a
- * neutral denominator: the arc says how far into one you are since you last
- * ate, and nothing about whether that is good.
+ * a window the user never chose would make the dial a goal the app set on their
+ * behalf, and this product does not tell anybody how long to go without eating.
+ * A day is a neutral denominator: the arc says how far into one you are since
+ * you last ate, and nothing about whether that is good.
+ *
+ * A declared fast is the other case, and it changes the argument rather than
+ * breaking it. Once somebody has said "sixteen hours", the target is theirs and
+ * an arc against it is drawing their intention, not the app's — so a running
+ * fast fills against its own `targetHours` and this constant is not used.
  */
 const FAST_SCALE_H = 24;
 
@@ -66,6 +73,18 @@ function fastingLabel(hours: number): string {
   if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`;
   return `${Math.floor(hours)}h`;
 }
+
+/**
+ * How long a declared fast has been running, from this device's clock.
+ *
+ * Computed here rather than sent, because a duration in a response is a
+ * duration as of the moment it was serialized — see `Fast.hours` in the
+ * contracts, which is null on purpose while a fast is open.
+ */
+function elapsedOn(fast: Fast): number {
+  return Math.max(0, (Date.now() - Date.parse(fast.startedAt)) / 3_600_000);
+}
+
 /**
  * One end of the day stepper.
  *
@@ -185,6 +204,15 @@ export function HomeScreen({ navigation }: TabScreenProps<'Home'>) {
   const api = useApi();
   const [streak, setStreak] = useState<number | null>(null);
   /**
+   * The running fast, or null when nobody has declared one.
+   *
+   * Null covers both "not fasting" and "the request failed", and the dial
+   * treats them the same on purpose: in either case the honest thing to show
+   * is the gap since the last meal, which this screen can compute on its own.
+   */
+  const [fast, setFast] = useState<Fast | null>(null);
+
+  /**
    * Whether the screen is showing today or a day picked from the calendar.
    *
    * Recomputed each render rather than held in state: it depends on the wall
@@ -214,6 +242,32 @@ export function HomeScreen({ navigation }: TabScreenProps<'Home'>) {
       };
     }, [api]),
   );
+
+  /**
+   * The declared fast, if there is one.
+   *
+   * On focus rather than through `refresh`, and with a limit of 1, because the
+   * dial needs exactly one row: the running fast. Pulling it into AppState
+   * would put a fasting fetch on every profile save and every day change, for
+   * a figure that only moves when somebody presses start or end.
+   *
+   * A failure is swallowed to null, which lands on the derived gap below — the
+   * dial then says how long since the last meal, which is true, useful, and
+   * needs nothing from the server.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      api
+        .getFasting(1)
+        .then(s => alive && setFast(s.current))
+        .catch(() => undefined);
+      return () => {
+        alive = false;
+      };
+    }, [api]),
+  );
+
   const onRefresh = async () => {
     setRefreshing(true);
     await refresh();
@@ -477,15 +531,46 @@ export function HomeScreen({ navigation }: TabScreenProps<'Home'>) {
               this moving the number I actually care about. */}
           <Gutter>
             <Row gap={space.xl} align="flex-start">
+              {/* Two sources, one dial, and which one is showing changes what
+                  the arc means.
+
+                  A DECLARED fast fills against the target its owner chose, and
+                  the figure is time served. A gap since the last meal fills
+                  against a neutral day and says nothing about whether that gap
+                  is good — see FAST_SCALE_H. The dial does not label which it
+                  is, because at a glance the answer to "how long since I ate"
+                  is the same number either way; the screen it opens is where
+                  the difference is spelled out.
+
+                  Whole hours, so this does not need a ticking clock behind it.
+                  The figure changes once an hour, and a per-second timer on a
+                  tab somebody leaves open would be a wake-up every second to
+                  redraw the same two characters. The running clock lives on the
+                  fasting screen, where it is the subject. */}
               <Dial
                 size={dial}
-                progress={fasting === null ? null : Math.min(fasting / FAST_SCALE_H, 1)}
-                value={fasting === null ? DASH : fastingLabel(fasting)}
+                progress={
+                  fast !== null
+                    ? Math.min(elapsedOn(fast) / fast.targetHours, 1)
+                    : fasting === null
+                      ? null
+                      : Math.min(fasting / FAST_SCALE_H, 1)
+                }
+                value={
+                  fast !== null
+                    ? fastingLabel(elapsedOn(fast))
+                    : fasting === null
+                      ? DASH
+                      : fastingLabel(fasting)
+                }
                 label="Fasting"
+                onPress={() => navigation.navigate('Fasting')}
                 accessibilityLabel={
-                  fasting === null
-                    ? 'Fasting, no meal logged to measure from'
-                    : `Fasting, ${fastingLabel(fasting)} since your last meal`
+                  fast !== null
+                    ? `Fasting, ${fastingLabel(elapsedOn(fast))} of ${fast.targetHours} hours. Opens your fasting timer.`
+                    : fasting === null
+                      ? 'Fasting, no meal logged to measure from. Opens your fasting timer.'
+                      : `${fastingLabel(fasting)} since your last meal, no fast running. Opens your fasting timer.`
                 }
               />
 

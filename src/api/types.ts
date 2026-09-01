@@ -731,3 +731,93 @@ export type FoodIdeas = {
   estimated: true;
   cached: boolean;
 };
+
+// ── fasting ──────────────────────────────────────────────────────────────────
+
+/**
+ * The protocols the picker offers, mirrored from `FASTING_PLANS` in the
+ * contracts.
+ *
+ * **A plan is its target and nothing else.** The wire carries `targetHours`;
+ * "16:8" is only the name people use for a sixteen-hour fast, and it is looked
+ * up here rather than stored anywhere. The eating half of each pair is what is
+ * left of the day, which is why the numbers add to 24 — and why OMAD, the one
+ * that is not a ratio, is the only label not derived from its figure.
+ */
+export const FASTING_PLANS: ReadonlyArray<{ hours: number; label: string; detail: string }> = [
+  { hours: 16, label: '16:8', detail: 'Eat within eight hours' },
+  { hours: 18, label: '18:6', detail: 'Eat within six hours' },
+  { hours: 20, label: '20:4', detail: 'A meal and a snack' },
+  { hours: 23, label: 'OMAD', detail: 'One meal a day' },
+];
+
+/** What the picker opens on for somebody who has never fasted. */
+export const FASTING_DEFAULT_TARGET_HOURS = 16;
+
+/** What a target may be, whatever the presets offer. Mirrors the contract. */
+export const FASTING_TARGET_MIN_HOURS = 4;
+export const FASTING_TARGET_MAX_HOURS = 48;
+/** How far back the server lets a start time move. */
+export const FASTING_BACKDATE_MAX_HOURS = 72;
+
+/**
+ * One fast — an interval on the clock, not a measurement of a day.
+ *
+ * That is the difference from `WeightPoint` above, and it decides the shape:
+ * a weight is filed under a local date and its clock time is noise, while a
+ * fast's whole content is its length, two of them fit inside one calendar day,
+ * and one usually straddles midnight. So both ends are instants.
+ */
+export type Fast = {
+  id: string;
+  startedAt: string;
+  /** Null while it is running. There is no separate status. */
+  endedAt: string | null;
+  targetHours: number;
+  /**
+   * How long it ran. **Null while open, and deliberately so** — a running
+   * fast's length changes every second, and a figure computed server-side is
+   * stale the moment it is serialized. The screen subtracts `startedAt` from
+   * its own clock instead, once a second.
+   */
+  hours: number | null;
+  /**
+   * Whether it made its target. Null while open.
+   *
+   * Sent rather than compared here, because it has to be decided on the same
+   * rounded figure the row prints: 15.9994 h shows as "16h" and would fail a
+   * raw `>= 16`, putting "16h" and "missed" side by side.
+   */
+  reachedTarget: boolean | null;
+};
+
+/**
+ * The record, all-time — not over the returned window. A personal best that
+ * forgot March is a worse number than no number.
+ */
+export type FastingStats = {
+  /** Finished fasts. The one still running is not counted until it closes. */
+  completed: number;
+  /** How many reached their target; the denominator is `completed`. */
+  reached: number;
+  longestHours: number;
+  averageHours: number;
+};
+
+/**
+ * Everything the fasting screen draws — and what every write returns, because
+ * starting or ending a fast moves the timer, the record and the list at once.
+ */
+export type FastingSummary = {
+  current: Fast | null;
+  /** Finished fasts, newest first. */
+  recent: Fast[];
+  /** Null until one has finished; there is no average of nothing. */
+  stats: FastingStats | null;
+  /**
+   * What the start control opens on: the running fast's target, else the last
+   * one finished, else 16. The whole of the "which plan am I on" preference,
+   * stored nowhere — a plan picked each time can never be out of date.
+   */
+  lastTargetHours: number;
+};
