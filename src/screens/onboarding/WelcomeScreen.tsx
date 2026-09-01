@@ -3,12 +3,16 @@ import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
-import { Gap, Gutter } from '../../components/Layout';
+import { Notice } from '../../components/Feedback';
+import { Divider, Gap, Gutter, Row } from '../../components/Layout';
 import { Screen } from '../../components/Screen';
 import { Txt } from '../../components/Text';
+import { GOOGLE_SIGNIN_ENABLED } from '../../config';
 import { useTheme } from '../../theme/ThemeProvider';
 import { BrandField } from './BrandField';
+import { GoogleMark } from './GoogleMark';
 import { LegalNote } from './LegalNote';
+import { useGoogleSignIn } from './useGoogleSignIn';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
@@ -40,6 +44,7 @@ import type { ScreenProps } from '../../navigation/types';
 export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
   const { c, space } = useTheme();
   const insets = useSafeAreaInsets();
+  const google = useGoogleSignIn(navigation);
 
   const enter = useRef(new Animated.Value(0)).current;
   const [reduced, setReduced] = useState(false);
@@ -125,6 +130,45 @@ export function WelcomeScreen({ navigation }: ScreenProps<'Welcome'>) {
               onPress={() => navigation.navigate('AuthEmail')}
               haptic="select"
             />
+
+            {/* Third, not first. The two doors above are the ones that always
+                work — this one needs Play Services, a configured client ID and
+                a Google account, and any of the three can be missing. It is
+                also the only one that can finish in a single tap, which is why
+                it is on the screen at all rather than a step deeper. */}
+            {GOOGLE_SIGNIN_ENABLED ? (
+              <>
+                <Gap h={space.lg} />
+                <Row gap={space.md} align="center">
+                  <Divider style={{ flex: 1 }} />
+                  <Txt role="caption" tone="tertiary">
+                    or
+                  </Txt>
+                  <Divider style={{ flex: 1 }} />
+                </Row>
+                <Gap h={space.lg} />
+
+                <Button
+                  label="Continue with Google"
+                  variant="tonal"
+                  leading={<GoogleMark />}
+                  loading={google.busy}
+                  onPress={google.start}
+                  haptic="select"
+                />
+              </>
+            ) : null}
+
+            {google.error ? (
+              <>
+                <Gap h={space.lg} />
+                <Notice
+                  icon={google.error.title === 'No connection' ? 'offline' : 'alert'}
+                  title={google.error.title}
+                  detail={google.error.detail}
+                />
+              </>
+            ) : null}
 
             <Gap h={space.xl} />
 

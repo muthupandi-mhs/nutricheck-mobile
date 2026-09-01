@@ -217,7 +217,7 @@ export function ConfirmSheetScreen({ navigation, route }: ScreenProps<'Confirm'>
     });
     setCommitting(false);
     setVisible(false);
-    // A queued commit is not an error here — the Today banner explains the queue.
+    // A queued commit is not an error here — the Home banner explains the queue.
     navigation.navigate('Main');
   };
 

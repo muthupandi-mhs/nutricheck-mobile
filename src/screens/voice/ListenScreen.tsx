@@ -46,7 +46,7 @@ const SWEEP_ARC = 0.24;
  * The microphone, as a screen.
  *
  * Every meal spoken into this app comes through here — the last step of
- * onboarding and the centre button on Today are the same screen, reached the
+ * onboarding and the centre button on Home are the same screen, reached the
  * same way, and that is the point. The first meal is not a tutorial for some
  * other flow people graduate to; it is the flow.
  *
@@ -235,9 +235,9 @@ export function ListenScreen({ navigation, route }: ScreenProps<'Listen'>) {
    * Two exits, because there are two things behind this screen.
    *
    * Ending onboarding there is a finished flow underneath, so it is reset away
-   * — a navigate would push a SECOND Today over it from React Navigation 7 on,
+   * — a navigate would push a SECOND Home over it from React Navigation 7 on,
    * and the back button would walk into a form somebody has already filled in.
-   * Opened from the mic button it was pushed over Today, so leaving is simply
+   * Opened from the mic button it was pushed over Home, so leaving is simply
    * going back, and the tab you were on is still the tab you were on.
    */
   const leave = () => {

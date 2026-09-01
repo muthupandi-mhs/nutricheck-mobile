@@ -28,11 +28,28 @@ export function delta(n: number): string {
 }
 
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+/**
+ * Written once, in the case that carries the most information, and shouted
+ * where a masthead needs it shouted. Two hand-maintained arrays would be two
+ * places for a typo to live in a list nobody proofreads twice.
+ */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * "25 Aug" — a date in running text or on an axis.
+ *
+ * Title case, unlike `dateEyebrow`'s shout. That one is a masthead set in
+ * tracked caps; this is a label beside a number, where caps would have the
+ * date competing with the figure it annotates.
+ */
+export function dayMonth(d: Date): string {
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
 
 /** "TUE 25 AUG" — the masthead eyebrow. */
 export function dateEyebrow(d: Date): string {
-  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]!.toUpperCase()}`;
 }
 
 /** Single-letter axis label for the week chart. */

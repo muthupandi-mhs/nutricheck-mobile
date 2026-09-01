@@ -30,6 +30,7 @@ import { AskSheet } from '../screens/voice/AskSheet';
 import { ListenScreen } from '../screens/voice/ListenScreen';
 import { MealScreen } from '../screens/voice/MealScreen';
 import { TypeScreen } from '../screens/voice/TypeScreen';
+import { WeightScreen } from '../screens/weight/WeightScreen';
 import { YouScreen } from '../screens/settings/YouScreen';
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -52,10 +53,10 @@ function MainTabs() {
    * It was a route, and a route was wrong twice over: it put an entry in the
    * back stack for something that is not a place, and what you saw behind the
    * panel was a transparent modal rather than the day itself. Mounted by the
-   * tab host, Today keeps scrolling behind it, keeps its position, and is
+   * tab host, Home keeps scrolling behind it, keeps its position, and is
    * still the thing you came back to.
    *
-   * Held here rather than inside Today because the mic is on the tab bar and
+   * Held here rather than inside Home because the mic is on the tab bar and
    * belongs to all three tabs — Ideas and Insights raise the same sheet, over
    * themselves, without either of them knowing it exists.
    */
@@ -68,17 +69,17 @@ function MainTabs() {
         /* eslint-disable-next-line react/no-unstable-nested-components -- tabBar is
            react-navigation's documented render prop, not a component definition. */
         tabBar={props => <TabBar {...props} onLogPress={() => setAsking(true)} />}>
-        <Tab.Screen name="Today" component={HomeScreen} />
+        <Tab.Screen name="Home" component={HomeScreen} />
         {/* Between the two, not after them. Ideas is about the day in progress
             and Insights about the days behind it, so the order runs now →
-            next → past, and the tab nearest Today is the one that changes
-            when Today does. */}
+            next → past, and the tab nearest Home is the one that changes
+            when Home does. */}
         <Tab.Screen name="Ideas" component={IdeasScreen} />
         <Tab.Screen name="Insights" component={InsightsScreen} />
       </Tab.Navigator>
 
       {/* Unmounted when closed, not hidden. The sheet holds a microphone and a
-          language, and a hidden copy of both sitting behind Today for the life
+          language, and a hidden copy of both sitting behind Home for the life
           of the app is a recorder nobody can see the state of. */}
       {asking ? (
         <AskSheet
@@ -139,7 +140,7 @@ export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackP
             The entrance depends on where it came from. Ending onboarding it
             arrives on a reset with Main placed underneath, and a slide would
             animate a screen nobody has seen out of the way of one they have not
-            either; from the mic button it is a task pushed over Today, and
+            either; from the mic button it is a task pushed over Home, and
             rising from the bottom is what says so. */}
         <Stack.Screen
           name="Listen"
@@ -174,7 +175,12 @@ export function RootNavigator({ initialRoute }: { initialRoute: keyof RootStackP
         <Stack.Screen name="CreateFood" component={CreateFoodScreen} />
         <Stack.Screen name="EntryDetail" component={EntryDetailScreen} options={{ animation: 'slide_from_bottom' }} />
 
-        {/* settings — reached from Today's avatar, so it pushes like any task */}
+        {/* Pushed from the weight dial. Slides in from the right like any
+            other task rather than up like the calendar — the calendar changes
+            what Home is showing and comes back to it, this is a place you go. */}
+        <Stack.Screen name="Weight" component={WeightScreen} />
+
+        {/* settings — reached from Home's avatar, so it pushes like any task */}
         <Stack.Screen name="Calendar" component={CalendarScreen} options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="You" component={YouScreen} />
         <Stack.Screen name="ProfileEditor" component={ProfileEditorScreen} />

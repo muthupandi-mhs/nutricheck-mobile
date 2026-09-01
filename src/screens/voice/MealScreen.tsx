@@ -17,20 +17,20 @@ import { useTheme } from '../../theme/ThemeProvider';
 import type { ScreenProps } from '../../navigation/types';
 
 /**
- * Back to Today, by the route that suits what is underneath.
+ * Back to Home, by the route that suits what is underneath.
  *
  * Never `navigate('Main')`, whichever it is. From React Navigation 7 a navigate
  * to a screen already in the stack does not walk back to it — without `pop` it
  * either stays put or PUSHES another copy — so that left [Main, Listen,
- * MealDetails, Main] behind, and the back button off Today landed on the
+ * MealDetails, Main] behind, and the back button off Home landed on the
  * details of a meal already logged, one tap from logging it twice.
  *
  * Ending onboarding the whole flow is reset away: it is finished, and there is
- * nothing above Today worth going back to. Arriving from the mic button the
- * stack is popped back to the Today that is already there — a reset would build
+ * nothing above Home worth going back to. Arriving from the mic button the
+ * stack is popped back to the Home that is already there — a reset would build
  * a new one and lose which tab the user was on and where they had scrolled to.
  */
-function toToday(
+function toHome(
   navigation: {
     reset: (state: { index: number; routes: { name: 'Main' }[] }) => void;
     popTo: (name: 'Main') => void;
@@ -52,7 +52,7 @@ const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 } as const;
  * The order a day happens in.
  *
  * Not `MEAL_ORDER`, which ends with snacks because that is how they read in a
- * list of four fixed sections on Today. Here the groups exist because somebody
+ * list of four fixed sections on Home. Here the groups exist because somebody
  * narrated their day in sequence, and a screen reading that back with the
  * evening bajji after the dinner would be re-ordering the story it was told.
  */
@@ -214,7 +214,7 @@ export function MealScreen({ navigation, route }: ScreenProps<'MealDetails'>) {
      * Sequential rather than parallel: each commit reloads the day and the
      * suggestions behind it, and four of those racing would have the last
      * answer win at random. Four round trips on the once-a-day path that
-     * produces four meals is a fair price for Today grouping them correctly.
+     * produces four meals is a fair price for Home grouping them correctly.
      *
      * Every entry keeps the whole phrase. It is the reproducible input behind
      * all of them, and splitting the sentence up to store a piece with each
@@ -251,8 +251,8 @@ export function MealScreen({ navigation, route }: ScreenProps<'MealDetails'>) {
     }
 
     setCommitting(false);
-    // A queued commit is not an error — Today's banner explains the queue.
-    toToday(navigation, first);
+    // A queued commit is not an error — Home's banner explains the queue.
+    toHome(navigation, first);
   };
 
   return (
@@ -319,7 +319,7 @@ export function MealScreen({ navigation, route }: ScreenProps<'MealDetails'>) {
               <Trouble
                 {...TROUBLE[failed]}
                 onRetry={() => navigation.goBack()}
-                onSkip={() => toToday(navigation, first)}
+                onSkip={() => toHome(navigation, first)}
               />
             ) : draft ? (
               <>
@@ -784,7 +784,7 @@ function Trouble({
       <Button label="Say it again" onPress={onRetry} haptic="select" />
       <Gap h={space.md} />
       <View style={{ alignItems: 'center' }}>
-        <TextButton label="Skip to Today" tone="secondary" onPress={onSkip} />
+        <TextButton label="Skip to Home" tone="secondary" onPress={onSkip} />
       </View>
     </View>
   );

@@ -1,5 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import type {
+  ChatReply,
+  ChatTurn,
   AudioMimeType,
   AuthResponse,
   CreateCustomFood,
@@ -8,6 +10,7 @@ import type {
   FoodIdeas,
   FoodSearchResult,
   Goal,
+  GoogleAuthRequest,
   LoginRequest,
   LogEntry,
   MealInsight,
@@ -26,6 +29,7 @@ import type {
   TranscribeResult,
   UserProfile,
   WeekSummary,
+  WeightSeries,
 } from './types';
 
 /**
@@ -45,6 +49,15 @@ export interface NutriCheckApi {
   register(input: RegisterRequest): Promise<AuthResponse>;
   /** POST /v1/auth/login */
   login(input: LoginRequest): Promise<AuthResponse>;
+  /**
+   * POST /v1/auth/google — the whole Google flow in one call.
+   *
+   * Signs in, signs up, or attaches Google to an existing password account,
+   * and the caller does not get to know which: the server decides from the
+   * verified token. Like `login` and `register` it leaves the device signed
+   * IN — the returned tokens are stored before it resolves.
+   */
+  signInWithGoogle(input: GoogleAuthRequest): Promise<AuthResponse>;
   /** GET /v1/me — null when there is no valid session on this device. */
   getSession(): Promise<SessionUser | null>;
   /** POST /v1/auth/logout — revokes the refresh-token family. */
@@ -81,6 +94,37 @@ export interface NutriCheckApi {
   getGoal(): Promise<Goal>;
   /** POST /v1/me/goals — a user override. Append-only; effectiveFrom decides history. */
   setGoal(patch: SetGoal): Promise<Goal>;
+
+  // weight ─────────────────────────────────────────────────────────────────
+  /**
+   * GET /v1/me/weight?days=
+   *
+   * The history behind the weight dial. `days` bounds the chart only — the
+   * latest and earliest readings come back whatever window is asked for.
+   */
+  getWeightSeries(days?: number): Promise<WeightSeries>;
+  /**
+   * POST /v1/me/weight
+   *
+   * Records a weight and returns the whole series, because every figure on the
+   * screen moves when a reading lands. Recording today's weight also updates
+   * the profile and recomputes the targets, server-side and in one
+   * transaction — so a caller must NOT also `saveProfile` to keep them in step.
+   *
+   * `date` defaults to the device's today. Pass one only to backfill; an older
+   * reading is filed without touching what the user currently weighs.
+   */
+  logWeight(input: { weightKg: number; date?: string }): Promise<WeightSeries>;
+  /**
+   * DELETE /v1/me/weight/:date — removes one reading and returns what is left.
+   *
+   * Rejects with 409 when it is the only reading there is: every account has a
+   * current weight and the targets are derived from it, so the last one cannot
+   * be removed. Deleting the NEWEST one promotes the reading before it onto the
+   * profile and recomputes the targets, server-side — so a caller must refresh
+   * app state after one, exactly as it would after a log.
+   */
+  deleteWeight(date: string): Promise<WeightSeries>;
 
   // insights ────────────────────────────────────────────────────────────────
   /**
@@ -177,6 +221,19 @@ export interface NutriCheckApi {
    * so it should stop, not finish quietly and be thrown away.
    */
   interpretMeal(phrase: string, signal?: AbortSignal): Promise<AiMealDraft>;
+
+  /**
+   * POST /v1/chat — one turn with the assistant.
+   *
+   * Stateless on the server: the last few turns ride along with each message,
+   * so nothing about a conversation outlives the sheet it happened in. Costs a
+   * quota unit like any other model call, and rejects with the same problems —
+   * 503 when no key is configured, 429 when the day's allowance is spent.
+   */
+  chat(
+    input: { message: string; history: ChatTurn[]; date: string; tz: string },
+    signal?: AbortSignal,
+  ): Promise<ChatReply>;
 
   // committing ──────────────────────────────────────────────────────────────
   /** POST /v1/logs — idempotent on clientId, so a replayed queue is safe. */

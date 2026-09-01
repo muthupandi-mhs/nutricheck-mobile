@@ -66,7 +66,15 @@ export function useAuthOutcome(navigation: Nav) {
     }
   };
 
-  return { error, leaving, attempt };
+  /**
+   * Exposed so a caller with a failure of its own can report it in the same
+   * place, in the same shape. Google sign-in has two the server never sees —
+   * a phone with no Play Services, and the module failing before a token
+   * exists — and the alternative to this is a second notice, worded
+   * separately, drifting from this one. That drift is the exact thing this
+   * hook was extracted to stop.
+   */
+  return { error, setError, leaving, attempt };
 }
 
 /**

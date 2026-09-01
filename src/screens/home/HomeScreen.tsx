@@ -12,7 +12,6 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useApi } from '../../api/client';
 import LinearGradient from 'react-native-linear-gradient';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TextButton } from '../../components/Button';
 import { UndoToast } from '../../components/Feedback';
@@ -38,13 +37,6 @@ import type { TabScreenProps } from '../../navigation/types';
  * needs the same again, which is a fact about the number rather than an
  * opinion about the person.
  */
-/**
- * SVG gradient ids resolve by name. Fixed ones collide when two instances of a
- * screen are mounted at once through a transition, which is why every other
- * gradient in this app is numbered per instance.
- */
-let instances = 0;
-
 const ON_TRACK = 0.5;
 
 /**
@@ -74,7 +66,6 @@ function fastingLabel(hours: number): string {
   if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`;
   return `${Math.floor(hours)}h`;
 }
-
 /**
  * One end of the day stepper.
  *
@@ -138,7 +129,7 @@ const MACRO_ICON: Record<string, IconName> = {
 };
 
 /**
- * Today, drawn against the reference.
+ * Home, drawn against the reference.
  *
  * A centred masthead, one ring carrying the figure people open the app for,
  * the parts of the day as labelled rows with a bar and a value each, a legend
@@ -157,7 +148,7 @@ const MACRO_ICON: Record<string, IconName> = {
  * most furniture in the app, on the screen of the person with the least to
  * look at.
  */
-export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
+export function HomeScreen({ navigation }: TabScreenProps<'Home'>) {
   const { c, radius, space } = useTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -193,7 +184,6 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
    */
   const api = useApi();
   const [streak, setStreak] = useState<number | null>(null);
-
   /**
    * Whether the screen is showing today or a day picked from the calendar.
    *
@@ -224,7 +214,6 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
       };
     }, [api]),
   );
-
   const onRefresh = async () => {
     setRefreshing(true);
     await refresh();
@@ -262,12 +251,13 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
   const hasEntries = entries.length > 0;
   const waiting = loading && !day;
 
-  const glow = useRef<string | null>(null);
-  if (glow.current === null) glow.current = `todayGlow${(instances += 1)}`;
-
-  /** Three across the gutter, with a gap between each. */
-  const dial = Math.min(118, (width - space.gutter * 2 - space.sm * 2) / 3);
-
+  /**
+   * Three across the gutter, with real air between them.
+   *
+   * The gap is `xl` because three circles a few points apart read as one
+   * control cut into thirds rather than as three separate measures.
+   */
+  const dial = Math.min(118, (width - space.gutter * 2 - space.xl * 2) / 3);
   /** Positive is headroom, negative is overshoot. */
   const left = Math.round((target?.kcal ?? 0) - (totals?.kcal ?? 0));
 
@@ -311,29 +301,33 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
           stay the loudest thing on this screen, and it cannot be if the page
           itself is competing. */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {/* Vertical, and it lands on the canvas by halfway: the top half is
+            lit, the bottom half is not.
+
+            Diagonal was wrong for what this page is. The things worth looking
+            at — the day, the dials — are all in the top third, and a corner-to-
+            corner wash spends its light on the left edge instead of on them.
+            Straight down puts the brightest grey where the eye starts and lets
+            the ledger of meals run out into the dark, which is also what stops
+            a long day of rows looking like it is fading out.
+
+            Weak, and it never reaches zero. At a quarter strength the top was
+            a grey fog with a visible edge halfway down, and the bottom half
+            fell away to near-black — two different pages stacked. The
+            reference has no band anywhere: it is one dark grey, a little
+            lighter at the top than the bottom, and that is all.
+
+            So the stops run 16 → 0D → 07 across the whole height rather than
+            42 → 00 across the first half. It is laid ON the canvas with an
+            alpha because #D3D3D3 painted solid would be lighter than the ink
+            standing on it. */}
         <LinearGradient
-          colors={[c.wash[1], c.canvas, c.canvas]}
-          start={{ x: 0.15, y: 0 }}
-          end={{ x: 0.85, y: 1 }}
+          colors={[`${c.lift}16`, `${c.lift}0D`, `${c.lift}07`]}
+          locations={[0, 0.5, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <Svg style={StyleSheet.absoluteFill}>
-          <Defs>
-            {/* Two lights, not one gradient across the page: the arcs run
-                light to mid left-to-right, so the page under them does the
-                same and the row appears lit rather than painted. */}
-            <RadialGradient id={`${glow.current}A`} cx="26%" cy="18%" r="52%">
-              <Stop offset="0" stopColor={c.ringFrom} stopOpacity={0.16} />
-              <Stop offset="1" stopColor={c.ringFrom} stopOpacity={0} />
-            </RadialGradient>
-            <RadialGradient id={`${glow.current}B`} cx="82%" cy="12%" r="46%">
-              <Stop offset="0" stopColor={c.ringTo} stopOpacity={0.1} />
-              <Stop offset="1" stopColor={c.ringTo} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${glow.current}A)`} />
-          <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${glow.current}B)`} />
-        </Svg>
       </View>
 
       <View style={{ flex: 1, paddingTop: insets.top + space.xs }}>
@@ -467,7 +461,11 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.inkTertiary} />
           }>
-          <Gap h={space.xl} />
+          {/* Room between the masthead and the dials. `huge` rather than `xl`:
+              the header is a bar of controls and the dials are the content, and
+              a page reads as having a head and a body only if there is more air
+              between them than there is inside either. */}
+          <Gap h={space.huge} />
 
           {/* Three dials, in the shape the reference uses: equal circles,
               equal weight, calories in the middle because it is the one people
@@ -478,7 +476,7 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
               count cannot answer — how long since I last ate, and is any of
               this moving the number I actually care about. */}
           <Gutter>
-            <Row gap={space.sm} align="flex-start">
+            <Row gap={space.xl} align="flex-start">
               <Dial
                 size={dial}
                 progress={fasting === null ? null : Math.min(fasting / FAST_SCALE_H, 1)}
@@ -507,21 +505,28 @@ export function HomeScreen({ navigation }: TabScreenProps<'Today'>) {
                 }
               />
 
-              {/* No arc, because there is nothing to draw one against: the app
-                  holds one weight, not a history of them, so a change cannot
-                  be computed however it is displayed. It shows what it knows
-                  and opens the screen where that number is changed. */}
+              {/* Still no arc. There is a history behind this now, but an arc
+                  is a fraction of a target and there is no target weight to be
+                  a fraction of — the profile holds a direction and a rate, not
+                  a destination. A ring drawn against an invented one would be
+                  the only figure on this screen that nobody chose.
+
+                  It opens the report rather than the profile editor. That was
+                  the right destination while the app held one weight and no
+                  history: the only thing you could do with the number was
+                  change it. Now a tap on a figure shows the figure, and logging
+                  is one action at the bottom of the screen it opens. */}
               <Dial
                 size={dial}
                 progress={null}
                 value={profile?.weightKg ? String(profile.weightKg) : DASH}
                 unit={profile?.weightKg ? 'kg' : undefined}
                 label="Weight"
-                onPress={() => navigation.navigate('ProfileEditor')}
+                onPress={() => navigation.navigate('Weight')}
                 accessibilityLabel={
                   profile?.weightKg
-                    ? `Weight, ${profile.weightKg} kilograms. Opens your profile to update it.`
-                    : 'Weight not set. Opens your profile to set it.'
+                    ? `Weight, ${profile.weightKg} kilograms. Opens your weight history.`
+                    : 'Weight not set. Opens your weight history to record one.'
                 }
               />
             </Row>

@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import { ApiProvider, type NutriCheckApi } from '../src/api/client';
-import type { AiMealDraft, UserProfile } from '../src/api/types';
+import { ApiError, OfflineError, type AiMealDraft, type UserProfile } from '../src/api/types';
 import { createStubApi } from './fixtures/stubApi';
 import { mealSlotFor } from '../src/lib/format';
 import { AppStateProvider } from '../src/state/AppState';
@@ -34,6 +34,7 @@ import { AskSheet, askGreeting } from '../src/screens/voice/AskSheet';
 import { ListenScreen } from '../src/screens/voice/ListenScreen';
 import { MealScreen } from '../src/screens/voice/MealScreen';
 import { TypeScreen } from '../src/screens/voice/TypeScreen';
+import { WeightScreen } from '../src/screens/weight/WeightScreen';
 import { YouScreen } from '../src/screens/settings/YouScreen';
 
 /**
@@ -119,7 +120,7 @@ const screens: Array<[string, React.ReactElement]> = [
       route={{ key: 'k', name: 'MealDetails', params: { phrase: 'rendu dosai and sambar', source: 'voice' } } as never}
     />,
   ],
-  ['Today', <HomeScreen navigation={navigation} route={{ key: 'k', name: 'Today' } as never} />],
+  ['Home', <HomeScreen navigation={navigation} route={{ key: 'k', name: 'Home' } as never} />],
   ['Ideas', <IdeasScreen navigation={navigation} route={{ key: 'k', name: 'Ideas' } as never} />],
   ['Calendar', <CalendarScreen navigation={navigation} route={{ key: 'k', name: 'Calendar' } as never} />],
   ['Insights', <InsightsScreen navigation={navigation} route={{ key: 'k', name: 'Insights' } as never} />],
@@ -137,6 +138,7 @@ const screens: Array<[string, React.ReactElement]> = [
     <PortionScreen navigation={navigation} route={{ key: 'k', name: 'Portion', params: { foodId: 'f-curd' } } as never} />,
   ],
   ['CreateFood', <CreateFoodScreen navigation={navigation} route={{ key: 'k', name: 'CreateFood', params: { name: 'Rajma' } } as never} />],
+  ['Weight', <WeightScreen navigation={navigation} route={{ key: 'k', name: 'Weight' } as never} />],
   ['You', <YouScreen navigation={navigation} route={{ key: 'k', name: 'You' } as never} />],
   ['ProfileEditor', <ProfileEditorScreen navigation={navigation} route={{ key: 'k', name: 'ProfileEditor' } as never} />],
   ['GoalEditor', <GoalEditorScreen navigation={navigation} route={{ key: 'k', name: 'GoalEditor' } as never} />],
@@ -358,7 +360,7 @@ describe('meal details', () => {
      *
      * `navigate('Main')` looked right and was not: from React Navigation 7 a
      * navigate to a screen already in the stack pushes ANOTHER copy of it
-     * rather than returning to it, so the back button off Today walked into
+     * rather than returning to it, so the back button off Home walked into
      * the details of a meal that was already logged — one tap from logging it
      * twice.
      */
@@ -387,14 +389,14 @@ describe('meal details', () => {
 
   /**
    * The same screen reached from the mic button, where what is underneath is a
-   * Today somebody was already using.
+   * Home somebody was already using.
    *
    * Resetting there would be wrong in a way that is easy to miss and impossible
    * to unsee: it builds a NEW tab host, so the tab they were on and the place
    * they had scrolled to are gone. Popping back returns them to the one that
    * has been there the whole time.
    */
-  it('pops back to the Today it was opened from, rather than building a new one', async () => {
+  it('pops back to the Home it was opened from, rather than building a new one', async () => {
     const api = stagedAiMealApi();
     const commit = jest.spyOn(api, 'commit');
 
@@ -530,7 +532,7 @@ describe('type screen', () => {
  * sambar apram rendu muttai and mathiyam chicken briyani ... iravu 3
  * chappathi" — and every time word in it is a fact about when somebody ate.
  * Logging that as one dinner because that is when they happened to be talking
- * throws all of it away, and the day on Today then says they ate nothing until
+ * throws all of it away, and the day on Home then says they ate nothing until
  * ten at night.
  */
 describe('a day in one sentence', () => {
@@ -601,7 +603,7 @@ describe('a day in one sentence', () => {
     await settle();
 
     // Four headings, in the order the day happened — the evening bajji before
-    // the dinner, which is not the order Today lists its fixed sections in.
+    // the dinner, which is not the order Home lists its fixed sections in.
     const shown = JSON.stringify(tree!.toJSON());
     for (const label of ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER']) {
       expect(shown).toContain(label);
@@ -697,15 +699,18 @@ describe('a day in one sentence', () => {
  */
 describe('ask greeting', () => {
   it('greets by name and says where the day stands', () => {
+    // One clause per fact. It used to carry both what was eaten and what is
+    // left; the second is the only one anybody steers by, and a paragraph
+    // above a field is something to get past rather than something to read.
     expect(askGreeting({ name: 'Muthupandi', eaten: 1404, target: 2041, logged: 3 })).toBe(
-      "Hey Muthupandi, you're 1,404 in with 637 kcal left today. What did you eat?",
+      'Hey Muthupandi, 637 kcal left today. What did you eat?',
     );
   });
 
-  it('says the whole target is still theirs before anything is logged', () => {
+  it('offers the whole target before anything is logged', () => {
     // "0 in with 2,041 left" is arithmetic nobody needs at breakfast.
     expect(askGreeting({ name: 'Asha', eaten: 0, target: 2041, logged: 0 })).toBe(
-      'Hey Asha, nothing logged yet — the whole 2,041 kcal is still yours. What did you eat?',
+      'Hey Asha, 2,041 kcal to play with today. What did you eat?',
     );
   });
 
@@ -713,7 +718,7 @@ describe('ask greeting', () => {
     // Past the target the question changes: "what did you eat" reads as though
     // the app has not noticed the day already has meals in it.
     expect(askGreeting({ name: 'Asha', eaten: 2300, target: 2041, logged: 4 })).toBe(
-      "Hey Asha, you're 259 kcal past today's target. What else did you eat?",
+      'Hey Asha, 259 kcal over today. What else did you eat?',
     );
   });
 
@@ -721,7 +726,7 @@ describe('ask greeting', () => {
     // An account made before the name step has no name, and the sentence still
     // has to start with a capital.
     expect(askGreeting({ name: null, eaten: 1404, target: 2041, logged: 3 })).toBe(
-      "You're 1,404 in with 637 kcal left today. What did you eat?",
+      '637 kcal left today. What did you eat?',
     );
   });
 
@@ -955,6 +960,716 @@ describe('profile editor', () => {
 
     expect(saved).toHaveLength(0);
     expect(JSON.stringify(tree!.toJSON())).toContain('What should we call you');
+
+    await ReactTestRenderer.act(async () => tree!.unmount());
+  });
+});
+
+/**
+ * The weight report.
+ *
+ * The behaviour worth pinning here is the seam, not the layout: this screen
+ * writes a number that the server then copies onto the profile and recomputes
+ * the targets from. A screen that logged without refreshing would leave the
+ * Home dial behind it showing the weight the user just replaced.
+ */
+describe('weight report', () => {
+  const target = (tree: ReactTestRenderer.ReactTestRenderer, label: string) =>
+    tree.root
+      .findAll(n => typeof n.props.accessibilityLabel === 'string')
+      .find(n => n.props.accessibilityLabel === label);
+
+  const texts = (tree: ReactTestRenderer.ReactTestRenderer): string =>
+    JSON.stringify(tree.toJSON());
+
+  function screen(api: NutriCheckApi) {
+    return (
+      <ThemeProvider>
+        <ApiProvider api={api}>
+          <OnboardingProvider>
+            <AppStateProvider>
+              <WeightScreen navigation={navigation} route={{ key: 'k', name: 'Weight' } as never} />
+            </AppStateProvider>
+          </OnboardingProvider>
+        </ApiProvider>
+      </ThemeProvider>
+    );
+  }
+
+  async function open(api: NutriCheckApi) {
+    let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(screen(api));
+    });
+    await settle();
+    return tree!;
+  }
+
+  /**
+   * The corner action. It is a plus with no text, so it is found by the
+   * accessibility label — which is also the only thing that still says, in
+   * words, which of its two jobs it is doing.
+   */
+  const logButton = (tree: ReactTestRenderer.ReactTestRenderer) =>
+    target(tree, "Update today's weight") ?? target(tree, "Log today's weight");
+
+  /** Open the entry sheet and wait for it to finish animating in. */
+  async function openSheet(tree: ReactTestRenderer.ReactTestRenderer) {
+    await ReactTestRenderer.act(async () => logButton(tree)!.props.onPress?.());
+    await settle();
+  }
+
+  const save = (tree: ReactTestRenderer.ReactTestRenderer) =>
+    ReactTestRenderer.act(async () => target(tree, 'Save')!.props.onPress?.());
+
+  it('logs the weight the stepper is showing, not the one it opened with', async () => {
+    const api = createStubApi();
+    const logged: Array<{ weightKg: number }> = [];
+    api.logWeight = async input => {
+      logged.push(input);
+      return { points: [], current: { date: '2026-08-26', weightKg: input.weightKg }, start: null, trend: null };
+    };
+
+    const tree = await open(api);
+
+    // Nothing is written by opening the sheet.
+    expect(logged).toHaveLength(0);
+    await openSheet(tree);
+
+    // The stepper opens at the newest reading, not at the profile's weight.
+    // They agree in the stub; the assertion is that the field was seeded from
+    // the series, which is the copy a backfill leaves behind.
+    const down = target(tree, 'Decrease Weight');
+    expect(down).toBeTruthy();
+    await ReactTestRenderer.act(async () => down!.props.onPress?.());
+
+    await save(tree);
+
+    expect(logged).toHaveLength(1);
+    // 79.2 stepped down once at 0.1 kg. Plain subtraction gives
+    // 79.10000000000001 here; the stepper rounds to its declared precision,
+    // and `toBe` rather than `toBeCloseTo` is what makes that assertable.
+    expect(logged[0]!.weightKg).toBe(79.1);
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('reloads the app state after a weight lands, so Home stops showing the old one', async () => {
+    // The server rewrites the profile and appends a goal inside the same
+    // transaction. Without this refresh the dial that opened this screen keeps
+    // the superseded weight, and the targets keep the figures derived from it,
+    // until something unrelated happens to reload.
+    const api = createStubApi();
+    let profileReads = 0;
+    api.getProfile = async () => {
+      profileReads += 1;
+      return { ...NAMED };
+    };
+
+    const tree = await open(api);
+    const before = profileReads;
+
+    await openSheet(tree);
+    await save(tree);
+    await settle();
+
+    expect(profileReads).toBeGreaterThan(before);
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('keeps the figures on screen when a save fails', async () => {
+    // Only the write failed. Dropping to the offline empty state would tell
+    // somebody with a year of readings that there is nothing to show.
+    const api = createStubApi();
+    api.logWeight = async () => {
+      throw new Error('offline');
+    };
+
+    const tree = await open(api);
+    await openSheet(tree);
+    await save(tree);
+
+    const rendered = texts(tree);
+    expect(rendered).toContain('That did not save');
+    // The series it loaded is still the series it is drawing.
+    expect(rendered).toContain('Started at');
+    expect(rendered).not.toContain('Could not load your weight');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  /**
+   * A 404 on a phone with full signal.
+   *
+   * This screen shipped telling that reader to check their connection, because
+   * it caught every error and assumed one cause. Sending somebody to look at
+   * the one part of the system that is demonstrably working is worse than
+   * saying nothing, so the two cases are now separate and stay separate.
+   */
+  /**
+   * The whole reason the sheet holds a Stepper rather than a plain field.
+   *
+   * A scale reports 78.4, and the shared stepper accepted digits only — so the
+   * point was stripped, 784 was refused as out of range, and the number could
+   * not be typed at all. Steppers everywhere else in the app count whole
+   * calories and centimetres, which is why nobody had hit it.
+   */
+  it('takes a typed decimal weight, point or comma', async () => {
+    const api = createStubApi();
+    const logged: Array<{ weightKg: number }> = [];
+    api.logWeight = async input => {
+      logged.push(input);
+      return { points: [], current: { date: '2026-08-26', weightKg: input.weightKg }, start: null, trend: null };
+    };
+
+    const tree = await open(api);
+
+    /**
+     * Re-found after every save rather than held across them, because a
+     * successful save closes the sheet and unmounts the field. Reusing the
+     * handle asserts against a node that is no longer on screen — which is
+     * itself worth knowing, and is why the sheet closing is checked here too.
+     */
+    const box = () =>
+      tree.root
+        .findAll(n => typeof n.props.onChangeText === 'function')
+        .find(n => String(n.props.accessibilityLabel ?? '').startsWith('Weight,'));
+
+    await openSheet(tree);
+    expect(box()).toBeTruthy();
+    await ReactTestRenderer.act(async () => box()!.props.onChangeText('78.4'));
+    await save(tree);
+    expect(logged[0]!.weightKg).toBe(78.4);
+
+    // Saved, so the sheet is gone and the field with it.
+    expect(box()).toBeUndefined();
+
+    // A comma is the decimal separator on half the world's keypads. Dropping
+    // it makes a field somebody cannot type their weight into.
+    await openSheet(tree);
+    await ReactTestRenderer.act(async () => box()!.props.onChangeText('76,8'));
+    await save(tree);
+    expect(logged[1]!.weightKg).toBe(76.8);
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('does not write anything until Save is pressed', async () => {
+    // The sheet is a question, not a live control. Stepping in it must not
+    // post a reading per tap.
+    const api = createStubApi();
+    const logged: Array<{ weightKg: number }> = [];
+    api.logWeight = async input => {
+      logged.push(input);
+      return { points: [], current: { date: '2026-08-26', weightKg: input.weightKg }, start: null, trend: null };
+    };
+
+    const tree = await open(api);
+    await openSheet(tree);
+
+    const up = target(tree, 'Increase Weight')!;
+    await ReactTestRenderer.act(async () => up.props.onPress?.());
+    await ReactTestRenderer.act(async () => up.props.onPress?.());
+
+    expect(logged).toHaveLength(0);
+
+    await save(tree);
+    expect(logged).toHaveLength(1);
+    expect(logged[0]!.weightKg).toBe(79.4);
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  /**
+   * The per-day record, under the chart.
+   *
+   * The line answers "which way is this going"; it cannot answer "did I log
+   * Tuesday" or "what exactly did the 14th say", which is what somebody asks
+   * when the line does something they did not expect.
+   */
+  it('lists every reading newest first, with the change each one made', async () => {
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-10', weightKg: 80 },
+        { date: '2026-08-17', weightKg: 79.4 },
+        { date: '2026-08-24', weightKg: 79.7 },
+      ],
+      current: { date: '2026-08-24', weightKg: 79.7 },
+      start: { date: '2026-08-10', weightKg: 80 },
+      trend: { kgPerWeek: -0.15, deltaKg: -0.3, spanDays: 14, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+    const rendered = texts(tree);
+
+    expect(rendered).toContain('Readings');
+    // Three fits under the fold, so there is nothing to view all OF.
+    expect(target(tree, 'View all')).toBeUndefined();
+
+    /**
+     * Newest at the top, oldest at the bottom — the reverse of the chart,
+     * because the top of a list is where the eye starts.
+     *
+     * By LAST occurrence, not first. The chart above prints the dates of its
+     * two endpoints as axis labels, in chart order, so a first-occurrence
+     * search finds "10 Aug" on the axis rather than in the list and reports
+     * the list as upside down when it is not.
+     */
+    const order = ['24 Aug', '17 Aug', '10 Aug'].map(d => rendered.lastIndexOf(d));
+    expect(order[0]).toBeGreaterThan(-1);
+    expect(order[0]).toBeLessThan(order[1]!);
+    expect(order[1]).toBeLessThan(order[2]!);
+
+    // The change is against the previous READING, not the previous day, and
+    // it is signed: 79.4 -> 79.7 is a gain even in a run that is trending down.
+    expect(rendered).toContain('+0.3');
+    expect(rendered).toContain('−0.6');
+
+    // The oldest is the first there has ever been, which is worth saying —
+    // and it gets no change, because there is nothing before it.
+    expect(rendered).toContain('first reading');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('does not call a clipped window a beginning', async () => {
+    // The oldest row in the window is not the first reading ever when there
+    // are older ones outside it. Saying "first reading" there would invent a
+    // starting point, so the row says nothing instead.
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-17', weightKg: 79.4 },
+        { date: '2026-08-24', weightKg: 79.7 },
+      ],
+      current: { date: '2026-08-24', weightKg: 79.7 },
+      start: { date: '2025-11-02', weightKg: 88 },
+      trend: { kgPerWeek: 0.3, deltaKg: 0.3, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+    expect(texts(tree)).not.toContain('first reading');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  /**
+   * Correcting a reading that is not today's.
+   *
+   * The date has to travel with the save. A correction posted without one
+   * rewrites TODAY with a figure from three weeks ago — the server takes the
+   * client's date at face value and defaults it to its own today, so the bug
+   * would be silent and would move the user's targets as well.
+   */
+  it('saves a corrected reading under the day it belongs to', async () => {
+    const api = createStubApi();
+    const logged: Array<{ weightKg: number; date?: string }> = [];
+    api.logWeight = async input => {
+      logged.push(input);
+      return { points: [], current: null, start: null, trend: null };
+    };
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-10', weightKg: 80 },
+        { date: '2026-08-17', weightKg: 79.4 },
+      ],
+      current: { date: '2026-08-17', weightKg: 79.4 },
+      start: { date: '2026-08-10', weightKg: 80 },
+      trend: { kgPerWeek: -0.6, deltaKg: -0.6, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+
+    const row = target(tree, '10 Aug, 80.0 kilograms');
+    expect(row).toBeTruthy();
+    await ReactTestRenderer.act(async () => row!.props.onPress?.());
+    await settle();
+
+    // Titled for the day being corrected, not for today.
+    expect(texts(tree)).toContain('Correct 10 Aug');
+
+    await save(tree);
+    expect(logged).toEqual([{ weightKg: 80, date: '2026-08-10' }]);
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('seeds the sheet from the row that opened it', async () => {
+    // Not from `current`. Opening the 10 Aug row at 79.4 would have somebody
+    // correct a reading they never took, one tap from saving it.
+    const api = createStubApi();
+    const logged: Array<{ weightKg: number; date?: string }> = [];
+    api.logWeight = async input => {
+      logged.push(input);
+      return { points: [], current: null, start: null, trend: null };
+    };
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-10', weightKg: 80 },
+        { date: '2026-08-17', weightKg: 79.4 },
+      ],
+      current: { date: '2026-08-17', weightKg: 79.4 },
+      start: { date: '2026-08-10', weightKg: 80 },
+      trend: { kgPerWeek: -0.6, deltaKg: -0.6, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+
+    await ReactTestRenderer.act(async () =>
+      target(tree, '10 Aug, 80.0 kilograms')!.props.onPress?.(),
+    );
+    await settle();
+
+    // One step down from the row's own value, not from the latest reading.
+    await ReactTestRenderer.act(async () => target(tree, 'Decrease Weight')!.props.onPress?.());
+    await save(tree);
+
+    expect(logged[0]!.weightKg).toBe(79.9);
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('promises a recalculation only when the day is the newest reading', async () => {
+    // The server copies a weight onto the profile only when it is the newest
+    // one. Saying "your targets are recalculated" over an older correction
+    // would describe a write that does not happen.
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-10', weightKg: 80 },
+        { date: '2026-08-17', weightKg: 79.4 },
+      ],
+      current: { date: '2026-08-17', weightKg: 79.4 },
+      start: { date: '2026-08-10', weightKg: 80 },
+      trend: { kgPerWeek: -0.6, deltaKg: -0.6, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+
+    await ReactTestRenderer.act(async () =>
+      target(tree, '10 Aug, 80.0 kilograms')!.props.onPress?.(),
+    );
+    await settle();
+    expect(texts(tree)).toContain('leaves your current weight and targets untouched');
+    expect(texts(tree)).not.toContain('recalculated');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('promises the recalculation when the day IS the newest reading', async () => {
+    // The other half of the rule, opened fresh rather than by dismissing the
+    // sheet — the exit animation is not something a render test should have to
+    // wait on to assert a sentence.
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-10', weightKg: 80 },
+        { date: '2026-08-17', weightKg: 79.4 },
+      ],
+      current: { date: '2026-08-17', weightKg: 79.4 },
+      start: { date: '2026-08-10', weightKg: 80 },
+      trend: { kgPerWeek: -0.6, deltaKg: -0.6, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+    await openSheet(tree);
+
+    expect(texts(tree)).toContain('recalculated');
+    expect(texts(tree)).not.toContain('leaves your current weight and targets untouched');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('deletes the reading whose row opened the sheet', async () => {
+    const api = createStubApi();
+    const removed: string[] = [];
+    api.deleteWeight = async date => {
+      removed.push(date);
+      return { points: [], current: null, start: null, trend: null };
+    };
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-10', weightKg: 80 },
+        { date: '2026-08-17', weightKg: 79.4 },
+      ],
+      current: { date: '2026-08-17', weightKg: 79.4 },
+      start: { date: '2026-08-10', weightKg: 80 },
+      trend: { kgPerWeek: -0.6, deltaKg: -0.6, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+    await ReactTestRenderer.act(async () =>
+      target(tree, '10 Aug, 80.0 kilograms')!.props.onPress?.(),
+    );
+    await settle();
+
+    await ReactTestRenderer.act(async () =>
+      target(tree, 'Delete this reading')!.props.onPress?.(),
+    );
+
+    expect(removed).toEqual(['2026-08-10']);
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('hides delete when there is only one reading in total', async () => {
+    /**
+     * The server refuses to delete the last one — the profile's weight is NOT
+     * NULL and the goals derive from it — so offering the button would be
+     * offering a failure.
+     *
+     * `start` and `current` landing on the same day is what proves there is
+     * exactly one. Counting the window instead would hide the button from
+     * anybody whose older readings had scrolled off the ninety days.
+     */
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: [{ date: '2026-08-17', weightKg: 79.4 }],
+      current: { date: '2026-08-17', weightKg: 79.4 },
+      start: { date: '2026-08-17', weightKg: 79.4 },
+      trend: null,
+    });
+
+    const tree = await open(api);
+    await ReactTestRenderer.act(async () =>
+      target(tree, '17 Aug, 79.4 kilograms')!.props.onPress?.(),
+    );
+    await settle();
+
+    expect(target(tree, 'Delete this reading')).toBeUndefined();
+    // The sheet still opened, and can still correct it.
+    expect(texts(tree)).toContain('Correct 17 Aug');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('offers no delete on a day that has no reading', async () => {
+    // The plus opens today, and today has not been logged in this fixture.
+    // There is nothing there to remove.
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-10', weightKg: 80 },
+        { date: '2026-08-17', weightKg: 79.4 },
+      ],
+      current: { date: '2026-08-17', weightKg: 79.4 },
+      start: { date: '2026-08-10', weightKg: 80 },
+      trend: { kgPerWeek: -0.6, deltaKg: -0.6, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+    await openSheet(tree);
+
+    expect(target(tree, 'Delete this reading')).toBeUndefined();
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('says which action failed, not just that something did', async () => {
+    // "That did not save" is a lie about a delete that failed, and the reader
+    // has no other way to tell which of the two did not happen.
+    const api = createStubApi();
+    api.deleteWeight = async () => {
+      throw new Error('boom');
+    };
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-10', weightKg: 80 },
+        { date: '2026-08-17', weightKg: 79.4 },
+      ],
+      current: { date: '2026-08-17', weightKg: 79.4 },
+      start: { date: '2026-08-10', weightKg: 80 },
+      trend: { kgPerWeek: -0.6, deltaKg: -0.6, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+    await ReactTestRenderer.act(async () =>
+      target(tree, '10 Aug, 80.0 kilograms')!.props.onPress?.(),
+    );
+    await settle();
+    await ReactTestRenderer.act(async () =>
+      target(tree, 'Delete this reading')!.props.onPress?.(),
+    );
+
+    const rendered = texts(tree);
+    expect(rendered).toContain('That did not delete');
+    expect(rendered).not.toContain('That did not save');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('shows the latest five, and the rest behind View all', async () => {
+    // Somebody weighing in daily has ninety rows here. A screen whose top half
+    // is a chart and whose bottom half is three months of scrolling buries the
+    // chart, and the question the list answers on arrival is answered by five.
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: Array.from({ length: 8 }, (_, i) => ({
+        date: `2026-08-0${i + 1}`,
+        weightKg: 80 - i * 0.2,
+      })),
+      current: { date: '2026-08-08', weightKg: 78.6 },
+      start: { date: '2026-08-01', weightKg: 80 },
+      trend: { kgPerWeek: -1.4, deltaKg: -1.4, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+
+    // Newest five: the 8th down to the 4th. The 1st, 2nd and 3rd are held back.
+    /**
+     * Distinct labels, not matching nodes.
+     *
+     * `findAll` walks composites as well as hosts, so one `Press` answers to
+     * the predicate several times over — counting nodes reported twenty rows
+     * where there were five. The dates are unique, so the labels are.
+     */
+    const rows = () =>
+      new Set(
+        tree.root
+          .findAll(n => typeof n.props.accessibilityLabel === 'string')
+          .map(n => String(n.props.accessibilityLabel))
+          .filter(label => /kilograms$/.test(label)),
+      ).size;
+
+    expect(rows()).toBe(5);
+    expect(target(tree, '1 Aug, 80.0 kilograms')).toBeUndefined();
+
+    await ReactTestRenderer.act(async () => target(tree, 'View all')!.props.onPress?.());
+
+    expect(rows()).toBe(8);
+    expect(target(tree, '1 Aug, 80.0 kilograms')).toBeTruthy();
+    // And back again, so it is a disclosure rather than a one-way door.
+    expect(target(tree, 'Show less')).toBeTruthy();
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('keeps the change on the last visible row when the list is truncated', async () => {
+    // The row before it exists — it is simply not drawn yet. Reading "previous"
+    // off the VISIBLE slice would blank that row's change and, worse, make the
+    // oldest visible row claim to be the first reading ever.
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: Array.from({ length: 8 }, (_, i) => ({
+        date: `2026-08-0${i + 1}`,
+        weightKg: 80 - i * 0.2,
+      })),
+      current: { date: '2026-08-08', weightKg: 78.6 },
+      start: { date: '2026-08-01', weightKg: 80 },
+      trend: { kgPerWeek: -1.4, deltaKg: -1.4, spanDays: 7, intendedKgPerWeek: -0.5 },
+    });
+
+    const tree = await open(api);
+    const rendered = texts(tree);
+
+    // Five rows, five changes — including the oldest visible one.
+    expect(rendered.split('−0.2').length - 1).toBe(5);
+    // And nothing claims to be the beginning, because the beginning is hidden.
+    expect(rendered).not.toContain('first reading');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('does not blame the connection for a server error', async () => {
+    const api = createStubApi();
+    api.getWeightSeries = async () => {
+      throw new ApiError({
+        type: 'not-found',
+        title: 'NotFound',
+        status: 404,
+        detail: 'Cannot GET /v1/me/weight',
+      });
+    };
+
+    const tree = await open(api);
+    const rendered = texts(tree);
+
+    expect(rendered).toContain('Could not load your weight');
+    expect(rendered).toContain('The server could not answer');
+    expect(rendered).not.toContain('needs a connection');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('does blame the connection when the socket is actually dead', async () => {
+    const api = createStubApi();
+    api.getWeightSeries = async () => {
+      throw new OfflineError();
+    };
+
+    const tree = await open(api);
+    expect(texts(tree)).toContain('needs a connection');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+
+  it('says nothing about pace when there is no rate to be behind', async () => {
+    // Somebody maintaining has no intended rate, so "slower than planned" has
+    // no meaning — the server sends null and the note is absent, rather than
+    // the client inventing a target of zero to compare against.
+    const api = createStubApi();
+    api.getWeightSeries = async () => ({
+      points: [
+        { date: '2026-08-01', weightKg: 80 },
+        { date: '2026-08-26', weightKg: 79.6 },
+      ],
+      current: { date: '2026-08-26', weightKg: 79.6 },
+      start: { date: '2026-08-01', weightKg: 80 },
+      trend: { kgPerWeek: -0.11, deltaKg: -0.4, spanDays: 25, intendedKgPerWeek: null },
+    });
+
+    const tree = await open(api);
+    const rendered = texts(tree);
+
+    expect(rendered).toContain('Trend');
+    expect(rendered).not.toContain('planned');
+    expect(rendered).not.toContain('On the pace you set');
+
+    await ReactTestRenderer.act(async () => tree.unmount());
+  });
+});
+
+/**
+ * Where the weight dial goes.
+ *
+ * It opened the profile editor for as long as the app held one weight and no
+ * history — the only thing you could do with the number was change it. The
+ * destination is the behaviour, so it is asserted rather than left to the
+ * render test, which would pass just as happily with the old target.
+ */
+describe('the weight dial on Home', () => {
+  it('opens the weight report, not the profile editor', async () => {
+    (navigation as unknown as { navigate: jest.Mock }).navigate.mockClear();
+
+    let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(
+        <ThemeProvider>
+          <ApiProvider api={createStubApi()}>
+            <OnboardingProvider>
+              <AppStateProvider>
+                <HomeScreen navigation={navigation} route={{ key: 'k', name: 'Home' } as never} />
+              </AppStateProvider>
+            </OnboardingProvider>
+          </ApiProvider>
+        </ThemeProvider>,
+      );
+    });
+    await settle();
+
+    const dial = tree!.root
+      .findAll(n => typeof n.props.accessibilityLabel === 'string')
+      .find(n => String(n.props.accessibilityLabel).startsWith('Weight,'));
+
+    expect(dial).toBeTruthy();
+    // It still says what it will do before the tap.
+    expect(String(dial!.props.accessibilityLabel)).toContain('weight history');
+
+    await ReactTestRenderer.act(async () => dial!.props.onPress?.());
+
+    expect((navigation as unknown as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('Weight');
 
     await ReactTestRenderer.act(async () => tree!.unmount());
   });

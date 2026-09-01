@@ -315,6 +315,49 @@ describe('httpApi', () => {
     expect(calls[0]!.url).toContain('tz=Asia%2FKolkata');
   });
 
+  it('dates a weight in the device zone rather than the server one', async () => {
+    // The server defaults an omitted date to its own UTC today. At 9pm in
+    // Chennai that is tomorrow, so an evening weigh-in would be filed a day
+    // ahead — and, being the newest reading, would then block that night's
+    // correction from moving the profile. The client sends its own date for
+    // the same reason every other dated call here does.
+    const { instance, calls } = api([{ status: 200, body: { points: [], current: null, start: null, trend: null } }]);
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-26T18:30:00.000Z'));
+    try {
+      await instance.logWeight({ weightKg: 78.4 });
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(calls[0]!.method).toBe('POST');
+    expect(calls[0]!.url).toContain('/v1/me/weight');
+    // 18:30 UTC is past midnight in Kolkata (+5:30) — the 27th, not the 26th.
+    expect(JSON.parse(calls[0]!.data as string)).toEqual({ weightKg: 78.4, date: '2026-08-27' });
+  });
+
+  it('keeps an explicit backfill date rather than overriding it', async () => {
+    const { instance, calls } = api([{ status: 200, body: { points: [], current: null, start: null, trend: null } }]);
+    await instance.logWeight({ weightKg: 80, date: '2026-08-01' });
+
+    expect(JSON.parse(calls[0]!.data as string).date).toBe('2026-08-01');
+  });
+
+  it('asks for the weight series without a window unless one is given', async () => {
+    // The server's default window is the contract's, not a number repeated
+    // here — a client that always sent one would have to be changed to follow
+    // a change to it.
+    const { instance, calls } = api([
+      { status: 200, body: { points: [], current: null, start: null, trend: null } },
+      { status: 200, body: { points: [], current: null, start: null, trend: null } },
+    ]);
+
+    await instance.getWeightSeries();
+    expect(calls[0]!.url).not.toContain('days=');
+
+    await instance.getWeightSeries(30);
+    expect(calls[1]!.url).toContain('days=30');
+  });
+
   it('strips food summaries and optimistic nutrients from a commit', async () => {
     // The wire wants foodId and grams. Spreading the draft would send a whole
     // FoodSummary and client-side nutrients the server refuses to trust.

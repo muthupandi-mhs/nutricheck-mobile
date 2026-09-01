@@ -22,11 +22,11 @@ const MONTHS = [
 ];
 
 /**
- * The history calendar, behind Today's masthead.
+ * The history calendar, behind Home's masthead.
  *
  * One month at a time, every day coloured by how close it landed to its calorie
  * target. Tapping a day sets the date the whole app is looking at and returns
- * to Today — the app already had that state (`AppState.date`), it simply had no
+ * to Home — the app already had that state (`AppState.date`), it simply had no
  * control that could reach it, so every day but today was unreachable.
  *
  * **The colour means closeness, not completion** — see `adherence.ts`. Copying
@@ -82,7 +82,6 @@ export function CalendarScreen({ navigation }: ScreenProps<'Calendar'>) {
     <Screen scrollable>
       <Header
         leading={{ icon: 'chevronLeft', onPress: () => navigation.goBack(), label: 'Back' }}
-        eyebrow="Your history"
         title="Calendar"
       />
 

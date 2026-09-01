@@ -53,7 +53,7 @@ export function EntryDetailScreen({ navigation, route }: ScreenProps<'EntryDetai
           icon="info"
           title="That entry is gone"
           detail="It was deleted, or undone from the toast on your home screen."
-          action={{ label: 'Back to today', onPress: () => navigation.navigate('Main') }}
+          action={{ label: 'Back to home', onPress: () => navigation.navigate('Main') }}
         />
       </Screen>
     );

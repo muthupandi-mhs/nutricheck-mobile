@@ -9,7 +9,7 @@ import { Divider, Gap, Gutter, Row, Split, Stack } from '../../components/Layout
 import { Header, Screen } from '../../components/Screen';
 import { Shimmer } from '../../components/Skeleton';
 import { SectionLabel, Txt } from '../../components/Text';
-import { addDays, grams, kcal, localDate, plural } from '../../lib/format';
+import { addDays, dayMonth, grams, kcal, localDate, parseLocalDate, plural } from '../../lib/format';
 import { useTheme } from '../../theme/ThemeProvider';
 import { ChartLegend, WeekChart } from './WeekChart';
 import type { TabScreenProps } from '../../navigation/types';
@@ -41,6 +41,9 @@ export function InsightsScreen({ navigation }: TabScreenProps<'Insights'>) {
   }, [api, endingOn]);
 
   const isCurrent = endingOn === localDate();
+  // "26 Aug", not "2026-08-26". The eyebrow printed the raw wire date, which is
+  // the one format nobody reads a week in.
+  const weekLabel = isCurrent ? 'Last 7 days' : `Week to ${dayMonth(parseLocalDate(endingOn))}`;
   const loggedDays = week?.days.filter(d => d.logged).length ?? 0;
 
   const delta = (avg: number, target: number, unit: 'kcal' | 'g') => {
@@ -61,7 +64,6 @@ export function InsightsScreen({ navigation }: TabScreenProps<'Insights'>) {
   return (
     <Screen scrollable>
       <Header
-        eyebrow={isCurrent ? 'Last 7 days' : `Week to ${endingOn}`}
         title="Insights"
         actions={[
           { icon: 'chevronLeft', onPress: () => setEndingOn(d => addDays(d, -7)), label: 'Previous week' },
@@ -84,12 +86,21 @@ export function InsightsScreen({ navigation }: TabScreenProps<'Insights'>) {
             icon="chart"
             title="Nothing to compare yet"
             detail="Trends need a few days behind them. Log today and this fills in on its own — there is nothing to set up."
-            action={{ label: 'Back to today', onPress: () => navigation.navigate('Today') }}
+            action={{ label: 'Back to home', onPress: () => navigation.navigate('Home') }}
           />
         ) : (
           <Gutter>
             <Stack gap={space.lg}>
               <Card>
+                {/* Which week this is.
+
+                    It was the header's eyebrow, and it is the one thing on this
+                    screen that CANNOT be dropped when the header goes down to a
+                    single title: the arrows page backwards through the year, and
+                    without this the only way to tell which week you are looking
+                    at is to recognise the bars. */}
+                <SectionLabel>{weekLabel}</SectionLabel>
+                <Gap h={space.md} />
                 <Split align="flex-start">
                   {[
                     { label: 'Calories', value: kcal(week.averages.kcal), unit: '', d: delta(week.averages.kcal, week.goal.kcal, 'kcal') },

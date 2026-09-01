@@ -3,6 +3,7 @@ import { Animated, KeyboardTypeOptions, TextInput, TextInputProps, View } from '
 import { useTheme } from '../theme/ThemeProvider';
 import { Icon, IconName } from './Icon';
 import { Row, Split, Stack } from './Layout';
+import { Card, type Fill } from './Card';
 import { Press } from './Press';
 import { Txt } from './Text';
 
@@ -419,6 +420,32 @@ export function OptionRow({
 }
 
 /** The circular +/- beside a stepper. Hoisted so it is not remounted per render. */
+/**
+ * What a half-typed decimal is allowed to look like.
+ *
+ * Out of the component because it is a pure string rule with four cases worth
+ * naming, and burying them in an onChangeText handler is where "78,4" quietly
+ * stops working:
+ *
+ *   • **A comma is a decimal point.** Half the world's keypads print one where
+ *     the other half prints the other. Dropping the key somebody's phone gave
+ *     them makes a field they cannot type their weight into, for a reason they
+ *     cannot see.
+ *   • **Only the first separator survives.** "78.4.2" is 78.4, not NaN.
+ *   • **The fraction is truncated, never rounded.** Rounding mid-keystroke
+ *     moves digits the user has not finished typing.
+ *   • **A trailing point is kept.** "78." is a number on its way to being one,
+ *     and deleting the point they just pressed makes the key look broken.
+ */
+function decimalDigits(raw: string, decimals: number): string {
+  const cleaned = raw.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+  const [whole = '', ...fraction] = cleaned.split('.');
+  // Four, where the value is bounded at three: this stops a paste rendering a
+  // paragraph across the card, and `settle` is what enforces min and max.
+  const head = whole.slice(0, 4);
+  return fraction.length === 0 ? head : `${head}.${fraction.join('').slice(0, decimals)}`;
+}
+
 function Nudge({
   dir,
   label,
@@ -484,6 +511,17 @@ export type StepperProps = {
   min?: number;
   max?: number;
   onChange: (v: number) => void;
+  /**
+   * Decimal places the value carries. Zero — a whole number — everywhere but a
+   * body weight.
+   *
+   * A property of the stepper rather than of the caller's formatting, because
+   * three things have to agree about it: what the keypad offers, what the typed
+   * text is allowed to contain, and what a `step` of 0.1 rounds to. Left to the
+   * caller, a typed "78.4" is stripped to 784 and refused, and eight taps of +
+   * produce 78.30000000000001.
+   */
+  decimals?: number;
   hint?: string;
   /**
    * Draws its own card and enlarges the value.
@@ -493,6 +531,17 @@ export type StepperProps = {
    * default it would have quietly nested them.
    */
   framed?: boolean;
+  /**
+   * What the frame is filled with. `framed` only.
+   *
+   * Passed through rather than fixed at `surface`, because a card's edge in
+   * this app is the STEP between its fill and whatever it sits on — so the
+   * right fill depends on the surface underneath. On the page that is
+   * `surface` over canvas; inside a sheet, which is already `surface`, the
+   * same choice would draw a card that cannot be seen, and `sunken` is the
+   * step that reads there.
+   */
+  fill?: Fill;
 };
 
 /**
@@ -509,8 +558,20 @@ export type StepperProps = {
  * deliberate single step is still a single step, then quick enough that a long
  * distance does not become a test of patience.
  */
-export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint, framed }: StepperProps) {
-  const { c, space, radius, text, tabular } = useTheme();
+export function Stepper({
+  label,
+  value,
+  unit,
+  step = 1,
+  min,
+  max,
+  onChange,
+  decimals = 0,
+  hint,
+  framed,
+  fill = 'surface',
+}: StepperProps) {
+  const { c, space, text, tabular } = useTheme();
 
   // The live value, so a repeat reads its own last result rather than the one
   // captured when the finger went down.
@@ -518,6 +579,17 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
   latest.current = value;
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Whether a finger is currently down on one of the ± buttons.
+   *
+   * The repeat checks this before every step rather than trusting that it will
+   * be told to stop. `onPressOut` is the normal way a run ends and it is NOT
+   * guaranteed to arrive: React Native does not deliver it when a Pressable is
+   * disabled mid-press, which is exactly what happens when a held button walks
+   * the value into `min` or `max`.
+   */
+  const holding = useRef(false);
 
   /**
    * What is in the box while it is being typed in, or null when it is not.
@@ -530,6 +602,7 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
   const [typing, setTyping] = useState<string | null>(null);
 
   const stop = () => {
+    holding.current = false;
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
   };
@@ -538,14 +611,30 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
   // its screen would keep calling a setter on an unmounted form.
   useEffect(() => stop, []);
 
+  /**
+   * Rounded to the declared precision on every path that produces a number.
+   *
+   * Binary floating point is the reason: 78.4 - 0.1 is 78.30000000000001, and
+   * a run of held taps otherwise renders a value nobody typed and no scale
+   * ever reported.
+   */
+  const round = (n: number) => (decimals > 0 ? Number(n.toFixed(decimals)) : n);
+
   const clamp = (n: number) => {
-    if (min !== undefined && n < min) return min;
-    if (max !== undefined && n > max) return max;
-    return n;
+    if (min !== undefined && n < min) return round(min);
+    if (max !== undefined && n > max) return round(max);
+    return round(n);
   };
 
+  /** What the box shows when it is not being typed in. */
+  const format = (n: number) =>
+    n.toLocaleString('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+
   const nudge = (dir: -1 | 1) => {
-    const next = clamp(latest.current + dir * step);
+    const next = clamp(round(latest.current + dir * step));
     if (next === latest.current) return false;
     latest.current = next;
     // A step abandons whatever was half-typed: the buttons move the real
@@ -556,14 +645,17 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
   };
 
   const type = (raw: string) => {
-    const digits = raw.replace(/[^0-9]/g, '').slice(0, 6);
+    const digits = decimals > 0 ? decimalDigits(raw, decimals) : raw.replace(/[^0-9]/g, '').slice(0, 6);
     setTyping(digits);
 
     // Committed as soon as it is a number that is allowed to exist, so the
     // value is right even if they never blur — tapping Continue straight from
     // the keyboard is the common way out of this screen.
+    // "78." is a number on its way to being one. Number() reads it as 78, and
+    // committing that fights the next keystroke.
+    if (digits === '' || digits.endsWith('.')) return;
     const n = Number(digits);
-    if (digits === '' || !Number.isFinite(n)) return;
+    if (!Number.isFinite(n)) return;
     if (n !== clamp(n)) return;
     latest.current = n;
     onChange(n);
@@ -598,12 +690,29 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
 
   /** Press-down: one step now, a pause, then an accelerating run flooring at 40ms. */
   const hold = (dir: -1 | 1) => {
+    /**
+     * Kill any run still going before starting another, and this line is the
+     * whole of a bug that made the stepper count on its own forever.
+     *
+     * `timer.current` holds ONE handle. A second press-in that arrives without
+     * its press-out — a finger that slid off and back on, a re-render between
+     * the two halves of a press — used to overwrite it, and the chain it
+     * replaced went on ticking with nothing left to cancel it by. `stop()`
+     * could then only ever reach the newest run, so the orphan incremented
+     * until the value hit its bound, or forever where there was no bound.
+     */
+    stop();
+
     handled.current = true;
+    holding.current = true;
     nudge(dir);
 
     let delay = 380;
     const tick = () => {
-      if (!nudge(dir)) return stop();
+      // Two ways to end: the finger came up, or the value stopped moving
+      // because it reached `min` or `max`. Checking the finger FIRST is what
+      // makes a missed `onPressOut` cost one extra step instead of a runaway.
+      if (!holding.current || !nudge(dir)) return stop();
       delay = Math.max(40, delay * 0.82);
       timer.current = setTimeout(tick, delay);
     };
@@ -613,6 +722,10 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
   const activate = (dir: -1 | 1) => {
     if (handled.current) {
       handled.current = false;
+      // A completed press ends the run. `onPress` fires after `onPressOut` on
+      // release, so this is normally redundant — and it is the second chance
+      // that matters, because the two do not always both arrive.
+      stop();
       return;
     }
     nudge(dir);
@@ -621,20 +734,8 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
   const atMin = min !== undefined && value - step < min;
   const atMax = max !== undefined && value + step > max;
 
-  return (
-    <View
-      style={
-        framed
-          ? {
-              backgroundColor: c.surface,
-              borderRadius: radius.lg,
-              // Card's own padding, so a framed stepper and a Card in the same
-              // column are the same object at the same inset.
-              padding: space.xl,
-              gap: 10,
-            }
-          : { gap: 10 }
-      }>
+  const body = (
+    <View style={{ gap: 10 }}>
       <Split align="center">
         <Stack gap={3} style={{ flexShrink: 1 }}>
           <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.1 }}>
@@ -648,11 +749,14 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
                 Tabular, so a digit rolling over under a held button does not
                 shift the unit beside it. */}
             <TextInput
-              value={typing ?? value.toLocaleString('en-US')}
+              value={typing ?? format(value)}
               onChangeText={type}
               onBlur={settle}
               onSubmitEditing={settle}
-              keyboardType="number-pad"
+              // 'decimal-pad' only where there is a decimal to type: the plain
+              // number pad has no separator key at all, so a weight typed on
+              // one could never be anything but whole.
+              keyboardType={decimals > 0 ? 'decimal-pad' : 'number-pad'}
               returnKeyType="done"
               // Wider than any value this takes — heights, weights and
               // calories all fit in four digits. It is here to stop a paste
@@ -670,7 +774,7 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
               // Android picks its own otherwise, which is a teal this app uses
               // nowhere.
               selectionColor={c.primary}
-              accessibilityLabel={`${label}, ${value} ${unit}`}
+              accessibilityLabel={`${label}, ${format(value)} ${unit}`}
               style={[
                 text.h1,
                 tabular,
@@ -702,5 +806,16 @@ export function Stepper({ label, value, unit, step = 1, min, max, onChange, hint
       ) : null}
     </View>
   );
+
+  /**
+   * The frame is a Card, not a rectangle drawn here.
+   *
+   * It was the latter, and it was a copy: the same radius, the same `space.xl`
+   * inset and the same surface, maintained separately from the component whose
+   * whole job is that shape. Going through Card is also what gets `tint` for
+   * nothing — one gradient, defined once, rather than a second one here that
+   * has to be kept in step with it.
+   */
+  return framed ? <Card fill={fill}>{body}</Card> : body;
 }
 

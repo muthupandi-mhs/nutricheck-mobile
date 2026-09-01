@@ -1,10 +1,10 @@
 import React from 'react';
-import { Animated, StatusBar, StyleProp, View, ViewStyle } from 'react-native';
+import { StatusBar, StyleProp, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 import { IconButton } from './Button';
 import { IconName } from './Icon';
-import { Gutter, Row, Split, Stack } from './Layout';
+import { Gutter, Row, Split } from './Layout';
 import { Txt } from './Text';
 
 /**
@@ -39,45 +39,41 @@ export function Screen({
 }
 
 /**
- * A screen header. `scrollY` collapses the large title into the bar as the page
- * scrolls; without it the screen loses its label the moment you move.
+ * A screen header: the back button, the title and any actions, on ONE line.
+ *
+ * One title, not two. It used to take an `eyebrow` above the title, and on
+ * every screen that passed one the pair read as two stacked headings — "Your
+ * weight" over "Weight" — where the upper one was either a restatement of the
+ * lower or a piece of live data that had no business being typeset as a
+ * heading. The restatements are gone and the data moved into the pages, where
+ * it can be a sentence next to the figures it describes.
+ *
+ * Inline rather than a large title on the row beneath, because removing the
+ * eyebrow from the old layout left the back button alone on a line with
+ * nothing beside it: a chevron in empty space, with no word to say what it
+ * goes back from.
+ *
+ * `scrollY` went with it. It collapsed the large title into the bar on scroll,
+ * which no longer means anything once the title IS the bar — and no screen ever
+ * passed one.
  */
 export function Header({
-  eyebrow,
   title,
   actions,
   leading,
-  scrollY,
   children,
 }: {
-  eyebrow?: string;
   title: string;
   actions?: Array<{ icon: IconName; onPress: () => void; label: string; variant?: 'plain' | 'surface' }>;
   leading?: { icon: IconName; onPress: () => void; label: string };
-  scrollY?: Animated.Value;
   children?: React.ReactNode;
 }) {
   const { space } = useTheme();
 
-  const collapse = scrollY
-    ? {
-        opacity: scrollY.interpolate({ inputRange: [0, 46], outputRange: [1, 0], extrapolate: 'clamp' }),
-        transform: [
-          {
-            translateY: scrollY.interpolate({
-              inputRange: [0, 46],
-              outputRange: [0, -10],
-              extrapolate: 'clamp',
-            }),
-          },
-        ],
-      }
-    : undefined;
-
   return (
     <Gutter style={{ paddingBottom: space.lg }}>
       <Split align="center" style={{ minHeight: 44 }}>
-        <Row gap={space.sm} style={{ flexShrink: 1 }}>
+        <Row gap={space.xs} style={{ flexShrink: 1 }}>
           {leading && (
             <IconButton
               name={leading.icon}
@@ -86,13 +82,12 @@ export function Header({
               style={{ marginLeft: -10 }}
             />
           )}
-          <Stack gap={1} style={{ flexShrink: 1 }}>
-            {eyebrow ? (
-              <Txt role="caption" tone="tertiary">
-                {eyebrow}
-              </Txt>
-            ) : null}
-          </Stack>
+          {/* One line, truncated rather than wrapped. A title that wraps to two
+              lines moves the actions beside it down the screen, and every title
+              here is one or two words. */}
+          <Txt role="h1" numberOfLines={1} accessibilityRole="header" style={{ flexShrink: 1 }}>
+            {title}
+          </Txt>
         </Row>
 
         {actions && actions.length > 0 && (
@@ -109,10 +104,6 @@ export function Header({
           </Row>
         )}
       </Split>
-
-      <Animated.View style={[{ marginTop: 2 }, collapse]}>
-        <Txt role="h1">{title}</Txt>
-      </Animated.View>
 
       {children}
     </Gutter>

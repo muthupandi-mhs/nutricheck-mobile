@@ -30,6 +30,11 @@ export type IconName =
   | 'info'
   | 'edit'
   | 'sparkle'
+  // A bulb, for the thing the app remembers about you. Stroked and open like
+  // the rest of the set: the filament is two lines rather than a filled glow,
+  // because nothing here is filled and a lit bulb would be the only glyph in
+  // the app claiming a state.
+  | 'bulb'
   | 'trash'
   | 'undo'
   | 'offline'
@@ -145,6 +150,18 @@ export function Icon({
         </>
       )}
       {name === 'edit' && <Path d="M4 20h4.2L20 8.2a2.2 2.2 0 0 0-3.1-3.1L5 16.9zM14.8 6.6l2.6 2.6" {...p} />}
+      {name === 'bulb' && (
+        <>
+          {/* Glass, then the collar, then the base: three strokes so the shape
+              survives at 14px, where a filament drawn inside the glass turns
+              into a smudge. */}
+          <Path
+            d="M12 3.2a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2v.4h5.2v-.4c0-.8.4-1.5 1-2A6 6 0 0 0 12 3.2z"
+            {...p}
+          />
+          <Path d="M9.4 18.4h5.2M10.4 20.8h3.2" {...p} />
+        </>
+      )}
       {name === 'sparkle' && (
         <Path d="M12 3.4l1.9 4.7 4.7 1.9-4.7 1.9L12 16.6l-1.9-4.7-4.7-1.9 4.7-1.9zM19 16l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" {...p} />
       )}

@@ -32,7 +32,7 @@ import type { TabScreenProps } from '../../navigation/types';
  * user having asked a question, so the layout is arranged to make that visible
  * rather than to make the suggestions look authoritative:
  *
- * - **The gap is shown above the list.** Same figures as Today, from the same
+ * - **The gap is shown above the list.** Same figures as Home, from the same
  *   day totals. A user who disagrees with a suggestion can see what it was
  *   working from before they read it.
  * - **Every figure carries a `~`.** The mark the app already uses for an
@@ -50,7 +50,7 @@ import type { TabScreenProps } from '../../navigation/types';
 export function IdeasScreen({ navigation }: TabScreenProps<'Ideas'>) {
   const { c, space } = useTheme();
   const api = useApi();
-  const { date, day } = useAppState();
+  const { date } = useAppState();
 
   const [ideas, setIdeas] = useState<FoodIdeas | null>(null);
   /**
@@ -111,17 +111,7 @@ export function IdeasScreen({ navigation }: TabScreenProps<'Ideas'>) {
 
   return (
     <Screen scrollable>
-      <Header
-        // Names the person either way. The old pair — "based on what is left
-        // today" / "based on your targets" — described the arithmetic, which is
-        // the framing this screen was rewritten out of.
-        eyebrow={
-          day && day.entries.length > 0
-            ? 'For your goal, and what is left today'
-            : 'For your goal'
-        }
-        title="Ideas"
-      />
+      <Header title="Ideas" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.huge }}>
         {failure !== null ? (
@@ -137,7 +127,7 @@ export function IdeasScreen({ navigation }: TabScreenProps<'Ideas'>) {
         ) : (
           <Gutter>
             <Stack gap={space.lg}>
-              {/* The evidence, before the advice. Same figures as Today. */}
+              {/* The evidence, before the advice. Same figures as Home. */}
               <Card fill="sunken">
                 <Stack gap={space.md}>
                   <SectionLabel>What is left today</SectionLabel>
@@ -278,7 +268,7 @@ function FailureState({
           icon="offline"
           title="No connection"
           detail="Ideas are worked out on the server, so this one screen needs a connection. Everything else — logging, search, your day — keeps working offline."
-          action={{ label: 'Back to today', onPress: () => navigation.navigate('Today') }}
+          action={{ label: 'Back to home', onPress: () => navigation.navigate('Home') }}
         />
       );
 
@@ -294,7 +284,7 @@ function FailureState({
                 )} — search and the repeat strip are unaffected.`
               : 'Ideas cost a model call each time your day moves. Search and the repeat strip are unaffected.'
           }
-          action={{ label: 'Back to today', onPress: () => navigation.navigate('Today') }}
+          action={{ label: 'Back to home', onPress: () => navigation.navigate('Home') }}
         />
       );
 
@@ -314,7 +304,7 @@ function FailureState({
           icon="alert"
           title="Could not load ideas"
           detail="The request failed and the app cannot tell you why — which is worth saying plainly rather than guessing at a cause. Nothing about your day is affected."
-          action={{ label: 'Back to today', onPress: () => navigation.navigate('Today') }}
+          action={{ label: 'Back to home', onPress: () => navigation.navigate('Home') }}
         />
       );
   }

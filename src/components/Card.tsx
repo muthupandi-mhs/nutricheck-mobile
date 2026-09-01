@@ -3,7 +3,7 @@ import { StyleProp, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { Press } from './Press';
 
-type Fill = 'surface' | 'sunken' | 'primarySoft' | 'attentionSoft';
+export type Fill = 'surface' | 'sunken' | 'primarySoft' | 'attentionSoft';
 
 /**
  * A card is a filled rectangle and nothing else: no hairline, no shadow.
@@ -59,7 +59,9 @@ export function Card({
     overflow: 'hidden',
   };
 
-  if (!onPress && !onLongPress) return <View style={[box, style]}>{children}</View>;
+  const body = children;
+
+  if (!onPress && !onLongPress) return <View style={[box, style]}>{body}</View>;
 
   return (
     <Press
@@ -69,7 +71,7 @@ export function Card({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       style={[box, style]}>
-      {children}
+      {body}
     </Press>
   );
 }

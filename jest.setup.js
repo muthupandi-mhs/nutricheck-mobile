@@ -74,3 +74,30 @@ NativeModules.NutriCheckRecorder = {
   stop: jest.fn(() => Promise.resolve({ base64: 'AAAA', durationMs: 1800, bytes: 3 })),
   cancel: jest.fn(() => Promise.resolve()),
 };
+
+/**
+ * Google Sign-In is a native module, so it does not exist under Jest and the
+ * renderer throws on import alone — Welcome imports the hook that imports it.
+ *
+ * Cancelled by default, which is the outcome that changes nothing: a screen
+ * that renders this mock gets a working button that quietly does nothing,
+ * rather than one that navigates somewhere mid-assertion. Suites that care
+ * override `signIn` for the case they are testing.
+ */
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(() => Promise.resolve(true)),
+    signIn: jest.fn(() => Promise.resolve({ type: 'cancelled' })),
+    signOut: jest.fn(() => Promise.resolve(null)),
+  },
+  isSuccessResponse: res => res?.type === 'success',
+  isErrorWithCode: err => typeof err?.code === 'string',
+  statusCodes: {
+    SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED',
+    IN_PROGRESS: 'IN_PROGRESS',
+    PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE',
+    SIGN_IN_REQUIRED: 'SIGN_IN_REQUIRED',
+    NULL_PRESENTER: 'NULL_PRESENTER',
+  },
+}));

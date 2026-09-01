@@ -5,8 +5,11 @@ import {
   BackHandler,
   Easing,
   Linking,
+  ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,11 +22,51 @@ import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Gap, Gutter, Row } from '../../components/Layout';
 import { Press } from '../../components/Press';
 import { Txt } from '../../components/Text';
-import { kcal } from '../../lib/format';
+import { kcal, localDate } from '../../lib/format';
 import { hasMic, requestMic, useSpeech } from '../../lib/speech';
+import { OfflineError, type ChatTurn } from '../../api/types';
 import { useAppState } from '../../state/AppState';
 import { useTheme } from '../../theme/ThemeProvider';
 import { EXAMPLE_MS, EXAMPLES, TROUBLE, useLevel } from './listening';
+
+/**
+ * The assistant's version, not the app's.
+ *
+ * Its own constant rather than `package.json`: what this panel answers is a
+ * prompt and a model, and those change on their own schedule — a build number
+ * would say nothing about the thing whose behaviour somebody is actually
+ * looking at. Bump it when the model or the prompt behind this panel changes.
+ */
+const AGENT_VERSION = 'v0.1';
+
+/**
+ * How many earlier turns ride along with a message.
+ *
+ * Enough for "what about the other one" to resolve, short of shipping a whole
+ * transcript up on every send — and the server caps it at the same number, so
+ * a client that forgets cannot make the context unbounded.
+ */
+const HISTORY = 12;
+
+/**
+ * How the assistant's own lines are set.
+ *
+ * Regular weight, not bold. The greeting was `h2`, which carries 700 — so the
+ * panel opened with a heading where the reference opens with a message, and
+ * bold at 21pt over three lines reads as a banner somebody has to get past
+ * rather than as something said to them.
+ *
+ * Leading well past the usual ratio for the same reason it is on the reference:
+ * this is the one place in the app that is reading matter rather than a label
+ * or a figure, and roughly 1.5 is what makes a paragraph in a dark panel
+ * comfortable. The size came down twice, 21 to 19 to 17: a sheet is read the
+ * way a message is, not the way a headline is.
+ *
+ * One object, used by the greeting and by every turn after it, because they
+ * are the same voice — a first line set differently from the rest would make
+ * it a header and everything under it a transcript.
+ */
+const AGENT_TEXT = { fontSize: 17, lineHeight: 26, letterSpacing: -0.1 } as const;
 
 /** The bars that follow the voice. Odd, so one of them is the centre. */
 const BARS = 9;
@@ -40,7 +83,7 @@ const REMEMBERED = 4;
  * The microphone, as a sheet over the screen you were already on.
  *
  * A component rather than a route, and the difference is what you see: it is
- * mounted BY the tab host, over the live tab, so Today is genuinely still
+ * mounted BY the tab host, over the live tab, so Home is genuinely still
  * there behind it — the same day, the same scroll position, not a screenshot
  * of it under a transparent modal. Raising a route to ask one question also
  * put an entry in the back stack for something that is not a place.
@@ -73,11 +116,23 @@ export function AskSheet({
 }) {
   const { c, radius, space, elevation } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const api = useApi();
   const { profile, day, goal, phrases } = useAppState();
 
   const [text, setText] = useState('');
   const [memory, setMemory] = useState(false);
+
+  /**
+   * The conversation, and whether a turn is in flight.
+   *
+   * Held here, so it dies with the sheet. A durable transcript of everything
+   * anybody has ever said to this app is a retention decision nobody has
+   * taken, and what makes this useful is the exchange happening now about the
+   * day on the screen behind it.
+   */
+  const [turns, setTurns] = useState<ChatTurn[]>([]);
+  const [thinking, setThinking] = useState(false);
   const [mic, setMic] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [example, setExample] = useState(0);
   const [reduced, setReduced] = useState(false);
@@ -113,6 +168,7 @@ export function AskSheet({
   );
 
   /** The panel arrives from the bottom edge, over a scrim that fades up with it. */
+  const thread = useRef<ScrollViewInstance | null>(null);
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.spring(rise, {
@@ -191,10 +247,63 @@ export function AskSheet({
     void speech.start();
   };
 
-  const send = () => {
-    const phrase = text.trim();
-    if (!phrase) return;
-    close(() => onPhrase(phrase, 'text'));
+  /**
+   * A typed message goes to the assistant, which decides what it was.
+   *
+   * The reply either answers a question or hands back the user's own words as
+   * something to log — and a log is not a log yet: the phrase travels to the
+   * same read-back a spoken meal goes through, and still needs a deliberate
+   * tap. Nothing is written by talking to this thing.
+   *
+   * The MICROPHONE deliberately does not come through here. Speaking is the
+   * app's fast lane and it is already three steps — record, transcribe, parse;
+   * putting a conversational turn in front of that adds a model call and a
+   * wait to the one action people repeat every day, to classify a sentence
+   * somebody has just spoken into a button labelled "say what you ate".
+   */
+  const send = async () => {
+    const message = text.trim();
+    if (!message || thinking) return;
+
+    setText('');
+    setMemory(false);
+    const asked: ChatTurn[] = [...turns, { role: 'user', text: message }];
+    setTurns(asked);
+    setThinking(true);
+
+    try {
+      const reply = await api.chat({
+        message,
+        // The last few exchanges only. Enough for "what about the other one" to
+        // resolve, short of shipping a transcript up on every keystroke.
+        history: turns.slice(-HISTORY),
+        date: localDate(),
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+
+      setThinking(false);
+      setTurns([...asked, { role: 'agent', text: reply.text }]);
+
+      if (reply.log) {
+        const phrase = reply.log.phrase;
+        close(() => onPhrase(phrase, 'text'));
+      }
+    } catch (error) {
+      setThinking(false);
+      // Said in the conversation rather than as an error state, because that is
+      // where the question was asked. The words are already gone from the field
+      // and are on screen as their turn, so nothing is lost by trying again.
+      setTurns([
+        ...asked,
+        {
+          role: 'agent',
+          text:
+            error instanceof OfflineError
+              ? 'I need a connection to answer that. Logging a meal by voice still works offline.'
+              : 'I could not answer that just now. Try me again in a moment.',
+        },
+      ]);
+    }
   };
 
   const greeting = askGreeting({
@@ -233,7 +342,7 @@ export function AskSheet({
         {/* Graded rather than flat: light at the top where the day is still
             worth seeing, heavy behind the sheet where it would otherwise
             compete with it. A single opacity over the whole screen either
-            hides Today or fails to separate from it; this does the job a blur
+            hides Home or fails to separate from it; this does the job a blur
             does, which is to push the page back without taking it away. */}
         <Animated.View style={{ flex: 1, opacity: rise }}>
           <LinearGradient
@@ -263,7 +372,7 @@ export function AskSheet({
             }}>
             {/* The one tinted surface in an ash app.
 
-                Everything else — Today, the dials, the read-back — is grey, so
+                Everything else — Home, the dials, the read-back — is grey, so
                 a panel that is faintly blue is immediately a different KIND of
                 thing: the place you talk to it, rather than another page of
                 numbers to read. The tint is an edge and a wash only. Nothing
@@ -280,7 +389,27 @@ export function AskSheet({
             {/* Taller than it strictly needs to be. A sheet sized exactly to
                 its contents reads as a popup; the space above the question is
                 what makes it a place you have arrived at. */}
-            <View style={{ paddingTop: space.md, paddingBottom: Math.max(insets.bottom, space.lg) + space.md }}>
+            {/* A floor of just over half the window, rather than whatever the
+                content happens to measure.
+
+                Sized to its contents the sheet was a strip: a greeting, a
+                field, and the day still filling most of the screen behind it —
+                which reads as a toast that failed to dismiss rather than as
+                somewhere you have arrived. The reference gives its panel about
+                this much and leaves the middle of it empty on purpose; the
+                empty part is what makes the question at the top feel addressed
+                to you rather than crammed above a text box.
+
+                Half is about the ceiling for a sheet that is meant to be a
+                sheet: past roughly 0.6 the day behind it is a sliver, and the
+                thing loses the one property that made it worth not being a
+                screen. */}
+            <View
+              style={{
+                minHeight: Math.round(windowHeight * 0.52),
+                paddingTop: space.md,
+                paddingBottom: Math.max(insets.bottom, space.lg) + space.md,
+              }}>
               {/* The grab handle. It does not drag — the scrim and the system
                   gesture both close this — but it is the shape that says
                   "panel", and its absence is what makes a sheet look stuck. */}
@@ -297,22 +426,46 @@ export function AskSheet({
 
               <Gap h={space.xl} />
 
-              <Gutter>
+              <Gutter style={{ flexGrow: 1 }}>
                 <Row justify="space-between" align="center">
-                  <Row gap={space.sm} align="center">
+                  {/* The mark and the version, as the reference has it.
+
+                      It replaces a state label that said "LOG A MEAL" — which
+                      named the errand rather than the thing you are talking to,
+                      and was the last piece of furniture keeping this panel a
+                      form. The state it used to carry has not gone anywhere:
+                      while the mic is open the bars ARE the state, and the line
+                      under the question says which wait you are in.
+
+                      The version is the assistant's, not the app's. It belongs
+                      on the badge for the reason a model's version always does:
+                      what this thing answers will change under people, and a
+                      screenshot of it saying something odd is worth being able
+                      to date. */}
+                  <Row
+                    gap={space.sm}
+                    align="center"
+                    style={{
+                      paddingLeft: 3,
+                      paddingRight: space.md,
+                      paddingVertical: 3,
+                      borderRadius: radius.pill,
+                      backgroundColor: c.sunken,
+                    }}>
                     <View
                       style={{
                         width: 26,
                         height: 26,
                         borderRadius: radius.pill,
-                        backgroundColor: c.primarySoft,
+                        borderWidth: 1.5,
+                        borderColor: c.askFrom,
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}>
-                      <Icon name="leaf" size={14} color={c.primarySoftInk} weight={2} />
+                      <Icon name="leaf" size={13} color={c.askFrom} weight={2} />
                     </View>
-                    <Txt role="labelSm" tone="secondary" caps style={{ letterSpacing: 1.4 }}>
-                      {transcribing ? 'Writing it down' : listening ? 'Listening' : 'Log a meal'}
+                    <Txt role="labelSm" tone="secondary">
+                      {AGENT_VERSION}
                     </Txt>
                   </Row>
 
@@ -336,11 +489,18 @@ export function AskSheet({
                       <Txt role="labelSm" tone={memory ? 'ink' : 'secondary'}>
                         Memory
                       </Txt>
+                      {/* A bulb rather than a sparkle. The sparkle is this
+                          app's mark for "a model made this" — it sits on the
+                          estimate notice, the meal insight and the read-back —
+                          and Memory is the opposite of that: things the user
+                          themselves said, kept verbatim. Reusing the AI glyph
+                          for it would have been the one place the mark meant
+                          something else. */}
                       <Icon
-                        name="sparkle"
-                        size={15}
+                        name="bulb"
+                        size={16}
                         color={memory ? c.primary : c.inkSecondary}
-                        weight={2}
+                        weight={1.9}
                       />
                     </Row>
                   </Press>
@@ -348,23 +508,66 @@ export function AskSheet({
 
                 <Gap h={space.xxl} />
 
-                {/* Addressed to somebody, with the state of their day in hand,
-                    then the question. Set the way the reference sets its
-                    message: large, and with leading well past the usual ratio.
-                    A panel that opens with a line of text is reading matter,
-                    not a label, and tight leading on 21pt reads as a heading
-                    nobody is being asked to answer.
+                {/* The conversation. The greeting is the assistant's opening
+                    turn rather than a header above the thread — it is the same
+                    voice saying the same kind of thing, and giving it different
+                    furniture would make the first line a label and every line
+                    after it a message.
 
-                    One paragraph rather than three stacked lines. "Hi X",
-                    "2,047 left", "What did you eat?" as separate blocks is a
-                    form with a greeting glued on top; run together they are
-                    somebody talking. */}
-                <Txt
-                  role="h2"
-                  accessibilityRole="header"
-                  style={{ fontSize: 21, lineHeight: 31, letterSpacing: -0.2 }}>
-                  {greeting}
-                </Txt>
+                    Set the way the reference sets its message: large, with
+                    leading well past the usual ratio, because a panel that
+                    opens with a line of text is reading matter and not a
+                    label. Later turns step down to body size; by then somebody
+                    is reading a thread rather than being addressed. */}
+                <ScrollView
+                  ref={thread}
+                  style={{ flexGrow: 0 }}
+                  contentContainerStyle={{ paddingBottom: space.sm }}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  onContentSizeChange={() => thread.current?.scrollToEnd({ animated: true })}>
+                  <Txt role="bodyLg" accessibilityRole="header" style={AGENT_TEXT}>
+                    {greeting}
+                  </Txt>
+
+                  {turns.map((turn, i) => (
+                    <View
+                      key={`${turn.role}-${i}`}
+                      style={{
+                        paddingTop: space.lg,
+                        alignItems: turn.role === 'user' ? 'flex-end' : 'flex-start',
+                      }}>
+                      {turn.role === 'user' ? (
+                        // Theirs is a bubble; the assistant's is not. Two
+                        // bubbles facing each other is a messaging app, and
+                        // this is one voice answering with the app's own words
+                        // — the same treatment every other line of copy gets.
+                        <View
+                          style={{
+                            maxWidth: '86%',
+                            paddingHorizontal: space.md,
+                            paddingVertical: space.sm,
+                            borderRadius: radius.lg,
+                            backgroundColor: c.sunken,
+                          }}>
+                          <Txt role="body">{turn.text}</Txt>
+                        </View>
+                      ) : (
+                        <Txt role="bodyLg" style={AGENT_TEXT}>
+                          {turn.text}
+                        </Txt>
+                      )}
+                    </View>
+                  ))}
+
+                  {thinking ? (
+                    <View style={{ paddingTop: space.lg }}>
+                      <Txt role="bodyLg" tone="tertiary">
+                        Thinking…
+                      </Txt>
+                    </View>
+                  ) : null}
+                </ScrollView>
 
                 <Gap h={space.md} />
 
@@ -448,6 +651,12 @@ export function AskSheet({
                 ) : null}
 
                 <Gap h={space.xl} />
+
+                {/* Takes whatever the floor leaves over, so the field sits on
+                    the bottom edge of the sheet and the question stays at the
+                    top of it. Without this the two are stuck together in the
+                    middle of an otherwise empty panel. */}
+                <View style={{ flexGrow: 1, minHeight: space.lg }} />
 
                 {/* The voice, drawn while it is being heard. It replaces the
                     field rather than sitting beside it: a text box nobody can
@@ -537,7 +746,15 @@ export function AskSheet({
                       <TextInput
                         value={text}
                         onChangeText={setText}
-                        placeholder="Say it or type it"
+                        // "Say it or type it" described the two ways to fill a
+                        // box, back when the box did one thing. There is an
+                        // assistant behind it now that answers questions about
+                        // the day as readily as it takes a meal, so the field
+                        // says so — and it is only sayable because the endpoint
+                        // exists: a placeholder promising answers over a box
+                        // that could only log food would be a lie the app broke
+                        // on the first question.
+                        placeholder="Ask NutriCheck anything"
                         placeholderTextColor={c.inkTertiary}
                         multiline
                         selectionColor={c.primary}
@@ -622,6 +839,11 @@ export function AskSheet({
  * app having an opinion about somebody's eating, which this product does not
  * do, and it would be the same sentence whatever the numbers said.
  *
+ * One clause per fact, and no more. It used to say "you're 1,404 in with 637
+ * kcal left today", which is two numbers where the second one is the only one
+ * anybody steers by — and three lines of text above a field is a paragraph
+ * somebody has to get past to answer a question.
+ *
  * Four states, and the order matters. No target at all comes first because it
  * is the state a brand-new account is in and every other line below would be
  * dividing by a goal that does not exist yet.
@@ -646,20 +868,16 @@ export function askGreeting({
   if (target <= 0) return `${hey}${cap('what did you eat?')}`;
 
   if (logged === 0) {
-    return `${hey}${cap(`nothing logged yet — the whole ${kcal(target)} kcal is still yours. What did you eat?`)}`;
+    return `${hey}${cap(`${kcal(target)} kcal to play with today. What did you eat?`)}`;
   }
 
   const left = Math.round(target - eaten);
 
   if (left < 0) {
-    return `${hey}${cap(
-      `you're ${kcal(Math.abs(left))} kcal past today's target. What else did you eat?`,
-    )}`;
+    return `${hey}${cap(`${kcal(Math.abs(left))} kcal over today. What else did you eat?`)}`;
   }
 
-  return `${hey}${cap(
-    `you're ${kcal(eaten)} in with ${kcal(left)} kcal left today. What did you eat?`,
-  )}`;
+  return `${hey}${cap(`${kcal(left)} kcal left today. What did you eat?`)}`;
 }
 
 /**

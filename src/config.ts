@@ -107,3 +107,31 @@ export const NEEDS_ADB_TUNNEL = BACKEND === 'local' && ADB_REVERSE;
 // never prove anything about the transport — they emitted bare problem slugs,
 // ignored timezones and never rotated a refresh token, three of the failure
 // modes that only appear against the real server (GAP-REPORT.STATUS.md §4).
+
+/**
+ * The **Web** OAuth client ID from the same Google Cloud project the API
+ * verifies against, and yes, "web" is right on Android.
+ *
+ * This is the single most confusing part of setting Google Sign-In up, so it is
+ * written down rather than rediscovered: the Android OAuth client — the one
+ * bound to the package name and the signing SHA-1 — must exist, or Play
+ * Services refuses to sign anybody in, but its ID never appears anywhere in
+ * code and never appears in a token. The ID token comes back with the WEB
+ * client in `aud`, which is what the server checks and therefore what goes
+ * here and in the server's GOOGLE_OAUTH_CLIENT_IDS.
+ *
+ * Getting them mismatched fails at the far end and reads like a rejected
+ * account: Google hands over a perfectly good token and the API answers 401.
+ *
+ * Not a secret. A client ID is public by design — it identifies the app, it
+ * does not authenticate it — which is why it can sit in the bundle at all.
+ *
+ * Empty disables the button entirely rather than shipping one that cannot work.
+ * The server does the same thing from the other side with an empty
+ * GOOGLE_OAUTH_CLIENT_IDS, so a half-configured deployment degrades to email
+ * and password on both ends instead of offering a door that opens onto an error.
+ */
+export const GOOGLE_WEB_CLIENT_ID = '';
+
+/** Whether to offer the Google door at all. See the constant above. */
+export const GOOGLE_SIGNIN_ENABLED = GOOGLE_WEB_CLIENT_ID.length > 0;

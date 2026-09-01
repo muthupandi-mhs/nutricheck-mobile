@@ -14,6 +14,7 @@ import {
   registerSchema,
 } from '../src/forms/schemas';
 import { AppStateProvider } from '../src/state/AppState';
+import { Stepper } from '../src/components/Field';
 import { ThemeProvider } from '../src/theme/ThemeProvider';
 import { CreateFoodScreen } from '../src/screens/search/CreateFoodScreen';
 import { createStubApi } from './fixtures/stubApi';
@@ -353,5 +354,106 @@ describe('CreateFoodScreen', () => {
     expect(createFood.mock.calls[0][0].defaultPortionGrams).toBe(200);
 
     await screen.unmount();
+  });
+});
+
+/**
+ * The stepper's hold-to-repeat.
+ *
+ * All of this is about the run ENDING. A control that keeps counting after the
+ * finger is gone is not a slightly-wrong stepper, it is a number the user did
+ * not enter being saved to their profile — and the failure is invisible in
+ * every static reading of the markup, because the markup wires press-in and
+ * press-out correctly. What was wrong was the bookkeeping between them.
+ */
+describe('stepper repeat', () => {
+  function mount(onChange: (v: number) => void, props: Record<string, unknown> = {}) {
+    let tree: ReactTestRenderer.ReactTestRenderer;
+    ReactTestRenderer.act(() => {
+      tree = ReactTestRenderer.create(
+        <ThemeProvider>
+          <Stepper label="Weight" value={80} unit="kg" onChange={onChange} {...props} />
+        </ThemeProvider>,
+      );
+    });
+    return tree!;
+  }
+
+  const button = (tree: ReactTestRenderer.ReactTestRenderer, label: string) =>
+    tree.root
+      .findAll(n => typeof n.props.accessibilityLabel === 'string')
+      .find(n => n.props.accessibilityLabel === label)!;
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('stops counting when the finger comes up', () => {
+    const onChange = jest.fn();
+    const tree = mount(onChange);
+    const up = button(tree, 'Increase Weight');
+
+    ReactTestRenderer.act(() => up.props.onPressIn?.());
+    ReactTestRenderer.act(() => jest.advanceTimersByTime(2000));
+    const whileHeld = onChange.mock.calls.length;
+    expect(whileHeld).toBeGreaterThan(1);
+
+    ReactTestRenderer.act(() => up.props.onPressOut?.());
+    ReactTestRenderer.act(() => jest.advanceTimersByTime(5000));
+
+    expect(onChange).toHaveBeenCalledTimes(whileHeld);
+  });
+
+  it('does not leave an orphaned run when a press-in arrives without its press-out', () => {
+    /**
+     * The bug, exactly.
+     *
+     * `timer.current` holds one handle. A second press-in used to overwrite it
+     * and the chain it replaced went on ticking with nothing left to cancel it
+     * by — so the release stopped the newest run and the orphan counted on
+     * forever. A finger sliding off a button and back on is enough to produce
+     * this.
+     */
+    const onChange = jest.fn();
+    const tree = mount(onChange);
+    const up = button(tree, 'Increase Weight');
+
+    ReactTestRenderer.act(() => up.props.onPressIn?.());
+    ReactTestRenderer.act(() => jest.advanceTimersByTime(1000));
+    // The press-out never arrives; another press-in does.
+    ReactTestRenderer.act(() => up.props.onPressIn?.());
+    ReactTestRenderer.act(() => jest.advanceTimersByTime(1000));
+
+    ReactTestRenderer.act(() => up.props.onPressOut?.());
+    const atRelease = onChange.mock.calls.length;
+
+    ReactTestRenderer.act(() => jest.advanceTimersByTime(10_000));
+    expect(onChange).toHaveBeenCalledTimes(atRelease);
+  });
+
+  it('stops at the bound rather than ticking against it', () => {
+    // The other exit. Held into `max`, the value stops moving — and RN does not
+    // deliver `onPressOut` for a Pressable that went disabled mid-press, so
+    // this run has to end itself.
+    const onChange = jest.fn();
+    const tree = mount(onChange, { value: 79, max: 80, min: 25 });
+    const up = button(tree, 'Increase Weight');
+
+    ReactTestRenderer.act(() => up.props.onPressIn?.());
+    ReactTestRenderer.act(() => jest.advanceTimersByTime(10_000));
+
+    // 79 -> 80 and then nothing: every later step would clamp to the same 80.
+    expect(onChange.mock.calls.map(c => c[0])).toEqual([80]);
+  });
+
+  it('counts in tenths without accumulating float error', () => {
+    const onChange = jest.fn();
+    const tree = mount(onChange, { value: 80, step: 0.1, decimals: 1 });
+    const down = button(tree, 'Decrease Weight');
+
+    ReactTestRenderer.act(() => down.props.onPressIn?.());
+    ReactTestRenderer.act(() => down.props.onPressOut?.());
+
+    // 79.9, not 79.90000000000001.
+    expect(onChange).toHaveBeenCalledWith(79.9);
   });
 });

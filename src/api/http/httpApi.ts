@@ -3,6 +3,8 @@ import type { CommitDraft, NutriCheckApi, RecentPhrase, RecentTile } from '../cl
 import {
   ApiError,
   OfflineError,
+  type ChatReply,
+  type ChatTurn,
   type AudioMimeType,
   type AuthResponse,
   type CreateCustomFood,
@@ -12,6 +14,7 @@ import {
   type FoodSearchResult,
   type FoodSummary,
   type Goal,
+  type GoogleAuthRequest,
   type LoginRequest,
   type LogEntry,
   type QuantityType,
@@ -32,6 +35,7 @@ import {
   type TranscribeResult,
   type UserProfile,
   type WeekSummary,
+  type WeightSeries,
 } from '../types';
 import { toApiError } from './problems';
 import { streamSse } from './sse';
@@ -92,6 +96,27 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
 
     async login(input: LoginRequest) {
       const auth = await transport.request<AuthResponse>('/v1/auth/login', {
+        method: 'POST',
+        body: input,
+        anonymous: true,
+      });
+      await transport.setTokens(auth.tokens);
+      return auth;
+    },
+
+    /**
+     * Anonymous like the other two, and for the same reason: whatever session
+     * this device had is not the authority on who is signing in now. The ID
+     * token is, and it authenticates the request on its own.
+     *
+     * One call, three outcomes, and the client cannot tell them apart — nor
+     * does it need to. `onboarded` on the response is what decides where the
+     * user lands, exactly as it does after a password sign-in, so a returning
+     * Google account goes to Home and a brand new one goes to onboarding
+     * without this knowing which happened.
+     */
+    async signInWithGoogle(input: GoogleAuthRequest) {
+      const auth = await transport.request<AuthResponse>('/v1/auth/google', {
         method: 'POST',
         body: input,
         anonymous: true,
@@ -219,6 +244,43 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
       return transport.request<Goal>('/v1/me/goals');
     },
 
+    // ── weight ───────────────────────────────────────────────────────────────
+
+    /** `GET /v1/me/weight?days=`. */
+    getWeightSeries(days?: number) {
+      return transport.request<WeightSeries>('/v1/me/weight', {
+        query: days === undefined ? undefined : { days: String(days) },
+      });
+    },
+
+    /**
+     * `POST /v1/me/weight`.
+     *
+     * The date defaults HERE rather than on the server, because the server's
+     * today is UTC and would file an evening weigh-in in Auckland under
+     * yesterday. Every other dated call in this client does the same.
+     */
+    logWeight(input: { weightKg: number; date?: string }) {
+      return transport.request<WeightSeries>('/v1/me/weight', {
+        method: 'POST',
+        body: { weightKg: input.weightKg, date: input.date ?? localDate(tz) },
+      });
+    },
+
+    /**
+     * `DELETE /v1/me/weight/:date`.
+     *
+     * The day is a path segment rather than a query parameter because it
+     * identifies the row being removed, and encoded even though a `YYYY-MM-DD`
+     * has nothing in it to escape — a path built by concatenation is a habit
+     * worth keeping honest.
+     */
+    deleteWeight(date: string) {
+      return transport.request<WeightSeries>(`/v1/me/weight/${encodeURIComponent(date)}`, {
+        method: 'DELETE',
+      });
+    },
+
     /** `POST /v1/me/goals` — append-only, never a PUT. */
     setGoal(patch: SetGoal) {
       return transport.request<Goal>('/v1/me/goals', { method: 'POST', body: patch });
@@ -330,6 +392,17 @@ export function createHttpApi(config: HttpApiConfig): NutriCheckApi {
     },
 
     // ── the AI route ─────────────────────────────────────────────────────────
+
+    chat(
+      input: { message: string; history: ChatTurn[]; date: string; tz: string },
+      signal?: AbortSignal,
+    ) {
+      return transport.request<ChatReply>('/v1/chat', {
+        method: 'POST',
+        body: input,
+        signal,
+      });
+    },
 
     interpretMeal(phrase: string, signal?: AbortSignal) {
       // A plain POST, not SSE. The resolver streams because its parse lands

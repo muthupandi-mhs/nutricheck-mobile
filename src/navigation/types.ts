@@ -17,7 +17,7 @@ import type { SuggestedTargets } from '../api/types';
  *
  * `You` is deliberately not here: settings are a place you visit, not a place
  * you live, and a permanent tab spends the scarcest real estate on the screen
- * to say so. It is reached from the avatar in Today's top-right instead.
+ * to say so. It is reached from the avatar in Home's top-right instead.
  *
  * `Ideas` earned a tab where settings did not, because it is a place you
  * return to: what it shows changes every time something is logged, which is the
@@ -25,7 +25,7 @@ import type { SuggestedTargets } from '../api/types';
  * ceiling — a fourth would start to crowd the raised action out of the pill.
  */
 export type TabParamList = {
-  Today: undefined;
+  Home: undefined;
   /**
    * Food suggestions, built from the onboarding profile and what is left of
    * today's targets.
@@ -87,7 +87,7 @@ export type RootStackParamList = {
    * whether it is somebody's first meal or their four hundredth.
    *
    * `first` marks the onboarding pass, and changes three things: the question
-   * at the top, where leaving goes (a reset to Today, since there is a finished
+   * at the top, where leaving goes (a reset to Home, since there is a finished
    * flow underneath) and whether typing is offered as a way out. Everything
    * else — the orb, the halo, the language — is deliberately identical, because
    * the first meal is not a tutorial for a different screen.
@@ -136,14 +136,24 @@ export type RootStackParamList = {
   EntryDetail: { entryId: string };
 
   /**
-   * The history calendar, pushed from Today's masthead.
+   * The history calendar, pushed from Home's masthead.
    *
    * Takes no params. It reads the date the app is already looking at from
    * AppState and writes back through the same store, so a date cannot arrive
    * here by one route and leave by another.
    */
   Calendar: undefined;
-  /** Pushed from Today's top-right avatar, not a tab. */
+  /**
+   * The weight report, pushed from the weight dial on Home.
+   *
+   * Takes no params, including the weight it is about. The dial has a figure in
+   * hand and passing it would look like a saving — but the screen fetches a
+   * series it has to fetch anyway, and a seeded weight would be a second copy
+   * of a number that is about to be refetched, wrong for exactly as long as it
+   * takes to arrive.
+   */
+  Weight: undefined;
+  /** Pushed from Home's top-right avatar, not a tab. */
   You: undefined;
   /**
    * The profile after onboarding — every answer the flow collected, editable.

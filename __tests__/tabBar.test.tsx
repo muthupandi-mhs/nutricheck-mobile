@@ -13,7 +13,7 @@ import { ThemeProvider } from '../src/theme/ThemeProvider';
  */
 
 const routes = [
-  { key: 'today-1', name: 'Today' },
+  { key: 'today-1', name: 'Home' },
   { key: 'ideas-1', name: 'Ideas' },
   { key: 'insights-1', name: 'Insights' },
 ];
@@ -27,7 +27,7 @@ function props(index: number) {
   const emit = jest.fn(() => ({ defaultPrevented: false }));
   const navigate = jest.fn();
   return {
-    state: { index, routes, key: 'tab', routeNames: ['Today', 'Ideas', 'Insights'] },
+    state: { index, routes, key: 'tab', routeNames: ['Home', 'Ideas', 'Insights'] },
     navigation: { emit, navigate },
     emit,
     navigate,
@@ -60,7 +60,7 @@ describe('the floating tab bar', () => {
   it('renders every destination and the action', async () => {
     const { tree } = await render(0);
 
-    expect(byLabel(tree, 'Today').length).toBeGreaterThan(0);
+    expect(byLabel(tree, 'Home').length).toBeGreaterThan(0);
     expect(byLabel(tree, 'Ideas').length).toBeGreaterThan(0);
     expect(byLabel(tree, 'Insights').length).toBeGreaterThan(0);
     expect(byLabel(tree, 'Say what you ate').length).toBeGreaterThan(0);
@@ -89,7 +89,7 @@ describe('the floating tab bar', () => {
   });
 
   it('marks the focused destination selected, so the reader is not left to infer it from colour', async () => {
-    // Index 2, not 1: Ideas sits between Today and Insights. The index is
+    // Index 2, not 1: Ideas sits between Home and Insights. The index is
     // positional, so a tab inserted anywhere but the end moves every one after
     // it -- which is how this test caught the insertion.
     const { tree } = await render(2);
@@ -101,7 +101,7 @@ describe('the floating tab bar', () => {
 
     expect(selected('Insights')).toBe(true);
     expect(selected('Ideas')).toBe(false);
-    expect(selected('Today')).toBe(false);
+    expect(selected('Home')).toBe(false);
 
     await ReactTestRenderer.act(async () => tree.unmount());
   });
@@ -124,7 +124,7 @@ describe('the floating tab bar', () => {
     const { tree } = await render(0, p);
 
     await ReactTestRenderer.act(async () => {
-      byLabel(tree, 'Today')[0]!.props.onClick?.();
+      byLabel(tree, 'Home')[0]!.props.onClick?.();
     });
 
     // Asserted first, so the expectation below cannot pass merely because the
@@ -133,7 +133,7 @@ describe('the floating tab bar', () => {
       expect.objectContaining({ type: 'tabPress', target: 'today-1' }),
     );
     // Re-entering the current tab would reset its scroll position and, on
-    // Today, refetch the day for nothing.
+    // Home, refetch the day for nothing.
     expect(p.navigate).not.toHaveBeenCalled();
 
     await ReactTestRenderer.act(async () => tree.unmount());

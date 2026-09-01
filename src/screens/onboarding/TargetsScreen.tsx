@@ -94,7 +94,7 @@ export function TargetsScreen({ navigation, route }: ScreenProps<'OnboardTargets
     setSaving(false);
 
     // Main goes underneath, so speaking (which ends at the confirm sheet) and
-    // skipping both land on Today with no onboarding left to swipe back into.
+    // skipping both land on Home with no onboarding left to swipe back into.
     navigation.reset({
       index: 1,
       routes: [{ name: 'Main' }, { name: 'Listen', params: { first: true } }],

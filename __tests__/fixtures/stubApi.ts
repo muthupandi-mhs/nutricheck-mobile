@@ -10,6 +10,7 @@ import type {
   Nutrients,
   UserProfile,
   WeekSummary,
+  WeightSeries,
 } from '../../src/api/types';
 
 /**
@@ -146,6 +147,15 @@ export function createStubApi(): NutriCheckApi {
     expiresIn: 900,
   };
 
+  const WEIGHT: WeightSeries = {
+    points: Array.from({ length: 8 }, (_, i) => ({
+      date: `2026-0${i < 4 ? 7 : 8}-${String(i < 4 ? 8 + i * 7 : (i - 4) * 7 + 5).padStart(2, '0')}`,
+      weightKg: Number((82 - i * 0.4).toFixed(1)),
+    })),
+    current: { date: '2026-08-26', weightKg: 79.2 },
+    start: { date: '2026-07-08', weightKg: 82 },
+    trend: { kgPerWeek: -0.4, deltaKg: -2.8, spanDays: 49, intendedKgPerWeek: -0.5 },
+  };
   return {
     // Unregistered by default: the stub's job is to let screens render, and the
     // sign-up half of the flow is the one with more on it to draw.
@@ -163,6 +173,10 @@ export function createStubApi(): NutriCheckApi {
   }),
     register: async () => ({ user: { ...session, onboarded: false }, tokens }),
     login: async () => ({ user: session, tokens }),
+    // Returns an ONBOARDED user, unlike `register`. A Google sign-in is far
+    // more often a returning account than a new one — it is the one door
+    // somebody who already has an account reaches for without thinking.
+    signInWithGoogle: async () => ({ user: session, tokens }),
     getSession: async () => session,
     logout: async () => {},
 
@@ -181,6 +195,21 @@ export function createStubApi(): NutriCheckApi {
     getGoal: async () => GOAL,
     setGoal: async () => GOAL,
 
+    /**
+     * Eight readings a week apart, drifting down — enough for the chart to draw
+     * a line, the fit to have a slope, and the pace note to have something to
+     * compare against. A single reading would render the screen's other half.
+     */
+    getWeightSeries: async (): Promise<WeightSeries> => WEIGHT,
+    logWeight: async ({ weightKg }: { weightKg: number }): Promise<WeightSeries> => ({
+      ...WEIGHT,
+      current: { date: '2026-08-26', weightKg },
+    }),
+
+    deleteWeight: async (): Promise<WeightSeries> => ({
+      ...WEIGHT,
+      points: WEIGHT.points.slice(0, -1),
+    }),
     getDay: async (date: string) => day(date),
     getWeek: async (endingOn: string): Promise<WeekSummary> => ({
       from: '2026-08-20',
@@ -233,6 +262,10 @@ export function createStubApi(): NutriCheckApi {
      * these identically to measured foods is a screen with a bug, and a fixture
      * that made them look the same could never catch it.
      */
+    // The assistant answers, and answers nothing: a stub that logged a meal
+    // on every message would make every screen test that opens the sheet
+    // navigate somewhere.
+    chat: async () => ({ text: 'I can only see today.', log: null }),
     interpretMeal: async (phrase: string) => ({
       draftId: '77777777-7777-4777-8777-777777777777',
       phrase,

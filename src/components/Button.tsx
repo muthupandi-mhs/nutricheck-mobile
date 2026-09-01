@@ -47,6 +47,7 @@ export function Button({
   variant = 'primary',
   size = 'lg',
   icon,
+  leading,
   iconRight,
   disabled,
   loading,
@@ -61,6 +62,18 @@ export function Button({
   variant?: Variant;
   size?: Size;
   icon?: IconName;
+  /**
+   * A mark that is not part of the Icon set, drawn in place of `icon`.
+   *
+   * Exists for exactly one thing: a third-party brand mark. The Icon set is a
+   * single-colour stroke system that recolours to `fg`, and a provider's logo
+   * is neither — Google's terms require their G to be drawn in its own four
+   * colours, unmodified. Adding it to `IconName` would put a mark we are not
+   * allowed to restyle inside the one system whose whole job is restyling.
+   *
+   * Not a general slot. Anything that CAN be an Icon should be one.
+   */
+  leading?: React.ReactNode;
   iconRight?: IconName;
   disabled?: boolean;
   loading?: boolean;
@@ -126,6 +139,7 @@ export function Button({
           <ActivityIndicator size="small" color={fg} />
         ) : (
           <>
+            {leading}
             {icon && <Icon name={icon} size={iconSize} color={fg} weight={2.1} />}
             <Txt role={size === 'sm' ? 'buttonSm' : 'button'} color={fg} caps numberOfLines={1}>
               {label}

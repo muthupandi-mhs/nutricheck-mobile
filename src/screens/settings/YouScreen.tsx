@@ -11,6 +11,7 @@ import { Press } from '../../components/Press';
 import { Header, Screen } from '../../components/Screen';
 import { SectionLabel, Txt } from '../../components/Text';
 import { kcal } from '../../lib/format';
+import { endGoogleSession } from '../../lib/googleSession';
 import { ACTIVITY, ageFrom, OBJECTIVE_LABEL } from '../../lib/nutrition';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { UserProfile } from '../../api/types';
@@ -191,6 +192,13 @@ export function YouScreen({ navigation }: ScreenProps<'You'>) {
                   title="Sign out"
                   onPress={async () => {
                     await api.logout();
+                    // Google's session outlives ours. Without this the next
+                    // "Continue with Google" reuses this account with no
+                    // chooser — so the phone with two accounts on it, or one
+                    // being handed over, cannot actually switch. Here rather
+                    // than in the transport on purpose: this is the
+                    // deliberate "I want out", not an expired token.
+                    await endGoogleSession();
                     // On the root stack itself now — there is no parent to reach for.
                     navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
                   }}

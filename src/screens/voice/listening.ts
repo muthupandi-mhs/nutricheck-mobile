@@ -8,7 +8,7 @@ import type { SpeechFailure } from '../../lib/speech';
  * The parts of listening that both doors need.
  *
  * There are two: the full screen onboarding ends on, and the panel the mic
- * button raises over Today. They are deliberately different compositions — one
+ * button raises over Home. They are deliberately different compositions — one
  * is a moment, the other is a thing you pull up mid-task — but the words and
  * the motion have to be the same in both, and a copy of either in the other
  * file is a copy that will drift the first time one is edited.

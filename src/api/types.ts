@@ -20,6 +20,21 @@ export type CheckEmailRequest = { email: string };
 export type CheckEmailResponse = { registered: boolean };
 
 /**
+ * Sign in with Google — one call that covers signing in, signing up, and
+ * attaching Google to an account that already exists with a password.
+ *
+ * The ID token and nothing else. Not the email, not the name: those are claims
+ * inside the token, and the server reads them from the signature it verified
+ * rather than from a body this client could have written. An `email` field
+ * beside this one would be an account-takeover primitive.
+ *
+ * There is no `check-email` step in front of it and no `registered` flag out of
+ * it — Google already knows which case this is, so the three outcomes are the
+ * server's to decide from a token it checked.
+ */
+export type GoogleAuthRequest = { idToken: string };
+
+/**
  * Length is the only rule. Composition rules reduce entropy in practice (NIST
  * SP 800-63B advises against them); the upper bound stops Argon2id being asked
  * to hash a megabyte.
@@ -50,6 +65,27 @@ export const NAME_MAX = 60;
  * unbounded thing a user can hand this app.
  */
 export const PHRASE_MAX = 500;
+
+/**
+ * One turn of the assistant in the microphone sheet.
+ *
+ * The conversation lives in the sheet and dies with it. That is a limit rather
+ * than an oversight: a durable transcript of everything anybody has ever said
+ * to this app is a retention decision nobody has taken, and what makes the
+ * feature useful is the exchange happening right now about the day on screen.
+ */
+export type ChatTurn = { role: 'user' | 'agent'; text: string };
+
+export type ChatReply = {
+  /** What to show. One or two sentences — this is a panel, not a page. */
+  text: string;
+  /**
+   * Set when the message was a meal rather than a question, carrying the
+   * user's own words. Nothing is logged by this: the phrase goes to the same
+   * read-back screen a spoken meal does, and still needs a deliberate tap.
+   */
+  log: { phrase: string } | null;
+};
 
 /** `contracts/src/food.ts` — the search query. Longer is not a search. */
 export const SEARCH_MAX = 120;
@@ -409,6 +445,58 @@ export type UserProfile = {
   /** kg per week; sign implied by `objective`. 0 when maintaining. */
   rateKgPerWeek: number;
   units: 'metric' | 'imperial';
+};
+
+// ── weight ───────────────────────────────────────────────────────────────────
+
+/** One reading. `date` is the LOCAL day it was taken, never a UTC instant. */
+export type WeightPoint = {
+  date: string;
+  weightKg: number;
+};
+
+/**
+ * The movement, measured on the server rather than fitted here.
+ *
+ * `kgPerWeek` is a least-squares slope over the window, not last-minus-first
+ * over the span — weight is noisy enough at the scale people weigh themselves
+ * that two endpoints let one dehydrated Tuesday claim a trend. `deltaKg` is
+ * the plain subtraction, kept beside it because it is the figure people check
+ * the fit against.
+ *
+ * Signed, never normalized against the objective: negative is losing, for
+ * somebody trying to lose and somebody trying to gain alike.
+ */
+export type WeightTrend = {
+  kgPerWeek: number;
+  deltaKg: number;
+  spanDays: number;
+  /**
+   * The rate the profile asked for, already signed. Null when maintaining,
+   * because there is no intended rate to be behind or ahead of.
+   *
+   * Sent rather than derived here from `objective` and `rateKgPerWeek`: the
+   * sign convention belongs with the figure, and a client that rebuilds it is a
+   * second place to get it backwards.
+   */
+  intendedKgPerWeek: number | null;
+};
+
+/**
+ * Everything the weight screen draws, in one response.
+ *
+ * `current` and `start` may both sit OUTSIDE `points`. Someone who has not
+ * weighed themselves in four months still has a weight, and a screen that
+ * showed a dash because the reading fell off the left of the chart would be
+ * forgetting something it knows.
+ */
+export type WeightSeries = {
+  /** Oldest first, one per day, only the days actually logged. */
+  points: WeightPoint[];
+  current: WeightPoint | null;
+  start: WeightPoint | null;
+  /** Null until two readings on different days give a line to draw. */
+  trend: WeightTrend | null;
 };
 
 export type Goal = {

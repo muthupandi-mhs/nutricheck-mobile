@@ -12,7 +12,7 @@ import { Press } from './Press';
 import { Txt } from './Text';
 
 const ICONS: Record<string, IconName> = {
-  Today: 'home',
+  Home: 'home',
   // The same mark every AI surface in the app carries. Ideas is the only
   // destination whose contents a model wrote, and the icon says so before
   // the tap rather than after it.

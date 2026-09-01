@@ -82,6 +82,17 @@ export type Palette = {
   glyph: string[];
   /** A two-stop wash for a full-bleed background. A few points of shift, never a visible band. */
   wash: [string, string];
+  /**
+   * The grey the top of a page is lit with — and, at the same strength, the
+   * face of anything sitting up there.
+   *
+   * Always laid ON the canvas with an alpha, never painted solid: at full
+   * strength it is lighter than the ink standing on it. It is a token rather
+   * than a constant in one screen because the dials have to be lit by the same
+   * light as the page behind them, or they read as discs cut out of a
+   * different material and pasted on.
+   */
+  lift: string;
 };
 
 /**
@@ -152,6 +163,7 @@ const palette: Palette = {
   // of them appearing to mean something. They were faintly blue and violet.
   glyph: ['#15181B', '#17191C', '#141719', '#181B1E', '#16191B', '#1A1D20'],
   wash: ['#0B0C0E', '#171B1F'],
+  lift: '#D3D3D3',
 };
 
 export { palette };
